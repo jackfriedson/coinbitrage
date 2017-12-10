@@ -10,7 +10,7 @@ from coinbitrage.exchanges.base import BaseExchangeAPI
 from coinbitrage.exchanges.errors import ClientError, ServerError
 from coinbitrage.exchanges.interfaces import WebsocketInterface
 from coinbitrage.exchanges.types import OHLC, Order, OrderBook, Timestamp, Trade
-from coinbitrage.settings import DEFAULT_QUOTE_CURRENCY, REQUESTS_TIMEOUT
+from coinbitrage.settings import CURRENCIES, DEFAULT_QUOTE_CURRENCY, REQUESTS_TIMEOUT
 
 
 log = bitlogging.getLogger(__name__)
@@ -118,23 +118,23 @@ class BitExRESTAdapter(BaseExchangeAPI):
 
     def limit_order(self,
                     base_currency: str,
-                    buy_sell: str,
+                    side: str,
                     price: float,
                     volume: float,
                     quote_currency: str = DEFAULT_QUOTE_CURRENCY,
                     **kwargs) -> Optional[str]:
-        order_fn_name = 'bid' if buy_sell == 'buy' else 'ask'
+        order_fn_name = 'bid' if side == 'buy' else 'ask'
         order_fn = self._wrapped_bitex_method(order_fn_name)
         result = order_fn(base_currency, price, volume, quote_currency=quote_currency, **kwargs)
-        event_data = {'exchange': self.name, 'buy_sell': buy_sell, 'volume': volume, 'price': price,
+        event_data = {'exchange': self.name, 'side': side, 'volume': volume, 'price': price,
                       'base': base_currency, 'quote': quote_currency}
         if result:
             event_data.update({'order_id': result})
-            log.info('Placed {buy_sell} order with {exchange} for {volume} {base} @ {price} {quote}',
+            log.info('Placed {side} order with {exchange} for {volume} {base} @ {price} {quote}',
                      event_data=event_data,
                      event_name='order.placed.success')
         else:
-            log.info('Unable to place {buy_sell} order with {exchange} for {volume} {base} @ {price} {quote}',
+            log.info('Unable to place {side} order with {exchange} for {volume} {base} @ {price} {quote}',
                      event_name='order.placed.failure', event_data=event_data)
         return result
 
@@ -142,6 +142,7 @@ class BitExRESTAdapter(BaseExchangeAPI):
         return self._wrapped_bitex_method('deposit_address')(currency=currency)
 
     def withdraw(self, currency: str, address: str, amount: float, **kwargs) -> bool:
+        assert amount >= CURRENCIES[currency]['min_transfer_size']
         event_data = {'exchange': self.name, 'amount': amount, 'currency': currency}
         result = self._wrapped_bitex_method('withdraw')(amount, address, currency=currency)
         if result:

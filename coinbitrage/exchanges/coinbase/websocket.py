@@ -36,18 +36,14 @@ class CoinbaseWebsocket(BaseWebsocketAdapter):
         while self.websocket_running.is_set():
             try:
                 data = json.loads(connection.recv())
-            except (WebSocketTimeoutException, ConnectionResetError) as e:
-                log.warning('Websocket connection error: {exc}; Restarting...',
+            except (WebSocketTimeoutException, WebSocketConnectionClosedException,
+                    ConnectionResetError) as e:
+                log.warning('Websocket connection error: {exception}; Restarting...',
                             event_name='coinbase_websocket.connection_error',
-                            event_data={'exc': e})
+                            event_data={'exception': e})
                 self._controller_queue.put('restart')
-            except WebSocketConnectionClosedException as e:
-                log.warning('Websocket closed; restarting...',
-                            event_name='coinbase_websocket.connection_closed_error',
-                            event_data={'exc': e})
-                self._controller_queue.put('start')
-
-            if 'product_id' in data:
-                data_tuple = (data['product_id'], data, time.time())
-                formatted = self._formatters[data['type']](data_tuple)
-                self.queue.put(formatted)
+            else:
+                if 'product_id' in data:
+                    data_tuple = (data['product_id'], data, time.time())
+                    formatted = self._formatters[data['type']](data_tuple)
+                    self.queue.put(formatted)

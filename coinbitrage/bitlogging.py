@@ -61,10 +61,16 @@ class OrderFilter(logging.Filter):
 
 
 class OrderFormatter(logging.Formatter):
+    _fmt = '{asctime} {event_name:20} -- {exchange} {side} ' + \
+           '{volume} {base} @ {price} {quote}{order_id}'
 
     @classmethod
     def create(cls, *args, **kwargs):
         return cls(*args, **kwargs)
 
     def format(self, record: logging.LogRecord) -> str:
-        return 'TODO'
+        asctime = self.formatTime(record, datefmt='%Y-%m-%d %H:%M:%S')
+        order_id = record.event_data.pop('order_id', None)
+        order_id_str = ' ({})'.format(order_id) if order_id else ''
+        return self.fmt.format(asctime=asctime, event_name=record.event_name,
+                               order_id=order_id_str, **record.event_data)

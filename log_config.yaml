@@ -16,7 +16,7 @@ formatters:
     format: '%(asctime)s %(levelname)-8s %(message)s'
     datefmt: '%Y-%m-%d %H:%M:%S'
   detail:
-    format: '%(asctime)s %(levelname)-8s %(name)s (%(threadName)s): %(event_name)s -- %(event_data)s'
+    format: '%(asctime)s %(levelname)-8s %(name)s (%(threadName)s): %(message)s -- %(event_name)s %(event_data)s'
     datefmt: '%Y-%m-%d %H:%M:%S'
   order:
     (): coinbitrage.bitlogging.OrderFormatter.create

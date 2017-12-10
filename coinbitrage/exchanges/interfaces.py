@@ -102,7 +102,7 @@ class PrivateExchangeAPI(ExchangeBase):
 
     def limit_order(self,
                     base_currency: str,
-                    buy_sell: str,
+                    side: str,
                     price: float,
                     volume: float,
                     quote_currency: str = DEFAULT_QUOTE_CURRENCY,
@@ -110,7 +110,7 @@ class PrivateExchangeAPI(ExchangeBase):
         """Places a limit order at the specified price.
 
         :param base_currency:
-        :param buy_sell: whether or not the order is a 'buy' or a 'sell'
+        :param side: whether or not the order is a 'buy' or a 'sell'
         :param price: the asking price of the order
         :param volume: how many units of the base currency to buy/sell
         :param quote_currency:

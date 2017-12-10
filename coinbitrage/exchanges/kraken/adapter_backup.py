@@ -91,7 +91,7 @@ class KrakenAPIAdapter(PublicMarketAPI, PrivateExchangeAPI):
             'timestamp': t[2],
             'price': float(t[0]),
             'amount': float(t[1]),
-            'buy_sell': t[3],
+            'side': t[3],
             'type': t[4],
             'misc': t[5]
         } for t in data]
@@ -187,18 +187,18 @@ class KrakenAPIAdapter(PublicMarketAPI, PrivateExchangeAPI):
     def _place_order(self,
                      order_type,
                      base_currency,
-                     buy_sell,
+                     side,
                      volume,
                      quote_currency='USD',
                      **kwargs):
         pair = self.currency_pair(base_currency, quote_currency)
-        resp = self.api.add_standard_order(pair, buy_sell, order_type, volume, **kwargs)
+        resp = self.api.add_standard_order(pair, side, order_type, volume, **kwargs)
 
         txid = resp['txid']
         order_data = {
             'id': txid,
             'pair': pair,
-            'buy_sell': buy_sell,
+            'side': side,
             'order_type': order_type,
             'volume': volume
         }
@@ -210,36 +210,36 @@ class KrakenAPIAdapter(PublicMarketAPI, PrivateExchangeAPI):
 
         return order_data
 
-    def market_order(self, base_currency, buy_sell, volume, **kwargs):
+    def market_order(self, base_currency, side, volume, **kwargs):
         """
         :returns: txid of the placed order
         """
-        return self._place_order('market', base_currency, buy_sell, volume, **kwargs)
+        return self._place_order('market', base_currency, side, volume, **kwargs)
 
-    def limit_order(self, base_currency, buy_sell, price, volume, **kwargs):
-        return self._place_order('limit', base_currency, buy_sell, volume, price=price, **kwargs)
+    def limit_order(self, base_currency, side, price, volume, **kwargs):
+        return self._place_order('limit', base_currency, side, volume, price=price, **kwargs)
 
-    def stop_loss_order(self, base_currency, buy_sell, price, volume, **kwargs):
-        return self._place_order('stop-loss', base_currency, buy_sell, volume, price=price, **kwargs)
+    def stop_loss_order(self, base_currency, side, price, volume, **kwargs):
+        return self._place_order('stop-loss', base_currency, side, volume, price=price, **kwargs)
 
-    def stop_loss_limit_order(self, base_currency, buy_sell, stop_loss_price, limit_price, volume, **kwargs):
-        return self._place_order('stop-loss-limit', base_currency, buy_sell, volume, price=stop_loss_price,
+    def stop_loss_limit_order(self, base_currency, side, stop_loss_price, limit_price, volume, **kwargs):
+        return self._place_order('stop-loss-limit', base_currency, side, volume, price=stop_loss_price,
                                  price2=limit_price, **kwargs)
 
-    def take_profit_order(self, base_currency, buy_sell, price, volume, **kwargs):
-        return self._place_order('take-profit', base_currency, buy_sell, volume, price=price, **kwargs)
+    def take_profit_order(self, base_currency, side, price, volume, **kwargs):
+        return self._place_order('take-profit', base_currency, side, volume, price=price, **kwargs)
 
-    def take_profit_limit_order(self, base_currency, buy_sell, take_profit_price, limit_price, volume, **kwargs):
-        return self._place_order('take-profit-limit', base_currency, buy_sell, volume,
+    def take_profit_limit_order(self, base_currency, side, take_profit_price, limit_price, volume, **kwargs):
+        return self._place_order('take-profit-limit', base_currency, side, volume,
                                  price=take_profit_price, price2=limit_price, **kwargs)
 
-    def trailing_stop_order(self, base_currency, buy_sell, trailing_stop_offset, volume, **kwargs):
-        return self._place_order('trailing-stop', base_currency, buy_sell, volume,
+    def trailing_stop_order(self, base_currency, side, trailing_stop_offset, volume, **kwargs):
+        return self._place_order('trailing-stop', base_currency, side, volume,
                                  price=trailing_stop_offset, **kwargs)
 
-    def trailing_stop_limit_order(self, base_currency, buy_sell, trailing_stop_offset, limit_offset,
+    def trailing_stop_limit_order(self, base_currency, side, trailing_stop_offset, limit_offset,
                                   volume, **kwargs):
-        return self._place_order('trailing-stop-limit', base_currency, buy_sell, volume,
+        return self._place_order('trailing-stop-limit', base_currency, side, volume,
                                  price=trailing_stop_offset, price2=limit_offset, **kwargs)
 
     def cancel_order(self, order_id):

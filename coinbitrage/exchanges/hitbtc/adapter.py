@@ -23,6 +23,7 @@ class HitBTCAdapter(BitExRESTAdapter, SeparateTradingAccountMixin):
         resp = self._api.private_query('account/balance', method_verb='GET')
         return {val['currency']: float(val['available']) for val in resp.json()}
 
+    @retry_on_exception(Timeout, ServerError)
     def _transfer_between_accounts(self, to_trading: bool, currency: str, amount: float):
         direction = 'bankToExchange' if to_trading else 'exchangeToBank'
         params = {'currency': currency, 'amount': amount, 'type': direction}

@@ -24,7 +24,7 @@ Order = Dict[str, Any]
     {
         'id': ...,
         'status': ...,
-        'buy_sell': ...,
+        'side': ...,
         'ask_price': ...,
         'volume': ...,
         'fill_price': ...,

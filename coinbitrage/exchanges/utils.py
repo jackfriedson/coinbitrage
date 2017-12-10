@@ -53,12 +53,12 @@ def retry_on_exception(*exc_classes, max_retries: int = 3, backoff_factor: float
             if retries >= max_retries:
                 log.debug('Max number of retries exceeded, raising...',
                           event_name='retry_handler.max_retries_exceeded',
-                          event_data={'exc': e, 'max_retries': max_retries})
+                          event_data={'exception': e, 'max_retries': max_retries})
                 raise
             retries += 1
-            log.debug('Caught {exc} -- Retrying in {backoff} seconds...',
+            log.debug('Caught {exception} -- Retrying in {backoff} seconds...',
                       event_name='retry_handler.will_retry',
-                      event_data={'exc': exc, 'backoff': backoff, 'try_num': retries})
+                      event_data={'exception': e, 'backoff': backoff, 'try_num': retries})
             time.sleep(backoff)
             backoff *= 2
         else:

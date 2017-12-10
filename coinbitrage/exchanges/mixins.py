@@ -94,9 +94,9 @@ class PeriodicRefreshMixin(LiveUpdateMixin):
             try:
                 ticker = self.ticker(self._base, quote_currency=self._quote)
             except RequestException as e:
-                log.warning('Exception while connecting to {exchange}: {exc}',
+                log.warning('Exception while connecting to {exchange}: {exception}',
                             event_name='refresh_mixin.request_error',
-                            event_data={'exchange': self.name, 'exc': e})
+                            event_data={'exchange': self.name, 'exception': e})
             else:
                 bid_ask = {
                     'bid': ticker.get('bid'),
