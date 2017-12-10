@@ -13,8 +13,7 @@ if __name__ == '__main__':
                              base_currency='ETH',
                              quote_currency='BTC',
                              min_base_balance=0.05,
-                             min_quote_balance=0.001,
-                             min_profit=0.)
+                             min_quote_balance=0.001)
     engine.run()
 
     # from coinbitrage.exchanges import get_exchange

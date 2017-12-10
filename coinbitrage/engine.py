@@ -72,7 +72,6 @@ class ArbitrageEngine(object):
         try:
             self._transfer_to_trading_accounts()
             await self._update_exchange_balances()
-            self._update_total_balances()
             self._redistribute_funds()
             await self._update_active_exchanges()
             await asyncio.sleep(REBALANCE_FUNDS_EVERY)
@@ -89,6 +88,7 @@ class ArbitrageEngine(object):
         futures = [self._get_balance_async(name, exchg) for name, exchg in self._exchanges.items()]
         results = await asyncio.gather(*futures)
         self._exchange_balances = {name: balance for name, balance in results}
+        self._update_total_balances()
 
     async def _arbitrage(self, loop):
         try:
