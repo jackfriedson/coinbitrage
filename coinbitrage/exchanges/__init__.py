@@ -2,7 +2,7 @@ from coinbitrage import settings
 
 from .bitfinex import BitfinexAPIAdapter as Bitfinex
 from .bitstamp import BitstampClient as Bitstamp
-from .hitbtc import HitBTCAdapter as HitBTC
+from .hitbtc import HitBTCClient as HitBTC
 from .coinbase import CoinbaseClient as Coinbase
 from .kraken import KrakenAPIAdapter as Kraken
 from .poloniex import PoloniexClient as Poloniex

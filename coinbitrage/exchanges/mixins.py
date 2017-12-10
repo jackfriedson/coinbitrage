@@ -93,14 +93,19 @@ class PeriodicRefreshMixin(LiveUpdateMixin):
         while self._running.is_set():
             pair = self.pair(self._base, self._quote)
             try:
-                raw_data = self.ticker(self._base, quote_currency=self._quote)
+                ticker = self.ticker(self._base, quote_currency=self._quote)
             except RequestException as e:
                 log.warning('Exception while connecting to {exchange}: {exc}',
                             event_name='refresh_mixin.request_error',
                             event_data={'exchange': self.name, 'exc': e})
             else:
+                bid_ask = {
+                    'bid': ticker.get('bid'),
+                    'ask': ticker.get('ask'),
+                    'time': ticker.get('time', time.time())
+                }
                 with self._lock:
-                    self._bid_ask = self._formatters['ticker'](raw_data)
+                    self._bid_ask = bid_ask
                     log.debug('{exchange} {bid_ask}', event_name='refresh_mixin.update',
                               event_data={'exchange': self.name, 'bid_ask': format_bid_ask(self._bid_ask)})
             time.sleep(self._interval)
@@ -112,3 +117,24 @@ class PeriodicRefreshMixin(LiveUpdateMixin):
             # TODO: do we actually need to acquire the lock here?
             # should we be creating a copy of the dict instead of passing a reference?
             return self._bid_ask
+
+
+class SeparateTradingAccountMixin(object):
+
+    def bank_balance(self) -> Dict[str, float]:
+        raise NotImplementedError
+
+    def _transfer_between_accounts(self, to_trading: bool, currency: str, amount: float):
+        raise NotImplementedError
+
+    def bank_to_trading(self, currency: str, amount: float) -> bool:
+        log.info('Transferring {amount} {currency} from {exchange} bank to trading account',
+                 event_name='exchange_api.transfer.bank_to_trading',
+                 event_data={'amount': amount, 'currency': currency, 'exchange': self.name})
+        return self._transfer_between_accounts(True, currency, amount)
+
+    def trading_to_bank(self, currency: str, amount: float) -> bool:
+        log.info('Transferring {amount} {currency} from {exchange} trading account to bank',
+                 event_name='exchange_api.transfer.trading_to_bank',
+                 event_data={'amount': amount, 'currency': currency, 'exchange': self.name})
+        return self._transfer_between_accounts(False, currency, amount)

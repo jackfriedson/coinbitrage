@@ -5,7 +5,7 @@ from coinbitrage.engine import ArbitrageEngine
 bitlogging.configure()
 
 
-EXCHANGES = ['bitstamp', 'coinbase', 'poloniex']
+EXCHANGES = ['bitstamp', 'coinbase', 'hitbtc', 'poloniex']
 
 
 if __name__ == '__main__':
@@ -16,3 +16,9 @@ if __name__ == '__main__':
                              min_quote_balance=0.001,
                              min_profit=0.)
     engine.run()
+
+    # from coinbitrage.exchanges import get_exchange
+    # bitstamp = get_exchange('bitstamp')
+    # coinbase = get_exchange('coinbase')
+    # hitbtc = get_exchange('hitbtc')
+    # import ipdb; ipdb.set_trace()

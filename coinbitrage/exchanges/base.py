@@ -2,7 +2,7 @@ import logging
 from typing import Dict, List, Tuple, Union
 
 from coinbitrage import bitlogging
-from coinbitrage.settings import DEFAULT_QUOTE_CURRENCY
+from coinbitrage.settings import DEFAULT_FEE, DEFAULT_QUOTE_CURRENCY
 from coinbitrage.exchanges.interfaces import PublicMarketAPI, PrivateExchangeAPI
 
 
@@ -22,6 +22,11 @@ class BaseExchangeAPI(object):
     def unpair(currency_pair: str) -> Tuple[str, str]:
         base, quote = currency_pair[:len(currency_pair)/2], currency_pair[len(currency_pair)/2:]
         return base.upper(), quote.upper()
+
+    def fee(self,
+            base_currency: str,
+            quote_currency: str = DEFAULT_QUOTE_CURRENCY) -> float:
+        return DEFAULT_FEE
 
     def get_funds_from(self, from_exchange: PrivateExchangeAPI, currency: str, amount: float) -> bool:
         event_data = {'amount': amount, 'currency': currency, 'from_exchange': from_exchange.name,

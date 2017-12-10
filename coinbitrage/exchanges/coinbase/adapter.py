@@ -9,7 +9,7 @@ from coinbitrage.exchanges import utils
 from coinbitrage.exchanges.base import BaseExchangeClient
 from coinbitrage.exchanges.bitex import BitExRESTAdapter
 from coinbitrage.exchanges.interfaces import PrivateExchangeAPI
-from coinbitrage.exchanges.mixins import WebsocketMixin
+from coinbitrage.exchanges.mixins import SeparateTradingAccountMixin, WebsocketMixin
 from coinbitrage.settings import DEFAULT_QUOTE_CURRENCY
 
 from .websocket import CoinbaseWebsocket
@@ -17,7 +17,7 @@ from .websocket import CoinbaseWebsocket
 log = bitlogging.getLogger(__name__)
 
 
-class CoinbaseAPIAdapter(BitExRESTAdapter):
+class CoinbaseAPIAdapter(BitExRESTAdapter, SeparateTradingAccountMixin):
     _api_class = GDAX
     _fees = {
         'BTC': 0.0025,
@@ -45,29 +45,17 @@ class CoinbaseAPIAdapter(BitExRESTAdapter):
         new_address = self._coinbase_client.create_address(account_id).address
         return new_address
 
-    def _gdax_transfer(self, to_gdax: bool, currency: str, amount: float):
-        endpoint = 'deposits' if to_gdax else 'withdrawals'
+    def _transfer_between_accounts(self, to_trading: bool, currency: str, amount: float):
+        endpoint = 'deposits' if to_trading else 'withdrawals'
         params = {
             'amount': str(amount),
             'currency': currency,
             'coinbase_account_id': self._account_ids[currency]
         }
-        return self._api.private_query('{}/coinbase-account'.format(endpoint),
-                                       params=params)
+        resp = self._api.private_query('{}/coinbase-account'.format(endpoint), params=params)
+        return 'id' in resp.json()
 
-    def coinbase_to_gdax(self, currency: str, amount: float):
-        log.info('Transferring {amount} {currency} from Coinbase to GDAX',
-                 event_name='exchange_api.coinbase_to_gdax_transfer',
-                 event_data={'amount': amount, 'currency': currency})
-        return self._gdax_transfer(True, currency, amount)
-
-    def gdax_to_coinbase(self, currency: str, amount: float):
-        log.info('Transferring {amount} {currency} from GDAX to Coinbase',
-                 event_name='exchange_api.gdax_to_coinbase_transfer',
-                 event_data={'amount': amount, 'currency': currency})
-        return self._gdax_transfer(False, currency, amount)
-
-    def coinbase_balance(self) -> Dict[str, float]:
+    def bank_balance(self) -> Dict[str, float]:
         resp = self._coinbase_client.get_accounts()
         return {
             acct['balance']['currency']: float(acct['balance']['amount'])

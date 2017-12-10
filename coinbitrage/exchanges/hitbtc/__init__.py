@@ -1,1 +1,1 @@
-from .adapter import HitBTCAdapter
+from .adapter import HitBTCAdapter, HitBTCClient

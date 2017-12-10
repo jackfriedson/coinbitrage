@@ -57,13 +57,6 @@ class PoloniexAPIAdapter(BitExRESTAdapter):
 class PoloniexClient(BaseExchangeClient, PeriodicRefreshMixin):
     name = 'poloniex'
     _api_class = PoloniexAPIAdapter
-    _formatters = {
-        'ticker': lambda x: {
-            'bid': float(x[0]),
-            'ask': float(x[1]),
-            'time': time.time(),
-        }
-    }
 
     def __init__(self, key_file: str):
         BaseExchangeClient.__init__(self, key_file)

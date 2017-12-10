@@ -20,6 +20,21 @@ class BitExFormatter(object):
     def __getattr__(self, name):
         return lambda x: x
 
+    def ticker(self, data):
+        result = {
+            'bid': data[0],
+            'ask': data[1],
+            'high': data[2],
+            'low': data[3],
+            'open': data[4],
+            'close': data[5],
+            'last': data[6],
+            'volume': data[7],
+            'time': data[8]
+        }
+        result = {k: float(v) for k, v in result.items() if v}
+        return result
+
     def trades(self, data) -> List[Trade]:
         return [{
             'id': None,
@@ -78,11 +93,11 @@ class BitExRESTAdapter(BaseExchangeAPI):
             except HTTPError as e:
                 if resp.status_code >= 400 and resp.status_code < 500:
                     log.error('Encountered an HTTP error ({status_code}): {response}',
-                              event_data={'status_code': resp.status_code, 'response': resp.json()},
+                              event_data={'status_code': resp.status_code, 'response': resp.content},
                               event_name='exchange_api.http_error.client')
                 else:
                     log.warning('Encountered an HTTP error ({status_code}): {response}',
-                                event_data={'status_code': resp.status_code, 'response': resp.json()},
+                                event_data={'status_code': resp.status_code, 'response': resp.content},
                                 event_name='exchange_api.http_error.server')
                 raise e
             except RequestException as e:
@@ -128,7 +143,7 @@ class BitExRESTAdapter(BaseExchangeAPI):
     def withdraw(self, currency: str, address: str, amount: float, **kwargs) -> bool:
         result = self._wrapped_bitex_method('withdraw')(amount, address, currency=currency)
         if result:
-            event_data = {'exchange': self.name}
+            event_data = {'exchange': self.name, 'amount': amount, 'currency': currency}
             event_data.update(result)
             log.info('Withdrew {amount} {currency} from {exchange}', event_data=event_data,
                      event_name='exchange_api.withdraw.success')

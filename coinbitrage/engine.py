@@ -1,11 +1,8 @@
 import asyncio
 import logging
-import queue
 import time
-from collections import defaultdict
 from contextlib import contextmanager
 from functools import partial
-from itertools import count
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import matplotlib.pyplot as plt
@@ -15,7 +12,7 @@ from requests.exceptions import RequestException
 
 from coinbitrage import bitlogging, settings
 from coinbitrage.exchanges import get_exchange
-from coinbitrage.exchanges.interfaces import WebsocketInterface
+from coinbitrage.exchanges.mixins import SeparateTradingAccountMixin
 
 
 BALANCE_MARGIN = 0.2
@@ -73,7 +70,7 @@ class ArbitrageEngine(object):
     async def _manage_balances(self, loop):
         log.debug('Managing balances...', event_name='balance_manager.start')
         try:
-            self._coinbase_to_gdax()
+            self._transfer_to_trading_accounts()
             await self._update_exchange_balances()
             self._update_total_balances()
             self._redistribute_funds()
@@ -120,17 +117,17 @@ class ArbitrageEngine(object):
                  event_data={'base': {'currency': self.base_currency, 'balance': self.total_base_balance},
                              'quote': {'currency': self.quote_currency, 'balance': self.total_quote_balance}})
 
-    def _coinbase_to_gdax(self):
-        if 'coinbase' in self._exchanges:
-            coinbase = self._exchanges['coinbase']
-            cb_balances = coinbase.coinbase_balance()
-            cb_quote_balance = cb_balances[self.quote_currency]
-            cb_base_balance = cb_balances[self.base_currency]
+    def _transfer_to_trading_accounts(self):
+        for exchange in self._exchanges.values():
+            if isinstance(exchange.api, SeparateTradingAccountMixin):
+                bank_balances = exchange.bank_balance()
+                base_bank_bal = bank_balances[self.base_currency]
+                quote_bank_bal = bank_balances[self.quote_currency]
 
-            if cb_quote_balance > 0.:
-                coinbase.coinbase_to_gdax(self.quote_currency, cb_quote_balance)
-            if cb_base_balance > 0.:
-                coinbase.coinbase_to_gdax(self.base_currency, cb_base_balance)
+                if base_bank_bal > 0:
+                    exchange.bank_to_trading(self.base_currency, base_bank_bal)
+                if quote_bank_bal > 0:
+                    exchange.bank_to_trading(self.quote_currency, quote_bank_bal)
 
     def _redistribute_funds(self):
         def redistribute(currency: str, total_balance: float):
