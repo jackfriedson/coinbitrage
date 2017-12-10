@@ -101,9 +101,11 @@ class ArbitrageEngine(object):
 
     def _print_arbitrage_table(self, loop):
         try:
+            table = self.arbitrage_table()
+            table = table.applymap(lambda x: '{:.2f}%'.format(x*100) if x else None)
             print('\n ARBITRAGE TABLE')
             print('-----------------')
-            print(self.arbitrage_table())
+            print(table)
             print()
             loop.call_later(PRINT_TABLE_EVERY, self._print_arbitrage_table, loop)
         except Exception as e:
@@ -113,7 +115,7 @@ class ArbitrageEngine(object):
     def _update_total_balances(self):
         self.total_base_balance = sum([balance[self.base_currency] for balance in self._exchange_balances.values()])
         self.total_quote_balance = sum([balance[self.quote_currency] for balance in self._exchange_balances.values()])
-        log.info('Updated balances: {base}; {quote}', event_name='total_balance.update',
+        log.info('Updated balances: {base}; {quote}', event_name='total_balances.update',
                  event_data={'base': {'currency': self.base_currency, 'balance': self.total_base_balance},
                              'quote': {'currency': self.quote_currency, 'balance': self.total_quote_balance}})
 
@@ -177,7 +179,7 @@ class ArbitrageEngine(object):
             n for n, bal in self._exchange_balances.items()
             if bal[self.base_currency] > self.min_base_balance
         ]
-        log.info('Active exchanges: buy {buy_exchanges}; sell {sell_exchanges}',
+        log.info('Buy exchanges: {buy_exchanges}; Sell exchanges: {sell_exchanges}',
                  event_data={'buy_exchanges': self.buy_exchanges, 'sell_exchanges': self.sell_exchanges},
                  event_name='active_exchanges.update',)
 

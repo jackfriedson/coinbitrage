@@ -10,6 +10,8 @@ from coinbitrage.exchanges.mixins import PeriodicRefreshMixin, SeparateTradingAc
 class HitBTCAdapter(BitExRESTAdapter, SeparateTradingAccountMixin):
     _api_class = HitBtc
 
+    # TODO: get correct fees
+
     def __init__(self, name: str, key_file: str):
         super(HitBTCAdapter, self).__init__(name, key_file)
 
