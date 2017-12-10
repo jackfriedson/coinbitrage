@@ -1,5 +1,5 @@
 autobahn==17.10.1
--e git+git@github.com:jackfriedson/bitex.git@33010d1068222895f13236889f7301ad2f6f1a16#egg=BitEx
+-e git+git@github.com:jackfriedson/bitex.git@master#egg=BitEx
 certifi==2017.11.5
 chardet==3.0.4
 coinbase==2.0.6

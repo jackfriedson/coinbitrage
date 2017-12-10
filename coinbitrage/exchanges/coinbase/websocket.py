@@ -37,12 +37,12 @@ class CoinbaseWebsocket(BaseWebsocketAdapter):
             try:
                 data = json.loads(connection.recv())
             except (WebSocketTimeoutException, ConnectionResetError) as e:
-                log.warning('Websocket connection error: {exc} Restarting...',
+                log.warning('Websocket connection error: {exc}; Restarting...',
                             event_name='coinbase_websocket.connection_error',
                             event_data={'exc': e})
                 self._controller_queue.put('restart')
             except WebSocketConnectionClosedException as e:
-                log.warning('Websocket closed, restarting...',
+                log.warning('Websocket closed; restarting...',
                             event_name='coinbase_websocket.connection_closed_error',
                             event_data={'exc': e})
                 self._controller_queue.put('start')
