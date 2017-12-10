@@ -38,14 +38,12 @@ class BaseExchangeAPI(object):
             log.info('Transfered {amount} {currency} from {from_exchange} to {to_exchange}',
                      event_name='exchange_api.transfer.success', event_data=event_data)
         else:
-            log.warning('Unable to transfer funds', event_name='exchange_api.transfer.failure',
-                        event_data=event_data)
+            log.warning('Unable to transfer {amount} {currency} from {from_exchange} to {to_exchange}',
+                        event_name='exchange_api.transfer.failure', event_data=event_data)
 
         return result
 
 class BaseExchangeClient(object):
-    """
-    """
     name = None
     _api_class = None
 

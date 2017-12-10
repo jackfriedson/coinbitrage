@@ -33,6 +33,7 @@ class HitBTCAdapter(BitExRESTAdapter, SeparateTradingAccountMixin):
         return self.trading_to_bank(currency, amount) and \
                super(HitBTCAdapter, self).withdraw(currency, address, amount)
 
+
 class HitBTCClient(BaseExchangeClient, PeriodicRefreshMixin):
     name = 'hitbtc'
     _api_class = HitBTCAdapter

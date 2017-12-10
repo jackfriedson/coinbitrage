@@ -64,8 +64,6 @@ class CoinbaseAPIAdapter(BitExRESTAdapter, SeparateTradingAccountMixin):
 
     def limit_order(self, *args, fill_or_kill: bool = False, **kwargs) -> Optional[str]:
         # TODO: get fill or kill to work correctly
-        # if fill_or_kill:
-        #     kwargs.update({'time_in_force': 'FOK'})
         return super(CoinbaseAPIAdapter, self).limit_order(*args, **kwargs)
 
     @staticmethod

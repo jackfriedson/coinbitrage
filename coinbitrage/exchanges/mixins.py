@@ -80,7 +80,7 @@ class PeriodicRefreshMixin(LiveUpdateMixin):
             self._quote = quote_currency
             self._running.set()
             self._refresh_thread = Thread(target=self._refresh, daemon=True,
-                                          name='{}-refresh-thread'.format(self.name))
+                                          name='{}RefreshThread'.format(self.name.title()))
             self._refresh_thread.start()
 
     def shutdown(self):
@@ -91,7 +91,6 @@ class PeriodicRefreshMixin(LiveUpdateMixin):
 
     def _refresh(self):
         while self._running.is_set():
-            pair = self.pair(self._base, self._quote)
             try:
                 ticker = self.ticker(self._base, quote_currency=self._quote)
             except RequestException as e:

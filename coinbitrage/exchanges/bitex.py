@@ -104,7 +104,7 @@ class BitExRESTAdapter(BaseExchangeAPI):
                     raise ServerError(e)
             except RequestException as e:
                 log.error(e, event_name='exchange_api.request_error')
-                raise e
+                raise
 
             # TODO: implement a single error format across exchanges
             if not resp.formatted:

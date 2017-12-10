@@ -59,7 +59,7 @@ class BaseWebsocketAdapter(WebsocketInterface):
             return
         self.controller_running.set()
         self._controller_thread = Thread(target=self._controller, daemon=True,
-                                         name='{}-controller-thread'.format(self.name))
+                                         name='{}ControllerThread'.format(self.name.title()))
         self._controller_thread.start()
 
     def _stop_controller(self):
@@ -102,7 +102,7 @@ class BaseWebsocketAdapter(WebsocketInterface):
                 return
             self.websocket_running.set()
             self._websocket_thread = Thread(target=self._websocket, args=args, daemon=True,
-                                            name='{}-websocket-thread'.format(self.name))
+                                            name='{}WebsocketThread'.format(self.name.title()))
             self._websocket_thread.start()
 
     def _stop(self):
