@@ -71,7 +71,7 @@ class ArbitrageEngine(object):
                 loop.close()
 
     async def _manage_balances(self, loop):
-        log.debug('Managing balances...')
+        log.debug('Managing balances...', event_name='balance_manager.start')
         try:
             self._coinbase_to_gdax()
             await self._update_exchange_balances()
@@ -180,7 +180,7 @@ class ArbitrageEngine(object):
             n for n, bal in self._exchange_balances.items()
             if bal[self.base_currency] > self.min_base_balance
         ]
-        log.info('Active buy exchanges: {buy_exchanges}; active sell exchanges: {sell_exchanges}',
+        log.info('Active exchanges: buy {buy_exchanges}; sell {sell_exchanges}',
                  event_data={'buy_exchanges': self.buy_exchanges, 'sell_exchanges': self.sell_exchanges},
                  event_name='active_exchanges.update',)
 
@@ -218,6 +218,26 @@ class ArbitrageEngine(object):
         for name, exchange in self._exchanges.items():
             self._last_prices[name] = exchange.bid_ask(self.base_currency, self.quote_currency)
 
+    async def _attempt_arbitrage(self):
+        """Checks the arbitrage table to determine if there is an opportunity to profit,
+        and if so executes the corresponding trades.
+        """
+        if not self._exchange_balances:
+            await self._update_exchange_balances()
+
+        arbitrage_opportunity = self._maximum_profit()
+
+        if arbitrage_opportunity:
+            buy_exchange, sell_exchange, expected_profit = arbitrage_opportunity
+
+            if expected_profit is not None:
+                buy_fee = self._exchanges[buy_exchange].fee(self.base_currency)
+                sell_fee = self._exchanges[sell_exchange].fee(self.base_currency)
+                expected_profit -= (buy_fee + sell_fee)
+
+                if expected_profit > self._min_profit_threshold:
+                    await self._place_orders(buy_exchange, sell_exchange, expected_profit)
+
     def _maximum_profit(self) -> Tuple[str, str, float]:
         """Determines the maximum profit attainable given the current prices.
 
@@ -252,26 +272,6 @@ class ArbitrageEngine(object):
         max_profit = self._arbitrage_profit_loss(best_buy_exchange, best_sell_exchange)
         return best_buy_exchange, best_sell_exchange, max_profit
 
-    async def _attempt_arbitrage(self):
-        """Checks the arbitrage table to determine if there is an opportunity to profit,
-        and if so executes the corresponding trades.
-        """
-        if not self._exchange_balances:
-            await self._update_exchange_balances()
-
-        arbitrage_opportunity = self._maximum_profit()
-
-        if arbitrage_opportunity:
-            buy_exchange, sell_exchange, expected_profit = arbitrage_opportunity
-
-            if expected_profit is not None:
-                buy_fee = self._exchanges[buy_exchange].fee(self.base_currency)
-                sell_fee = self._exchanges[sell_exchange].fee(self.base_currency)
-                expected_profit -= (buy_fee + sell_fee)
-
-                if expected_profit > self._min_profit_threshold:
-                    await self._place_orders(buy_exchange, sell_exchange, expected_profit)
-
     async def _place_orders(self, buy_exchange: str, sell_exchange: str, expected_profit: float):
         """Places buy and sell orders at the corresponding exchanges.
 
@@ -289,10 +289,12 @@ class ArbitrageEngine(object):
         target_volume = self.min_base_balance * multiplier
         buy_balance = self._exchange_balances[buy_exchange][self.quote_currency] / buy_price
         sell_balance = self._exchange_balances[sell_exchange][self.base_currency]
-        assert target_volume > 0. and buy_balance > 0. and sell_balance > 0.
         order_volume = min(target_volume, buy_balance, sell_balance)
+        assert order_volume >= self.min_base_balance, 'target: {}; buy_balance: {}; sell_balance: {}'.format(
+            target_volume, buy_balance, sell_balance)
 
-        log_msg = '{buy_exchange} buy {volume} {base_currency} @ {buy_price}; ' + \
+        log_msg = 'Arbitrage opportunity: ' + \
+                  '{buy_exchange} buy {volume} {base_currency} @ {buy_price}; ' + \
                   '{sell_exchange} sell {volume} {quote_currency} @ {sell_price}; ' + \
                   'profit: {expected_profit:.2f}%'
         event_data = {'buy_exchange': buy_exchange, 'sell_exchange': sell_exchange, 'volume': order_volume,
@@ -318,7 +320,7 @@ class ArbitrageEngine(object):
             else:
                 success_type, fail_type, api, resp = 'sell', 'buy', sell_api, sell_resp
 
-            log.warning('{} order failed, cancelling {} order'.format(fail_type.title(), success_type),
+            log.warning('{} order failed, attempting to cancel {} order'.format(fail_type.title(), success_type),
                         event_name='arbitrage.place_order.partial_failure')
             cancel_success = api.cancel_order(resp)
             if cancel_success:

@@ -15,7 +15,7 @@ def configure():
     with CONFIG_FILE.open('rt') as f:
         config = yaml.safe_load(f.read())
         config['handlers']['file']['filename'] = str(LOG_DIR/'all.log')
-        config['handlers']['order']['filename'] = str(LOG_DIR/'orders.log')
+        # config['handlers']['order']['filename'] = str(LOG_DIR/'orders.log')
         dictConfig(config)
 
     # Disable pushclient logger
@@ -42,4 +42,8 @@ class BitLoggerAdapter(logging.LoggerAdapter):
 
     def process(self, msg, kwargs):
         msg, kwargs = super(BitLoggerAdapter, self).process(msg, kwargs)
-        return msg.format(**self.extra.get('event_data', {})), kwargs
+        try:
+            formatted_msg = str(msg).format(**self.extra.get('event_data', {}))
+        except (IndexError, KeyError):
+            formatted_msg = msg
+        return formatted_msg, kwargs

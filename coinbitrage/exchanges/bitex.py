@@ -110,14 +110,16 @@ class BitExRESTAdapter(BaseExchangeAPI):
         order_fn_name = 'bid' if buy_sell == 'buy' else 'ask'
         order_fn = self._wrapped_bitex_method(order_fn_name)
         result = order_fn(base_currency, price, volume, quote_currency=quote_currency, **kwargs)
+        event_data = {'exchange': self.name, 'buy_sell': buy_sell, 'volume': volume, 'price': price,
+                      'pair': self.pair(base_currency, quote_currency)}
         if result:
+            event_data.update({'order_id': result})
             log.info('Placed {buy_sell} order with {exchange} for {volume} {pair} @ {price}',
-                     event_data={'exchange': self.name, 'buy_sell': buy_sell, 'volume': volume,
-                                 'pair': self.pair(base_currency, quote_currency), 'price': price,
-                                 'order_id': result},
+                     event_data=event_data,
                      event_name='order.placed.success')
         else:
-            log.info('Unable to place order', event_name='order.placed.failure', event_data={})
+            log.info('Unable to place {buy_sell} order with {exchange} for {volume} {pair} @ {price}',
+                     event_name='order.placed.failure', event_data=event_data)
         return result
 
     def deposit_address(self, currency: str) -> str:
@@ -127,10 +129,12 @@ class BitExRESTAdapter(BaseExchangeAPI):
         result = self._wrapped_bitex_method('withdraw')(amount, address, currency=currency)
         if result:
             event_data = {'exchange': self.name}
-            event_data.udpate(result)
-            log.info('Withdrew {amount} {currency} from {exchange}', event_name='exchange_api.withdraw.success', event_data=event_data)
+            event_data.update(result)
+            log.info('Withdrew {amount} {currency} from {exchange}', event_data=event_data,
+                     event_name='exchange_api.withdraw.success')
         else:
-            log.warning('Unable to withdraw funds', event_name='exchange_api.withdraw.failure')
+            log.warning('Unable to withdraw {amount} {currency} from {exchange}', event_data=event_data,
+                        event_name='exchange_api.withdraw.failure')
         return result
 
 
