@@ -1,0 +1,40 @@
+version: 1
+disable_existing_loggers: True
+
+root:
+  level: WARNING
+  handlers: [console, file]
+
+loggers:
+  coinbitrage:
+    level: DEBUG
+    handlers: [console, file]
+    propagate: False
+
+formatters:
+  simple:
+    format: '%(asctime)s %(levelname)-8s %(message)s'
+    datefmt: '%Y-%m-%d %H:%M:%S'
+  detail:
+    format: '%(asctime)s %(levelname)-8s %(name)s (%(threadName)s): %(event_name)s -- %(event_data)s'
+    datefmt: '%Y-%m-%d %H:%M:%S'
+  # order:
+  #   format: '%(asctime)s '
+  #   datefmt: '%Y-%m-%d %H:%M:%S'
+
+handlers:
+  console:
+    class: logging.StreamHandler
+    formatter: simple
+    level: INFO
+    stream: ext://sys.stdout
+  file:
+    class: logging.handlers.TimedRotatingFileHandler
+    when: midnight
+    formatter: detail
+    level: DEBUG
+  # order:
+  #   class: logging.handlers.TimedRotatingFileHandler
+  #   when: midnight
+  #   formatter: order
+  #   level: INFO
