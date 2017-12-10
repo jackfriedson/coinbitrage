@@ -56,8 +56,8 @@ class WebsocketMixin(LiveUpdateMixin):
             self._bid_ask = bid_ask
 
     def bid_ask(self,
-            base_currency: str,
-            quote_currency: str = DEFAULT_QUOTE_CURRENCY):
+                base_currency: str,
+                quote_currency: str = DEFAULT_QUOTE_CURRENCY):
         self._update()
         return self._bid_ask
 
@@ -124,7 +124,7 @@ class SeparateTradingAccountMixin(object):
     def bank_balance(self) -> Dict[str, float]:
         raise NotImplementedError
 
-    def _transfer_between_accounts(self, to_trading: bool, currency: str, amount: float):
+    def _transfer_between_accounts(self, to_trading: bool, currency: str, amount: float) -> bool:
         raise NotImplementedError
 
     def bank_to_trading(self, currency: str, amount: float) -> bool:

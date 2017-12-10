@@ -15,7 +15,7 @@ def configure():
     with CONFIG_FILE.open('rt') as f:
         config = yaml.safe_load(f.read())
         config['handlers']['file']['filename'] = str(LOG_DIR/'all.log')
-        # config['handlers']['order']['filename'] = str(LOG_DIR/'orders.log')
+        config['handlers']['order']['filename'] = str(LOG_DIR/'orders.log')
         dictConfig(config)
 
     # Disable pushclient logger
@@ -43,7 +43,28 @@ class BitLoggerAdapter(logging.LoggerAdapter):
     def process(self, msg, kwargs):
         msg, kwargs = super(BitLoggerAdapter, self).process(msg, kwargs)
         try:
+            # TODO: Move this to a custom formatter
             formatted_msg = str(msg).format(**self.extra.get('event_data', {}))
         except (IndexError, KeyError):
             formatted_msg = msg
         return formatted_msg, kwargs
+
+
+class OrderFilter(logging.Filter):
+
+    @classmethod
+    def create(cls, *args, **kwargs):
+        return cls(*args, **kwargs)
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        return 'order' in record.event_name.split('.')
+
+
+class OrderFormatter(logging.Formatter):
+
+    @classmethod
+    def create(cls, *args, **kwargs):
+        return cls(*args, **kwargs)
+
+    def format(self, record: logging.LogRecord) -> str:
+        return 'TODO'

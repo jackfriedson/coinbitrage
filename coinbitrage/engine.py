@@ -8,11 +8,13 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from requests.exceptions import RequestException
+from requests.exceptions import RequestException, Timeout
 
 from coinbitrage import bitlogging, settings
 from coinbitrage.exchanges import get_exchange
+from coinbitrage.exchanges.errors import ServerError
 from coinbitrage.exchanges.mixins import SeparateTradingAccountMixin
+from coinbitrage.exchanges.utils import retry_on_exception
 
 
 BALANCE_MARGIN = 0.2
@@ -35,7 +37,8 @@ class ArbitrageEngine(object):
                  min_quote_balance: float,
                  min_profit: float = 0.005,
                  order_precision: float = 0.0025):
-        self.buy_exchanges = self.sell_exchanges = self.all_exchanges = exchanges
+        self.all_exchanges = exchanges
+        self.buy_exchanges = self.sell_exchanges = []
         self.base_currency = base_currency
         self.quote_currency = quote_currency
         self.total_base_balance = None
@@ -82,7 +85,8 @@ class ArbitrageEngine(object):
 
     @staticmethod
     async def _get_balance_async(name: str, exchange):
-        return name, exchange.balance()
+        with retry_on_exception(Timeout, ServerError):
+            return name, exchange.balance()
 
     async def _update_exchange_balances(self):
         futures = [self._get_balance_async(name, exchg) for name, exchg in self._exchanges.items()]
@@ -113,11 +117,14 @@ class ArbitrageEngine(object):
             loop.stop()
 
     def _update_total_balances(self):
-        self.total_base_balance = sum([balance[self.base_currency] for balance in self._exchange_balances.values()])
-        self.total_quote_balance = sum([balance[self.quote_currency] for balance in self._exchange_balances.values()])
-        log.info('Updated balances: {base}; {quote}', event_name='total_balances.update',
-                 event_data={'base': {'currency': self.base_currency, 'balance': self.total_base_balance},
-                             'quote': {'currency': self.quote_currency, 'balance': self.total_quote_balance}})
+        new_base_balance = sum([balance[self.base_currency] for balance in self._exchange_balances.values()])
+        new_quote_balance = sum([balance[self.quote_currency] for balance in self._exchange_balances.values()])
+        if new_base_balance != self.total_base_balance or new_quote_balance != self.total_quote_balance:
+            log.info('Updated balances: {base}; {quote}', event_name='total_balances.update',
+                     event_data={'base': {'currency': self.base_currency, 'balance': self.total_base_balance},
+                                 'quote': {'currency': self.quote_currency, 'balance': self.total_quote_balance}})
+        self.total_base_balance = new_base_balance
+        self.total_quote_balance = new_quote_balance
 
     def _transfer_to_trading_accounts(self):
         for exchange in self._exchanges.values():
@@ -289,8 +296,16 @@ class ArbitrageEngine(object):
         buy_balance = self._exchange_balances[buy_exchange][self.quote_currency] / buy_price
         sell_balance = self._exchange_balances[sell_exchange][self.base_currency]
         order_volume = min(target_volume, buy_balance, sell_balance)
-        assert order_volume >= self.min_base_balance, 'target: {}; buy_balance: {}; sell_balance: {}'.format(
-            target_volume, buy_balance, sell_balance)
+
+        if order_volume < self.min_base_balance:
+            log.warning('Attempted arbitrage with insufficient funds; ' + \
+                        '{buy_exchange} buy: {buy_balance}; {sell_exchange} sell: {sell_balance}',
+                        event_data={'buy_exchange': buy_exchange, 'buy_balance': buy_balance,
+                                    'sell_exchange': sell_exchange, 'sell_balance': sell_balance,
+                                    'target_volume': target_volume},
+                        event_name='arbitrage.insufficient_funds')
+            await self._update_active_exchanges()
+            return
 
         log_msg = 'Arbitrage opportunity: ' + \
                   '{buy_exchange} buy {volume} {base_currency} @ {buy_price}; ' + \

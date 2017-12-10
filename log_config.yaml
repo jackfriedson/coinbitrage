@@ -8,7 +8,7 @@ root:
 loggers:
   coinbitrage:
     level: DEBUG
-    handlers: [console, file]
+    handlers: [console, file, order]
     propagate: False
 
 formatters:
@@ -18,9 +18,12 @@ formatters:
   detail:
     format: '%(asctime)s %(levelname)-8s %(name)s (%(threadName)s): %(event_name)s -- %(event_data)s'
     datefmt: '%Y-%m-%d %H:%M:%S'
-  # order:
-  #   format: '%(asctime)s '
-  #   datefmt: '%Y-%m-%d %H:%M:%S'
+  order:
+    (): coinbitrage.bitlogging.OrderFormatter.create
+
+filters:
+  order_filter:
+    (): coinbitrage.bitlogging.OrderFilter.create
 
 handlers:
   console:
@@ -33,8 +36,9 @@ handlers:
     when: midnight
     formatter: detail
     level: DEBUG
-  # order:
-  #   class: logging.handlers.TimedRotatingFileHandler
-  #   when: midnight
-  #   formatter: order
-  #   level: INFO
+  order:
+    class: logging.handlers.TimedRotatingFileHandler
+    when: midnight
+    formatter: order
+    filters: [order_filter]
+    level: INFO

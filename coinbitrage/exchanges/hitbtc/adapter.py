@@ -1,20 +1,24 @@
 from typing import Dict
 
 from bitex import HitBtc
+from requests.exceptions import Timeout
 
 from coinbitrage.exchanges.base import BaseExchangeClient
 from coinbitrage.exchanges.bitex import BitExRESTAdapter
+from coinbitrage.exchanges.errors import ServerError
 from coinbitrage.exchanges.mixins import PeriodicRefreshMixin, SeparateTradingAccountMixin
+from coinbitrage.exchanges.utils import retry_on_exception
 
 
 class HitBTCAdapter(BitExRESTAdapter, SeparateTradingAccountMixin):
     _api_class = HitBtc
 
-    # TODO: get correct fees
+    # TODO: get correct fees instead of defaults
 
     def __init__(self, name: str, key_file: str):
         super(HitBTCAdapter, self).__init__(name, key_file)
 
+    @retry_on_exception(Timeout, ServerError)
     def bank_balance(self) -> Dict[str, float]:
         resp = self._api.private_query('account/balance', method_verb='GET')
         return {val['currency']: float(val['available']) for val in resp.json()}
@@ -25,6 +29,9 @@ class HitBTCAdapter(BitExRESTAdapter, SeparateTradingAccountMixin):
         resp = self._api.private_query('account/transfer', method_verb='POST', params=params)
         return 'id' in resp.json()
 
+    def withdraw(self, currency: str, address: str, amount: float, **kwargs) -> bool:
+        return self.trading_to_bank(currency, amount) and \
+               super(HitBTCAdapter, self).withdraw(currency, address, amount)
 
 class HitBTCClient(BaseExchangeClient, PeriodicRefreshMixin):
     name = 'hitbtc'

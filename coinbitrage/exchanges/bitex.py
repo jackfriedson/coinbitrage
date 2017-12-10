@@ -7,6 +7,7 @@ from requests.exceptions import HTTPError, RequestException
 
 from coinbitrage import bitlogging
 from coinbitrage.exchanges.base import BaseExchangeAPI
+from coinbitrage.exchanges.errors import ClientError, ServerError
 from coinbitrage.exchanges.interfaces import WebsocketInterface
 from coinbitrage.exchanges.types import OHLC, Order, OrderBook, Timestamp, Trade
 from coinbitrage.settings import DEFAULT_QUOTE_CURRENCY, REQUESTS_TIMEOUT
@@ -87,26 +88,26 @@ class BitExRESTAdapter(BaseExchangeAPI):
             args = [float_to_str(a) for a in args]
             kwargs = {kw: float_to_str(arg) for kw, arg in kwargs.items()}
 
-            resp = method(*args, **kwargs)
             try:
+                resp = method(*args, **kwargs)
                 resp.raise_for_status()
             except HTTPError as e:
                 if resp.status_code >= 400 and resp.status_code < 500:
                     log.error('Encountered an HTTP error ({status_code}): {response}',
                               event_data={'status_code': resp.status_code, 'response': resp.content},
                               event_name='exchange_api.http_error.client')
+                    raise ClientError(e)
                 else:
                     log.warning('Encountered an HTTP error ({status_code}): {response}',
                                 event_data={'status_code': resp.status_code, 'response': resp.content},
                                 event_name='exchange_api.http_error.server')
-                raise e
+                    raise ServerError(e)
             except RequestException as e:
                 log.error(e, event_name='exchange_api.request_error')
                 raise e
 
+            # TODO: implement a single error format across exchanges
             if not resp.formatted:
-                # If formatted value is falsey, it usually indicates an
-                # error of some kind
                 log.warning('Possible exchange error: {response}', event_data={'response': resp.json()},
                             event_name='exchange_api.possible_error')
 
@@ -126,14 +127,14 @@ class BitExRESTAdapter(BaseExchangeAPI):
         order_fn = self._wrapped_bitex_method(order_fn_name)
         result = order_fn(base_currency, price, volume, quote_currency=quote_currency, **kwargs)
         event_data = {'exchange': self.name, 'buy_sell': buy_sell, 'volume': volume, 'price': price,
-                      'pair': self.pair(base_currency, quote_currency)}
+                      'base': base_currency, 'quote': quote_currency}
         if result:
             event_data.update({'order_id': result})
-            log.info('Placed {buy_sell} order with {exchange} for {volume} {pair} @ {price}',
+            log.info('Placed {buy_sell} order with {exchange} for {volume} {base} @ {price} {quote}',
                      event_data=event_data,
                      event_name='order.placed.success')
         else:
-            log.info('Unable to place {buy_sell} order with {exchange} for {volume} {pair} @ {price}',
+            log.info('Unable to place {buy_sell} order with {exchange} for {volume} {base} @ {price} {quote}',
                      event_name='order.placed.failure', event_data=event_data)
         return result
 
@@ -141,9 +142,9 @@ class BitExRESTAdapter(BaseExchangeAPI):
         return self._wrapped_bitex_method('deposit_address')(currency=currency)
 
     def withdraw(self, currency: str, address: str, amount: float, **kwargs) -> bool:
+        event_data = {'exchange': self.name, 'amount': amount, 'currency': currency}
         result = self._wrapped_bitex_method('withdraw')(amount, address, currency=currency)
         if result:
-            event_data = {'exchange': self.name, 'amount': amount, 'currency': currency}
             event_data.update(result)
             log.info('Withdrew {amount} {currency} from {exchange}', event_data=event_data,
                      event_name='exchange_api.withdraw.success')
