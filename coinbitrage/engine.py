@@ -85,15 +85,20 @@ class ArbitrageEngine(object):
     async def _update_exchange_balances(self):
         futures = [self._get_balance_async(name, exchg) for name, exchg in self._exchanges.items()]
         results = await asyncio.gather(*futures)
-        self._exchange_balances = {name: balance for name, balance in results}
-        new_balances = {
-            cur: sum([balance[cur] for balance in self._exchange_balances.values()])
+        self._exchange_balances = {
+            name: {
+                cur: bal for cur, bal in balances.items()
+                if cur in [self.base_currency, self.quote_currency]
+            } for name, balances in results
+        }
+        new_totals = {
+            cur: sum([bal[cur] for bal in self._exchange_balances.values()])
             for cur in [self.base_currency, self.quote_currency]
         }
-        if new_balances != self.total_balances:
+        if new_totals != self.total_balances:
             log.info('Updated balances: {total_balances}', event_name='balances.update',
-                     event_data={'total_balances': new_balances, 'full_balances': self._exchange_balances})
-        self.total_balances = new_balances
+                     event_data={'total_balances': new_totals, 'full_balances': self._exchange_balances})
+        self.total_balances = new_totals
 
     async def _arbitrage(self, loop):
         try:

@@ -16,16 +16,14 @@ formatters:
     format: '{asctime} {levelname:8} {message}'
     datefmt: '%Y-%m-%d %H:%M:%S'
     style: '{'
-  detail:
-    format: '{asctime} {levelname:8} {name} ({threadName}): {message} -- {event_name} {event_data}'
-    datefmt: '%Y-%m-%d %H:%M:%S'
-    style: '{'
+  json:
+    (): coinbitrage.bitlogging.JSONFormatter
   order:
-    (): coinbitrage.bitlogging.OrderFormatter.create
+    (): coinbitrage.bitlogging.OrderFormatter
 
 filters:
   order_filter:
-    (): coinbitrage.bitlogging.EventNameFilter.create
+    (): coinbitrage.bitlogging.EventNameFilter
     contains: 'order'
 
 handlers:
@@ -37,7 +35,7 @@ handlers:
   file:
     class: logging.handlers.TimedRotatingFileHandler
     when: midnight
-    formatter: detail
+    formatter: json
     level: DEBUG
   order:
     class: logging.handlers.TimedRotatingFileHandler
