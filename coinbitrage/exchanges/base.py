@@ -2,8 +2,8 @@ import logging
 from typing import Dict, List, Tuple, Union
 
 from coinbitrage import bitlogging
-from coinbitrage.settings import DEFAULT_FEE, DEFAULT_QUOTE_CURRENCY
-from coinbitrage.exchanges.interfaces import PublicMarketAPI, PrivateExchangeAPI
+from coinbitrage.settings import DEFAULT_ORDER_FEE, DEFAULT_QUOTE_CURRENCY
+from coinbitrage.exchanges.interfaces import PrivateExchangeAPI
 
 
 log = bitlogging.getLogger(__name__)
@@ -26,7 +26,7 @@ class BaseExchangeAPI(object):
     def fee(self,
             base_currency: str,
             quote_currency: str = DEFAULT_QUOTE_CURRENCY) -> float:
-        return DEFAULT_FEE
+        return DEFAULT_ORDER_FEE
 
     def get_funds_from(self, from_exchange: PrivateExchangeAPI, currency: str, amount: float) -> bool:
         address = self.deposit_address(currency)
@@ -42,6 +42,7 @@ class BaseExchangeAPI(object):
                         event_name='exchange_api.transfer.failure', event_data=event_data)
 
         return result
+
 
 class BaseExchangeClient(object):
     name = None

@@ -79,5 +79,5 @@ class OrderFormatter(logging.Formatter):
         asctime = self.formatTime(record, datefmt='%Y-%m-%d %H:%M:%S')
         order_id = record.event_data.pop('order_id', None)
         order_id_str = ' ({})'.format(order_id) if order_id else ''
-        return self.fmt.format(asctime=asctime, event_name=record.event_name,
-                               order_id=order_id_str, **record.event_data)
+        return self._fmt.format(asctime=asctime, event_name=record.event_name,
+                                order_id=order_id_str, **record.event_data)

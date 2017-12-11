@@ -1,3 +1,4 @@
+import time
 from typing import Dict
 
 from bitex import HitBtc
@@ -27,8 +28,9 @@ class HitBTCAdapter(BitExRESTAdapter, SeparateTradingAccountMixin):
         return 'id' in resp.json()
 
     def withdraw(self, currency: str, address: str, amount: float, **kwargs) -> bool:
-        return self.trading_to_bank(currency, amount) and \
-               super(HitBTCAdapter, self).withdraw(currency, address, amount)
+        if self.trading_to_bank(currency, amount):
+            time.sleep(.100)  # Wait for bank account to receive funds
+            return super(HitBTCAdapter, self).withdraw(currency, address, amount)
 
     def fee(self,
             base_currency: str,
