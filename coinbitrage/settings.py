@@ -13,14 +13,16 @@ TRANSFER_FEE = 0.01
 
 CURRENCIES = {
     'BTC': {
-        'ticker': 'BTC',
         'avg_tx_fee': 0.001,
         'order_size': 0.0017,
     },
     'ETH': {
-        'ticker': 'ETH',
         'avg_tx_fee': 0.0012,
         'order_size': 0.06,
+    },
+    'LTC': {
+        'avg_tx_fee': 0.0004,
+        'order_size': 0.16,
     }
 }
 

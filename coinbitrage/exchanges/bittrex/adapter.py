@@ -10,9 +10,6 @@ from coinbitrage.exchanges.mixins import PeriodicRefreshMixin
 class BittrexAPIAdapter(BitExRESTAdapter):
     _api_class = Bittrex
 
-    def __init__(self, name: str, key_file: str):
-        super(BittrexAPIAdapter, self).__init__(name, key_file)
-
     @staticmethod
     def pair(base_currency: str, quote_currency: str) -> str:
         return '{}-{}'.format(quote_currency, base_currency)

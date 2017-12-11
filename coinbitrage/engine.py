@@ -5,8 +5,6 @@ from contextlib import contextmanager
 from functools import partial
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 from requests.exceptions import RequestException, Timeout
 
@@ -51,7 +49,7 @@ class ArbitrageEngine(object):
         """Runs the program."""
         with self._exchange_manager():
             loop = asyncio.get_event_loop()
-            # loop.create_task(self._manage_balances(loop))
+            loop.create_task(self._manage_balances(loop))
             loop.create_task(self._arbitrage(loop))
             loop.call_later(PRINT_TABLE_EVERY, self._print_arbitrage_table, loop)
             try:
@@ -90,7 +88,7 @@ class ArbitrageEngine(object):
     async def _arbitrage(self, loop):
         try:
             self._update_prices()
-            # await self._attempt_arbitrage()
+            await self._attempt_arbitrage()
             loop.create_task(self._arbitrage(loop))
         except Exception as e:
             log.exception(e, event_name='error.arbitrage')

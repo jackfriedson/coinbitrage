@@ -23,11 +23,13 @@ def configure():
 
 
 def getLogger(name: str):
-    logger = logging.getLogger(name)
-    return BitLoggerAdapter(logger, {'event_name': '', 'event_data': {}})
+    return BitLoggerAdapter(logging.getLogger(name))
 
 
 class BitLoggerAdapter(logging.LoggerAdapter):
+
+    def __init__(self, logger):
+        super(BitLoggerAdapter, self).__init__(logger, {'event_name': '', 'event_data': {}})
 
     def log(self, level, msg, *args, **kwargs):
         if self.isEnabledFor(level):
@@ -50,14 +52,19 @@ class BitLoggerAdapter(logging.LoggerAdapter):
         return formatted_msg, kwargs
 
 
-class OrderFilter(logging.Filter):
+class EventNameFilter(logging.Filter):
+
+    def __init__(self, contains: str = None):
+        # TODO: add support for other operations (e.g. equals, startswith, etc.)
+        self._contains = contains
+        super(EventNameFilter, self).__init__()
 
     @classmethod
     def create(cls, *args, **kwargs):
         return cls(*args, **kwargs)
 
     def filter(self, record: logging.LogRecord) -> bool:
-        return 'order' in record.event_name.split('.')
+        return self._contains in record.event_name.split('.')
 
 
 class OrderFormatter(logging.Formatter):

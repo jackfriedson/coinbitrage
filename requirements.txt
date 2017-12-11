@@ -1,16 +1,13 @@
 autobahn==17.10.1
--e git+git@github.com:jackfriedson/bitex.git@master#egg=BitEx
+-e git+git@github.com:jackfriedson/bitex.git@be4e09e1fe6a17eff3eb501931d3b1fa458ef21e#egg=BitEx
 certifi==2017.11.5
 chardet==3.0.4
 coinbase==2.0.6
-cycler==0.10.0
 idna==2.6
-matplotlib==2.1.0
 numpy==1.13.3
 pandas==0.21.0
 pusherclient==0.3.0
 pycrypto==2.6.1
-pyparsing==2.2.0
 python-dateutil==2.6.1
 pytz==2017.3
 PyYAML==3.12

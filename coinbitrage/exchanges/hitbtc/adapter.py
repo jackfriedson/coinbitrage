@@ -8,15 +8,11 @@ from coinbitrage.exchanges.bitex import BitExRESTAdapter
 from coinbitrage.exchanges.errors import ServerError
 from coinbitrage.exchanges.mixins import PeriodicRefreshMixin, SeparateTradingAccountMixin
 from coinbitrage.exchanges.utils import retry_on_exception
+from coinbitrage.settings import DEFAULT_QUOTE_CURRENCY
 
 
 class HitBTCAdapter(BitExRESTAdapter, SeparateTradingAccountMixin):
     _api_class = HitBtc
-
-    # TODO: get correct fees instead of defaults
-
-    def __init__(self, name: str, key_file: str):
-        super(HitBTCAdapter, self).__init__(name, key_file)
 
     @retry_on_exception(Timeout, ServerError)
     def bank_balance(self) -> Dict[str, float]:
@@ -33,6 +29,11 @@ class HitBTCAdapter(BitExRESTAdapter, SeparateTradingAccountMixin):
     def withdraw(self, currency: str, address: str, amount: float, **kwargs) -> bool:
         return self.trading_to_bank(currency, amount) and \
                super(HitBTCAdapter, self).withdraw(currency, address, amount)
+
+    def fee(self,
+            base_currency: str,
+            quote_currency: str = DEFAULT_QUOTE_CURRENCY) -> float:
+        return 0.001
 
 
 class HitBTCClient(BaseExchangeClient, PeriodicRefreshMixin):

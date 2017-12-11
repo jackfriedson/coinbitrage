@@ -25,7 +25,8 @@ formatters:
 
 filters:
   order_filter:
-    (): coinbitrage.bitlogging.OrderFilter.create
+    (): coinbitrage.bitlogging.EventNameFilter.create
+    contains: 'order'
 
 handlers:
   console:
