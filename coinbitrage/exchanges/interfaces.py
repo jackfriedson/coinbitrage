@@ -9,7 +9,7 @@ class ExchangeBase(object):
     """
     """
 
-    def pair(base_currency: str, quote_curency: str) -> str:
+    def pair(self, base_currency: str, quote_curency: str) -> str:
         """Combines the base and quote currencies into a currency pair that will
         be recognized by the exchange.
 
@@ -19,7 +19,7 @@ class ExchangeBase(object):
         """
         raise NotImplementedError
 
-    def unpair(currency_pair: str) -> Tuple[str, str]:
+    def unpair(self, currency_pair: str) -> Tuple[str, str]:
         """Separates a currency pair recognized by the exchange into its base and
         quote currencies.
 

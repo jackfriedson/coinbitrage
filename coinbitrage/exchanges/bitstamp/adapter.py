@@ -42,8 +42,7 @@ class BitstampAPIAdapter(BitExRESTAdapter):
         kwargs.pop('fill_or_kill', None)
         return super(BitstampAPIAdapter, self).limit_order(*args, **kwargs)
 
-    @staticmethod
-    def pair(base_currency: str, quote_currency: str) -> str:
+    def pair(self, base_currency: str, quote_currency: str) -> str:
         return base_currency.lower() + quote_currency.lower()
 
 

@@ -41,15 +41,14 @@ class PoloniexAPIAdapter(BitExRESTAdapter):
             kwargs.update({'fill_or_kill': 1})
         return super(PoloniexAPIAdapter, self).limit_order(*args, **kwargs)
 
-    @staticmethod
-    def pair(base_currency: str, quote_currency: str) -> str:
+    def pair(self, base_currency: str, quote_currency: str) -> str:
         # Poloniex only has Tether exchanges, not USD
         if quote_currency == 'USD':
             quote_currency = 'USDT'
 
         return quote_currency + '_' + base_currency
 
-    def unpair(currency_pair: str):
+    def unpair(self, currency_pair: str):
         currencies = currency_pair.split('_')
         return currencies[0], currencies[1]
 

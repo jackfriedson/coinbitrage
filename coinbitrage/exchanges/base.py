@@ -14,12 +14,10 @@ class BaseExchangeAPI(object):
     def __init__(self, name: str):
         self.name = name
 
-    @staticmethod
-    def pair(base_currency: str, quote_currency: str) -> str:
+    def pair(self, base_currency: str, quote_currency: str) -> str:
         return base_currency.upper() + quote_currency.upper()
 
-    @staticmethod
-    def unpair(currency_pair: str) -> Tuple[str, str]:
+    def unpair(self, currency_pair: str) -> Tuple[str, str]:
         base, quote = currency_pair[:len(currency_pair)/2], currency_pair[len(currency_pair)/2:]
         return base.upper(), quote.upper()
 

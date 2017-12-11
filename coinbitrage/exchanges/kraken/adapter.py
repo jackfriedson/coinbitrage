@@ -51,8 +51,7 @@ class KrakenAPIAdapter(BitExRESTAdapter):
     def withdraw(self, currency: str, address: str, amount: float, **kwargs) -> bool:
         pass
 
-    @staticmethod
-    def pair(base_currency: str, quote_currency: str):
+    def pair(self, base_currency: str, quote_currency: str):
         base_currency = CURRENCY_MAP.get(base_currency, base_currency)
         quote_currency = CURRENCY_MAP.get(quote_currency, quote_currency)
         return base_currency + quote_currency

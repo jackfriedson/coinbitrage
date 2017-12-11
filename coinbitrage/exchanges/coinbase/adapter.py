@@ -66,12 +66,10 @@ class CoinbaseAPIAdapter(BitExRESTAdapter, SeparateTradingAccountMixin):
         # TODO: get fill or kill to work correctly
         return super(CoinbaseAPIAdapter, self).limit_order(*args, **kwargs)
 
-    @staticmethod
-    def pair(base_currency: str, quote_currency: str) -> str:
+    def pair(self, base_currency: str, quote_currency: str) -> str:
         return base_currency + '-' + quote_currency
 
-    @staticmethod
-    def unpair(currency_pair: str) -> str:
+    def unpair(self, currency_pair: str) -> str:
         currencies = currency_pair.split('-')
         return currencies[0], currencies[1]
 

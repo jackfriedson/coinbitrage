@@ -59,7 +59,8 @@ class BitExRESTAdapter(BaseExchangeAPI):
     """Class for implementing REST API adapters using the BitEx library."""
     _api_class = None
     _formatter = BitExFormatter()
-    _float_temp = '{:.6f}'
+    _float_precision = 6
+    _currency_map = {}
 
     def __init__(self, name: str, key_file: str):
         super(BitExRESTAdapter, self).__init__(name)
@@ -78,12 +79,15 @@ class BitExRESTAdapter(BaseExchangeAPI):
                 quote = kwargs.pop('quote_currency')
                 pair = self.pair(base, quote)
                 args = (pair, *args[1:])
+            elif 'currency' in kwargs:
+                currency = kwargs.pop('currency')
+                kwargs['currency'] = self._currency_map.get(currency, currency)
 
             # Convert float values to strings
             def float_to_str(val):
                 if not isinstance(val, float):
                     return val
-                return self._float_temp.format(val)
+                return '{:.{prec}}'.format(str(val), prec=self._float_precision)
 
             args = [float_to_str(a) for a in args]
             kwargs = {kw: float_to_str(arg) for kw, arg in kwargs.items()}
@@ -92,15 +96,15 @@ class BitExRESTAdapter(BaseExchangeAPI):
                 resp = method(*args, **kwargs)
                 resp.raise_for_status()
             except HTTPError as e:
+                event_data = {'status_code': resp.status_code, 'response': resp.content,
+                              'method': method.__name__, 'args': args, 'kwargs': kwargs}
                 if resp.status_code >= 400 and resp.status_code < 500:
                     log.error('Encountered an HTTP error ({status_code}): {response}',
-                              event_data={'status_code': resp.status_code, 'response': resp.content},
-                              event_name='exchange_api.http_error.client')
+                              event_name='exchange_api.http_error.client', event_data=event_data,)
                     raise ClientError(e)
                 else:
                     log.warning('Encountered an HTTP error ({status_code}): {response}',
-                                event_data={'status_code': resp.status_code, 'response': resp.content},
-                                event_name='exchange_api.http_error.server')
+                                event_name='exchange_api.http_error.server', event_data=event_data)
                     raise ServerError(e)
             except RequestException as e:
                 log.error(e, event_name='exchange_api.request_error')
