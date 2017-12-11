@@ -26,5 +26,4 @@ CURRENCIES = {
 
 
 for data in CURRENCIES.values():
-    tx_fee = data.get('avg_tx_fee')
-    data['min_transfer_size'] = tx_fee * (1. / TRANSFER_FEE)
+    data['min_transfer_size'] = data['avg_tx_fee'] * (1. / TRANSFER_FEE)

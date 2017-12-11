@@ -51,7 +51,7 @@ class ArbitrageEngine(object):
         """Runs the program."""
         with self._exchange_manager():
             loop = asyncio.get_event_loop()
-            loop.create_task(self._manage_balances(loop))
+            # loop.create_task(self._manage_balances(loop))
             loop.create_task(self._arbitrage(loop))
             loop.call_later(PRINT_TABLE_EVERY, self._print_arbitrage_table, loop)
             try:
@@ -90,7 +90,7 @@ class ArbitrageEngine(object):
     async def _arbitrage(self, loop):
         try:
             self._update_prices()
-            await self._attempt_arbitrage()
+            # await self._attempt_arbitrage()
             loop.create_task(self._arbitrage(loop))
         except Exception as e:
             log.exception(e, event_name='error.arbitrage')
@@ -372,32 +372,31 @@ class ArbitrageEngine(object):
 
         return result
 
-    def draw_arbitrage_table(self):
-        """Draws the arbitrage table."""
-        table = self.arbitrage_table()
 
-        def format_as_percent(x):
-            if x is None:
-                return '-'
-            else:
-                return '{:.2f}%'.format(100*x)
+def draw_arbitrage_table(table):
+    """Draws the arbitrage table."""
+    def format_as_percent(x):
+        if x is None:
+            return '-'
+        else:
+            return '{:.2f}%'.format(100*x)
 
-        def color_fn(x):
-            if x is None:
-                return 'white'
-            if x > COLOR_THRESH:
-                return 'lightgreen'
-            if x < -COLOR_THRESH:
-                return 'salmon'
+    def color_fn(x):
+        if x is None:
             return 'white'
+        if x > COLOR_THRESH:
+            return 'lightgreen'
+        if x < -COLOR_THRESH:
+            return 'salmon'
+        return 'white'
 
-        formatted_data = [[format_as_percent(x) for x in row] for row in table.values]
-        cell_colors = [[color_fn(x) for x in row] for row in table.values]
+    formatted_data = [[format_as_percent(x) for x in row] for row in table.values]
+    cell_colors = [[color_fn(x) for x in row] for row in table.values]
 
-        fig, ax = plt.subplots()
-        ax.axis('off')
-        ax.axis('tight')
-        plt.table(cellText=formatted_data, cellColours=cell_colors, loc='center',
-                  rowLabels=table.index.values, colLabels=table.columns.values)
-        fig.tight_layout()
-        plt.show()
+    fig, ax = plt.subplots()
+    ax.axis('off')
+    ax.axis('tight')
+    plt.table(cellText=formatted_data, cellColours=cell_colors, loc='center',
+              rowLabels=table.index.values, colLabels=table.columns.values)
+    fig.tight_layout()
+    plt.show()

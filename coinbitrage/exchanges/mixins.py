@@ -64,7 +64,7 @@ class WebsocketMixin(LiveUpdateMixin):
 
 class PeriodicRefreshMixin(LiveUpdateMixin):
 
-    def __init__(self, refresh_interval, *args, **kwargs):
+    def __init__(self, refresh_interval: int, *args, **kwargs):
         self._interval = refresh_interval
         self._running = Event()
         self._lock = RLock()

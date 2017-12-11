@@ -13,11 +13,13 @@ loggers:
 
 formatters:
   simple:
-    format: '%(asctime)s %(levelname)-8s %(message)s'
+    format: '{asctime} {levelname:8} {message}'
     datefmt: '%Y-%m-%d %H:%M:%S'
+    style: '{'
   detail:
-    format: '%(asctime)s %(levelname)-8s %(name)s (%(threadName)s): %(message)s -- %(event_name)s %(event_data)s'
+    format: '{asctime} {levelname:8} {name} ({threadName}): {message} -- {event_name} {event_data}'
     datefmt: '%Y-%m-%d %H:%M:%S'
+    style: '{'
   order:
     (): coinbitrage.bitlogging.OrderFormatter.create
 
@@ -29,7 +31,7 @@ handlers:
   console:
     class: logging.StreamHandler
     formatter: simple
-    level: INFO
+    level: DEBUG
     stream: ext://sys.stdout
   file:
     class: logging.handlers.TimedRotatingFileHandler

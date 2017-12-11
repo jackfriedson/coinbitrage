@@ -29,11 +29,11 @@ class BaseExchangeAPI(object):
         return DEFAULT_FEE
 
     def get_funds_from(self, from_exchange: PrivateExchangeAPI, currency: str, amount: float) -> bool:
-        event_data = {'amount': amount, 'currency': currency, 'from_exchange': from_exchange.name,
-                      'to_exchange': self.name}
         address = self.deposit_address(currency)
         result = from_exchange.withdraw(currency, address, amount)
 
+        event_data = {'amount': amount, 'currency': currency, 'from_exchange': from_exchange.name,
+                      'to_exchange': self.name, 'address': address}
         if result:
             log.info('Transfered {amount} {currency} from {from_exchange} to {to_exchange}',
                      event_name='exchange_api.transfer.success', event_data=event_data)

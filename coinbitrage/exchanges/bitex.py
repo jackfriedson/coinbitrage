@@ -142,7 +142,7 @@ class BitExRESTAdapter(BaseExchangeAPI):
         return self._wrapped_bitex_method('deposit_address')(currency=currency)
 
     def withdraw(self, currency: str, address: str, amount: float, **kwargs) -> bool:
-        assert amount >= CURRENCIES[currency]['min_transfer_size']
+        # assert amount >= CURRENCIES[currency]['min_transfer_size']
         event_data = {'exchange': self.name, 'amount': amount, 'currency': currency}
         result = self._wrapped_bitex_method('withdraw')(amount, address, currency=currency)
         if result:
