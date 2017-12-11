@@ -30,36 +30,30 @@ def load_key_from(path: str) -> Tuple[str, str]:
     return key, secret
 
 
-class _GeneratorContextDecorator(_GeneratorContextManager, ContextDecorator):
-    pass
-
-
-def _contextmanager(func):
-    @wraps(func)
-    def helper(*args, **kwds):
-        return _GeneratorContextDecorator(func, args, kwds)
-    return helper
-
-
-@_contextmanager
 def retry_on_exception(*exc_classes, max_retries: int = 3, backoff_factor: float = 0.5):
-    retries = 0
-    backoff = backoff_factor
+    def decorator(func):
+        @wraps(func)
+        def retry_func(*args, **kwargs):
+            retries = 0
+            backoff = backoff_factor
 
-    while True:
-        try:
-            yield
-        except exc_classes as e:
-            if retries >= max_retries:
-                log.debug('Max number of retries exceeded, raising...',
-                          event_name='retry_handler.max_retries_exceeded',
-                          event_data={'exception': e, 'max_retries': max_retries})
-                raise
-            retries += 1
-            log.debug('Caught {exception} -- Retrying in {backoff} seconds...',
-                      event_name='retry_handler.will_retry',
-                      event_data={'exception': e, 'backoff': backoff, 'try_num': retries})
-            time.sleep(backoff)
-            backoff *= 2
-        else:
-            break
+            while True:
+                try:
+                    return func(*args, **kwargs)
+                except exc_classes as e:
+                    if retries >= max_retries:
+                        log.debug('Max number of retries exceeded, raising...',
+                                  event_name='retry_handler.max_retries_exceeded',
+                                  event_data={'exception': e, 'max_retries': max_retries})
+                        raise
+                    retries += 1
+                    log.debug('Caught {exception} -- Retrying in {backoff} seconds...',
+                              event_name='retry_handler.will_retry',
+                              event_data={'exception': e, 'backoff': backoff, 'try_num': retries})
+                    time.sleep(backoff)
+                    backoff *= 2
+                else:
+                    break
+
+        return retry_func
+    return decorator

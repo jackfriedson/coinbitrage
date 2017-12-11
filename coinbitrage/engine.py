@@ -78,15 +78,22 @@ class ArbitrageEngine(object):
             loop.stop()
 
     @staticmethod
+    @retry_on_exception(Timeout, ServerError)
     async def _get_balance_async(name: str, exchange):
-        with retry_on_exception(Timeout, ServerError):
-            return name, exchange.balance()
+        return name, exchange.balance()
 
     async def _update_exchange_balances(self):
         futures = [self._get_balance_async(name, exchg) for name, exchg in self._exchanges.items()]
         results = await asyncio.gather(*futures)
         self._exchange_balances = {name: balance for name, balance in results}
-        self._update_total_balances()
+        new_balances = {
+            cur: sum([balance[cur] for balance in self._exchange_balances.values()])
+            for cur in [self.base_currency, self.quote_currency]
+        }
+        if new_balances != self.total_balances:
+            log.info('Updated balances: {total_balances}', event_name='balances.update',
+                     event_data={'total_balances': new_balances, 'full_balances': self._exchange_balances})
+        self.total_balances = new_balances
 
     async def _arbitrage(self, loop):
         try:
@@ -109,16 +116,6 @@ class ArbitrageEngine(object):
         except Exception as e:
             log.exception(e, event_name='error.print_table')
             loop.stop()
-
-    def _update_total_balances(self):
-        new_balances = {
-            cur: sum([balance[cur] for balance in self._exchange_balances.values()])
-            for cur in [self.base_currency, self.quote_currency]
-        }
-        if new_balances != self.total_balances:
-            log.info('Updated balances: {balances}', event_name='total_balances.update',
-                     event_data={'balances': new_balances})
-        self.total_balances = new_balances
 
     def _transfer_to_trading_accounts(self):
         for exchange in self._exchanges.values():
