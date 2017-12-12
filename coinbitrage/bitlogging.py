@@ -86,4 +86,4 @@ class OrderFormatter(logging.Formatter):
 class JSONFormatter(logging.Formatter):
 
     def format(self, record: logging.LogRecord) -> str:
-        return json.dumps(record.__dict__)
+        return json.dumps({k: str(v) for k, v in record.__dict__.items()})

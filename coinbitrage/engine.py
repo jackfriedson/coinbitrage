@@ -154,24 +154,28 @@ class ArbitrageEngine(object):
             log.debug('{} debts: {}'.format(currency, debts))
             log.debug('{} credits: {}'.format(currency, credits))
 
-            while debts and credits:
-                to_exchange, debt = max(debts.items(), key=lambda x: x[1])
-                from_exchange, credit = max(credits.items(), key=lambda x: x[1])
-                to_exchange_client = self._exchanges[to_exchange]
-                from_exchange_client = self._exchanges[from_exchange]
+            try:
+                while debts and credits:
+                    to_exchange, debt = max(debts.items(), key=lambda x: x[1])
+                    from_exchange, credit = max(credits.items(), key=lambda x: x[1])
+                    to_exchange_client = self._exchanges[to_exchange]
+                    from_exchange_client = self._exchanges[from_exchange]
 
-                if debt < credit:
-                    transfer_amt = max(debt, min_transfer)
-                    to_exchange_client.get_funds_from(from_exchange_client, currency, transfer_amt)
-                    debts.pop(to_exchange)
-                    credits[from_exchange] = credit - transfer_amt
-                    if credits[from_exchange] < min_transfer:
+                    if debt < credit:
+                        transfer_amt = max(debt, min_transfer)
+                        to_exchange_client.get_funds_from(from_exchange_client, currency, transfer_amt)
+                        debts.pop(to_exchange)
+                        credits[from_exchange] = credit - transfer_amt
+                        if credits[from_exchange] < min_transfer:
+                            credits.pop(from_exchange)
+                    else:
+                        assert credit >= min_transfer
+                        to_exchange_client.get_funds_from(from_exchange_client, currency, credit)
                         credits.pop(from_exchange)
-                else:
-                    assert credit >= min_transfer
-                    to_exchange_client.get_funds_from(from_exchange_client, currency, credit)
-                    credits.pop(from_exchange)
-                    debts[to_exchange] = debt - credit
+                        debts[to_exchange] = debt - credit
+            except RequestException as e:
+                log.warning('Could not successfully redistribute funds', event_name='redistribute_funds.failure',
+                            event_data={'exception': e})
 
         redistribute(self.base_currency)
         redistribute(self.quote_currency)
