@@ -1,1 +1,1 @@
-from .adapter import KrakenAPIAdapter
+from .adapter import KrakenAPIAdapter, KrakenClient

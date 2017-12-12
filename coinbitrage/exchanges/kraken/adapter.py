@@ -9,59 +9,39 @@ from coinbitrage.exchanges.mixins import PeriodicRefreshMixin
 
 
 KRAKEN_API_CALL_RATE = 3.
-CURRENCY_MAP = {
-    'BTC': 'XXBT',
-    'ETH': 'XETH',
-    'USD': 'ZUSD',
-}
 
 
 class KrakenAPIAdapter(BitExRESTAdapter):
     _api_class = Kraken
-
-    _formatters = {
-        'ticker': lambda x: {
-            'bid': float(x[0]),
-            'ask': float(x[1]),
-            'time': time.time(),
-        }
+    _currency_map = {
+        'BTC': 'XXBT',
+        'ETH': 'XETH',
+        'USDT': 'ZUSD',
     }
-
-    def __init__(self, key_file: str):
-        super(KrakenAPIAdapter, self).__init__(key_file=key_file)
 
     def deposit_address(self, currency: str) -> str:
         if currency == 'BTC':
             method = 'Bitcoin'
         elif currency == 'ETH':
             method = 'Ether (Hex)'
+        elif currency == 'USDT':
+            method = 'Tether USD'
         else:
-            raise NotImplementedError
+            raise NotImplementedError('Deposit address not implemented for {}'.format(currency))
 
-        currency = CURRENCY_MAP[currency]
+        currency = self.fmt_currency(currency)
         resp = self._api.deposit_address(asset=currency, method=method)
         resp.raise_for_status()
         addr = resp.json()['result'][0]['address']
         return addr
 
-    def fee(self, currency: str):
-        # TODO: actually implement
-        return 0.0025
 
-    def withdraw(self, currency: str, address: str, amount: float, **kwargs) -> bool:
-        pass
-
-    def pair(self, base_currency: str, quote_currency: str):
-        base_currency = CURRENCY_MAP.get(base_currency, base_currency)
-        quote_currency = CURRENCY_MAP.get(quote_currency, quote_currency)
-        return base_currency + quote_currency
-
-
-class KrakenClient(BaseExchangeClient):
+class KrakenClient(BaseExchangeClient, PeriodicRefreshMixin):
     name = 'kraken'
     _api_class = KrakenAPIAdapter
 
     def __init__(self, key_file: str):
         BaseExchangeClient.__init__(self, key_file)
+        PeriodicRefreshMixin.__init__(self, refresh_interval=1)
 
 
