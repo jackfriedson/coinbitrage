@@ -32,7 +32,7 @@ class ArbitrageEngine(object):
                  exchanges: List[str],
                  base_currency: str,
                  quote_currency: str,
-                 min_profit: float = 0.,
+                 min_profit: float = 0.01,
                  order_precision: float = 0.002):
         self.buy_exchanges = self.sell_exchanges = []
         self.base_currency = base_currency
