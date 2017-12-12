@@ -239,7 +239,7 @@ class ArbitrageEngine(object):
             if expected_profit is not None:
                 buy_fee = self._exchanges[buy_exchange].fee(self.base_currency)
                 sell_fee = self._exchanges[sell_exchange].fee(self.base_currency)
-                expected_profit -= (buy_fee + sell_fee + ESTIMATED_TRANSFER_FEE)
+                expected_profit -= (buy_fee + sell_fee + (2*ESTIMATED_TRANSFER_FEE))
 
                 if expected_profit > self._min_profit_threshold:
                     await self._place_orders(buy_exchange, sell_exchange, expected_profit)
@@ -289,7 +289,8 @@ class ArbitrageEngine(object):
         sell_price = self._last_prices[sell_exchange]['bid'] * (1 - self._acceptable_limit_margin)
 
         # Compute the order size
-        multiplier = int(expected_profit / .01) or 1
+        multiplier = 2**int(expected_profit * 100)
+        assert multiplier > 0
         target_volume = CURRENCIES[self.base_currency]['order_size'] * multiplier
         buy_balance = self._exchange_balances[buy_exchange][self.quote_currency] / buy_price
         sell_balance = self._exchange_balances[sell_exchange][self.base_currency]
