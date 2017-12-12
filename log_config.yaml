@@ -40,6 +40,6 @@ handlers:
   order:
     class: logging.handlers.TimedRotatingFileHandler
     when: midnight
-    formatter: order
+    formatter: json
     filters: [order_filter]
     level: INFO
