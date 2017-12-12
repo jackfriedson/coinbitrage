@@ -25,6 +25,10 @@ CURRENCIES = {
     'BCH': {
         'est_tx_fee': 0.0003,
         'order_size': 0.019,
+    },
+    'USDT': {
+        'est_tx_fee': 5.,
+        'order_size': 25,
     }
 }
 

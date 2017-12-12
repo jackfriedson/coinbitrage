@@ -1,6 +1,6 @@
 import logging
 from functools import partial, wraps
-from typing import Callable, Dict, List, Optional, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union
 from queue import Queue
 
 from requests.exceptions import HTTPError, RequestException
@@ -65,6 +65,7 @@ class BitExRESTAdapter(BaseExchangeAPI):
     def __init__(self, name: str, key_file: str):
         super(BitExRESTAdapter, self).__init__(name)
         self._api = self._api_class(key_file=key_file, timeout=REQUESTS_TIMEOUT)
+        self._inverse_currency_map = {v: k for k, v in self._currency_map.items()}
 
     def __getattr__(self, name: str):
         return self._wrapped_bitex_method(name)
@@ -157,6 +158,21 @@ class BitExRESTAdapter(BaseExchangeAPI):
             log.warning('Unable to withdraw {amount} {currency} from {exchange}', event_data=event_data,
                         event_name='exchange_api.withdraw.failure')
         return result
+
+    def fmt_currency(self, currency: str, inverse: bool = False) -> str:
+        cur_map = self._currency_map if not inverse else self._inverse_currency_map
+        return cur_map.get(currency, currency)
+
+    def pair(self, base_currency: str, quote_currency: str) -> str:
+        base = self.fmt_currency(base_currency)
+        quote = self.fmt_currency(quote_currency)
+        return super(BitExRESTAdapter, self).pair(base, quote)
+
+    def unpair(self, currency_pair: str) -> Tuple[str, str]:
+        base, quote = super(BitExRESTAdapter, self).unpair(currency_pair)
+        base = self.fmt_currency(base, inverse=True)
+        quote = self.fmt_currency(quote, inverse=True)
+        return base, quote
 
 
 class BitExWSSAdapter(WebsocketInterface):

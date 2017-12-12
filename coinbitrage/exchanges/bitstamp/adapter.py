@@ -62,9 +62,9 @@ class BitstampClient(BaseExchangeClient, WebsocketMixin):
         })
         self._channels = set()
 
-    def initialize(self,
-                   base_currency: str,
-                   quote_currency: str = DEFAULT_QUOTE_CURRENCY):
+    def start_live_updates(self,
+                           base_currency: str,
+                           quote_currency: str = DEFAULT_QUOTE_CURRENCY):
         channel = 'order_book'
         pair = self.pair(base_currency, quote_currency)
 

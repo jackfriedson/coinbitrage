@@ -13,16 +13,22 @@ from coinbitrage.settings import DEFAULT_QUOTE_CURRENCY
 
 class HitBTCAdapter(BitExRESTAdapter, SeparateTradingAccountMixin):
     _api_class = HitBtc
+    _currency_map = {
+        'USDT': 'USD'
+    }
 
     @retry_on_exception(Timeout, ServerError)
     def bank_balance(self) -> Dict[str, float]:
         resp = self._api.private_query('account/balance', method_verb='GET')
-        return {val['currency']: float(val['available']) for val in resp.json()}
+        return {
+            self.fmt_currency(val['currency'], inverse=True): float(val['available'])
+            for val in resp.json()
+        }
 
     @retry_on_exception(Timeout, ServerError)
     def _transfer_between_accounts(self, to_trading: bool, currency: str, amount: float):
         direction = 'bankToExchange' if to_trading else 'exchangeToBank'
-        params = {'currency': currency, 'amount': amount, 'type': direction}
+        params = {'currency': self.fmt_currency(currency), 'amount': amount, 'type': direction}
         resp = self._api.private_query('account/transfer', method_verb='POST', params=params)
         return 'id' in resp.json()
 

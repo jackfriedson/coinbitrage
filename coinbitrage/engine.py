@@ -64,6 +64,15 @@ class ArbitrageEngine(object):
             finally:
                 loop.close()
 
+    async def _arbitrage(self, loop):
+        try:
+            self._update_prices()
+            await self._attempt_arbitrage()
+            loop.create_task(self._arbitrage(loop))
+        except Exception as e:
+            log.exception(e, event_name='error.arbitrage')
+            loop.stop()
+
     async def _manage_balances(self, loop):
         log.debug('Managing balances...', event_name='balance_manager.start')
         try:
@@ -99,15 +108,6 @@ class ArbitrageEngine(object):
             log.info('Updated balances: {total_balances}', event_name='balances.update',
                      event_data={'total_balances': new_totals, 'full_balances': self._exchange_balances})
         self.total_balances = new_totals
-
-    async def _arbitrage(self, loop):
-        try:
-            self._update_prices()
-            await self._attempt_arbitrage()
-            loop.create_task(self._arbitrage(loop))
-        except Exception as e:
-            log.exception(e, event_name='error.arbitrage')
-            loop.stop()
 
     def _print_arbitrage_table(self, loop):
         try:
@@ -213,11 +213,11 @@ class ArbitrageEngine(object):
         exchanges."""
         try:
             for exchange in self._exchanges.values():
-                exchange.initialize(self.base_currency, self.quote_currency)
+                exchange.start_live_updates(self.base_currency, self.quote_currency)
             yield
         finally:
             for exchange in self._exchanges.values():
-                exchange.shutdown()
+                exchange.stop_live_updates()
 
     def _update_prices(self):
         """Updates the most recent price data."""

@@ -22,12 +22,10 @@ def format_bid_ask(bid_ask: Dict[str, float]) -> Dict[str, str]:
 
 class LiveUpdateMixin(ABC):
 
-    def initialize(self,
-                   base_currency: str,
-                   quote_currency: str = DEFAULT_QUOTE_CURRENCY):
+    def start_live_updates(self, base_currency: str, quote_currency: str = DEFAULT_QUOTE_CURRENCY):
         pass
 
-    def shutdown(self):
+    def stop_live_updates(self):
         pass
 
 
@@ -38,12 +36,10 @@ class WebsocketMixin(LiveUpdateMixin):
         self._bid_ask = {'bid': None, 'ask': None, 'time': None}
         super(WebsocketMixin, self).__init__(*args, **kwargs)
 
-    def initialize(self,
-                   base_currency: str,
-                   quote_currency: str = DEFAULT_QUOTE_CURRENCY):
+    def start_live_updates(self, base_currency: str, quote_currency: str = DEFAULT_QUOTE_CURRENCY):
         self._websocket.subscribe(self.pair(base_currency, quote_currency))
 
-    def shutdown(self):
+    def stop_live_updates(self):
         self._websocket.shutdown()
 
     def _update(self):
@@ -72,9 +68,7 @@ class PeriodicRefreshMixin(LiveUpdateMixin):
         self._bid_ask = {'bid': None, 'ask': None, 'time': None}
         super(PeriodicRefreshMixin, self).__init__(*args, **kwargs)
 
-    def initialize(self,
-                   base_currency: str,
-                   quote_currency: str = DEFAULT_QUOTE_CURRENCY):
+    def start_live_updates(self, base_currency: str, quote_currency: str = DEFAULT_QUOTE_CURRENCY):
         if not thread_running(self._refresh_thread):
             self._base = base_currency
             self._quote = quote_currency
@@ -83,7 +77,7 @@ class PeriodicRefreshMixin(LiveUpdateMixin):
                                           name='{}RefreshThread'.format(self.name.title()))
             self._refresh_thread.start()
 
-    def shutdown(self):
+    def stop_live_updates(self):
         if thread_running(self._refresh_thread):
             self._running.clear()
             self._refresh_thread.join()

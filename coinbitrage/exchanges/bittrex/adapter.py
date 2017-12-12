@@ -15,7 +15,6 @@ class BittrexAPIAdapter(BitExRESTAdapter):
 
     def __init__(self, *args, **kwargs):
         super(BittrexAPIAdapter, self).__init__(*args, **kwargs)
-        self._inv_currency_map = {v: k for k, v in self._currency_map.items()}
 
     def pair(self, base_currency: str, quote_currency: str) -> str:
         base_currency = self._currency_map.get(base_currency, base_currency)
@@ -24,8 +23,8 @@ class BittrexAPIAdapter(BitExRESTAdapter):
 
     def unpair(self, currency_pair: str) -> Tuple[str, str]:
         currencies = currency_pair.split('-')
-        base_currency = self._inv_currency_map.get(currencies[1], currencies[1])
-        quote_currency = self._inv_currency_map.get(currencies[0], currencies[0])
+        base_currency = self._inverse_currency_map.get(currencies[1], currencies[1])
+        quote_currency = self._inverse_currency_map.get(currencies[0], currencies[0])
         return base_currency, quote_currency
 
 
