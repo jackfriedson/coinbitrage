@@ -342,8 +342,10 @@ class ArbitrageEngine(object):
             else:
                 log.warning('Order could not be cancelled'.format(success_side),
                             event_name='cancel_order.failure', event_data={'order_id': resp})
+                raise Exception
         else:
             log.warning('Both orders failed', event_name='arbitrage.place_order.total_failure')
+            raise Exception
 
     async def _place_orders_async(self, buy_partial: Callable[[], Optional[str]],
                                   sell_partial: Callable[[], Optional[str]]) -> Tuple[Optional[str], Optional[str]]:
