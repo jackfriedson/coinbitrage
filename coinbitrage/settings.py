@@ -4,7 +4,7 @@ from pathlib import Path
 API_KEY_DIR = Path.home()/'.api_keys'
 DEFAULT_ORDER_FEE = 0.0025
 DEFAULT_QUOTE_CURRENCY = 'USD'
-ESTIMATED_TRANSFER_FEE = 0.01
+MAX_TRANSFER_FEE = 0.01
 REQUESTS_TIMEOUT = 10
 
 
@@ -34,4 +34,4 @@ CURRENCIES = {
 
 
 for data in CURRENCIES.values():
-    data['min_transfer_size'] = data['est_tx_fee'] * (1. / ESTIMATED_TRANSFER_FEE)
+    data['min_transfer_size'] = data['est_tx_fee'] * (1. / MAX_TRANSFER_FEE)

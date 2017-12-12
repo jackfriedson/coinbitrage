@@ -13,7 +13,7 @@ from coinbitrage.exchanges import get_exchange
 from coinbitrage.exchanges.errors import ServerError
 from coinbitrage.exchanges.mixins import SeparateTradingAccountMixin
 from coinbitrage.exchanges.utils import retry_on_exception
-from coinbitrage.settings import CURRENCIES, ESTIMATED_TRANSFER_FEE
+from coinbitrage.settings import CURRENCIES, MAX_TRANSFER_FEE
 
 
 BALANCE_MARGIN = 0.2
@@ -32,7 +32,7 @@ class ArbitrageEngine(object):
                  exchanges: List[str],
                  base_currency: str,
                  quote_currency: str,
-                 min_profit: float = 0.01,
+                 min_profit: float = 0.,
                  order_precision: float = 0.002):
         self.buy_exchanges = self.sell_exchanges = []
         self.base_currency = base_currency
@@ -239,7 +239,7 @@ class ArbitrageEngine(object):
             if expected_profit is not None:
                 buy_fee = self._exchanges[buy_exchange].fee(self.base_currency)
                 sell_fee = self._exchanges[sell_exchange].fee(self.base_currency)
-                expected_profit -= (buy_fee + sell_fee + (2*ESTIMATED_TRANSFER_FEE))
+                expected_profit -= (buy_fee + sell_fee + (2*MAX_TRANSFER_FEE))
 
                 if expected_profit > self._min_profit_threshold:
                     await self._place_orders(buy_exchange, sell_exchange, expected_profit)
