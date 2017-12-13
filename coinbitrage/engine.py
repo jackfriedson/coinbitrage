@@ -41,59 +41,49 @@ class ArbitrageEngine(object):
         self._min_profit_threshold = min_profit
         self._acceptable_limit_margin = order_precision
 
+        self._next_scheduled = {}
+        self._loop = asyncio.get_event_loop()
+
         self._exchanges = {name: get_exchange(name) for name in exchanges}
         self._exchange_balances = None
         self._last_prices = {exchg: {'bid': None, 'ask': None, 'time': None} for exchg in exchanges}
 
-        #TODO
-        # self._get_latest_tx_fees()
-
     def run(self):
         """Runs the program."""
-        with self._exchange_manager():
-            loop = asyncio.get_event_loop()
-            loop.create_task(self._manage_balances(loop))
-            loop.create_task(self._arbitrage(loop))
-            loop.call_later(PRINT_TABLE_EVERY, self._print_arbitrage_table, loop)
+        with self._live_updates():
             try:
-                loop.run_forever()
+                while True:
+                    self._manage_balances()
+                    self._update_prices()
+                    self._attempt_arbitrage()
+                    self._print_arbitrage_table()
             except KeyboardInterrupt:
                 pass
             except Exception as e:
                 log.exception(e, event_name='error.general')
             finally:
-                loop.close()
+                self._loop.close()
 
-    async def _arbitrage(self, loop):
-        try:
-            self._update_prices()
-            await self._attempt_arbitrage()
-            loop.create_task(self._arbitrage(loop))
-        except Exception as e:
-            log.exception(e, event_name='error.arbitrage')
-            loop.stop()
+    def _manage_balances(self):
+        if self._next_scheduled.get('manage_balances', 0) > time.time():
+            return
 
-    async def _manage_balances(self, loop):
         log.debug('Managing balances...', event_name='balance_manager.start')
-        try:
-            self._transfer_to_trading_accounts()
-            await self._update_exchange_balances()
-            self._redistribute_funds()
-            await self._update_active_exchanges()
-            await asyncio.sleep(REBALANCE_FUNDS_EVERY)
-            loop.create_task(self._manage_balances(loop))
-        except Exception as e:
-            log.exception(e, event_name='error.manage_balances')
-            loop.stop()
+        self._transfer_to_trading_accounts()
+        self._update_exchange_balances()
+        self._redistribute_funds()
+        self._update_active_exchanges()
+
+        self._next_scheduled['manage_balances'] = time.time() + REBALANCE_FUNDS_EVERY
 
     @staticmethod
     @retry_on_exception(Timeout, ServerError)
     async def _get_balance_async(name: str, exchange):
         return name, exchange.balance()
 
-    async def _update_exchange_balances(self):
+    def _update_exchange_balances(self):
         futures = [self._get_balance_async(name, exchg) for name, exchg in self._exchanges.items()]
-        results = await asyncio.gather(*futures)
+        results = self._loop.run_until_complete(asyncio.gather(*futures))
         self._exchange_balances = {
             name: {
                 cur: bal for cur, bal in balances.items()
@@ -109,18 +99,18 @@ class ArbitrageEngine(object):
                      event_data={'total_balances': new_totals, 'full_balances': self._exchange_balances})
         self.total_balances = new_totals
 
-    def _print_arbitrage_table(self, loop):
-        try:
-            table = self.arbitrage_table()
-            table = table.applymap(lambda x: '{:.2f}%'.format(x*100) if x else None)
-            print('\n ARBITRAGE TABLE')
-            print('-----------------')
-            print(table)
-            print()
-            loop.call_later(PRINT_TABLE_EVERY, self._print_arbitrage_table, loop)
-        except Exception as e:
-            log.exception(e, event_name='error.print_table')
-            loop.stop()
+    def _print_arbitrage_table(self):
+        if self._next_scheduled.get('print_table', 0) > time.time():
+            return
+
+        table = self.arbitrage_table()
+        table = table.applymap(lambda x: '{:.2f}%'.format(x*100) if x else None)
+        print('\n ARBITRAGE TABLE')
+        print('-----------------')
+        print(table)
+        print()
+
+        self._next_scheduled['print_table'] = time.time() + PRINT_TABLE_EVERY
 
     def _transfer_to_trading_accounts(self):
         for exchange in self._exchanges.values():
@@ -180,8 +170,8 @@ class ArbitrageEngine(object):
         redistribute(self.base_currency)
         redistribute(self.quote_currency)
 
-    async def _update_active_exchanges(self):
-        await self._update_exchange_balances()
+    def _update_active_exchanges(self):
+        self._update_exchange_balances()
         self.buy_exchanges = [
             n for n, bal in self._exchange_balances.items()
             if bal[self.quote_currency] >= CURRENCIES[self.quote_currency]['order_size']
@@ -212,7 +202,7 @@ class ArbitrageEngine(object):
         return (sell_exchange_price / buy_exchange_price) - 1.
 
     @contextmanager
-    def _exchange_manager(self):
+    def _live_updates(self):
         """A context manager for opening and closing resources associated with
         exchanges."""
         try:
@@ -228,12 +218,12 @@ class ArbitrageEngine(object):
         for name, exchange in self._exchanges.items():
             self._last_prices[name] = exchange.bid_ask(self.base_currency, self.quote_currency)
 
-    async def _attempt_arbitrage(self):
+    def _attempt_arbitrage(self):
         """Checks the arbitrage table to determine if there is an opportunity to profit,
         and if so executes the corresponding trades.
         """
         if not self._exchange_balances:
-            await self._update_exchange_balances()
+            self._update_exchange_balances()
 
         arbitrage_opportunity = self._maximum_profit()
 
@@ -246,7 +236,7 @@ class ArbitrageEngine(object):
                 expected_profit -= (buy_fee + sell_fee + (2*MAX_TRANSFER_FEE))
 
                 if expected_profit > self._min_profit_threshold:
-                    await self._place_orders(buy_exchange, sell_exchange, expected_profit)
+                    self._place_orders(buy_exchange, sell_exchange, expected_profit)
 
     def _maximum_profit(self) -> Tuple[str, str, float]:
         """Determines the maximum profit attainable given the current prices.
@@ -282,7 +272,7 @@ class ArbitrageEngine(object):
         max_profit = self._arbitrage_profit_loss(best_buy_exchange, best_sell_exchange)
         return best_buy_exchange, best_sell_exchange, max_profit
 
-    async def _place_orders(self, buy_exchange: str, sell_exchange: str, expected_profit: float):
+    def _place_orders(self, buy_exchange: str, sell_exchange: str, expected_profit: float):
         """Places buy and sell orders at the corresponding exchanges.
 
         :param buy_exchange: The name of the exchange to buy from
@@ -307,7 +297,7 @@ class ArbitrageEngine(object):
                                     'sell_exchange': sell_exchange, 'sell_balance': sell_balance,
                                     'target_volume': target_volume},
                         event_name='arbitrage.insufficient_funds')
-            await self._update_active_exchanges()
+            self._update_active_exchanges()
             return
 
         log_msg = 'Arbitrage opportunity: ' + \
@@ -325,12 +315,12 @@ class ArbitrageEngine(object):
                                      sell_price, order_volume, quote_currency=self.quote_currency, fill_or_kill=True)
 
         # Place buy and sell orders asynchronously
-        buy_resp, sell_resp = await self._place_orders_async(partial_buy_order, partial_sell_order)
+        buy_resp, sell_resp = self._place_orders_async(partial_buy_order, partial_sell_order)
 
         if buy_resp and sell_resp:
             log.info('Both orders placed successfully', event_name='arbitrage.place_order.success',
                      event_data={'buy_order_id': buy_resp, 'sell_order_id': sell_resp})
-            await self._update_active_exchanges()
+            self._update_active_exchanges()
         elif (buy_resp and not sell_resp) or (sell_resp and not buy_resp):
             if buy_resp:
                 success_side, fail_side, client, resp = 'buy', 'sell', self._exchanges[buy_exchange], buy_resp
@@ -351,13 +341,13 @@ class ArbitrageEngine(object):
             log.warning('Both orders failed', event_name='arbitrage.place_order.total_failure')
             raise Exception
 
-    async def _place_orders_async(self, buy_partial: Callable[[], Optional[str]],
+    def _place_orders_async(self, buy_partial: Callable[[], Optional[str]],
                                   sell_partial: Callable[[], Optional[str]]) -> Tuple[Optional[str], Optional[str]]:
         futures = [
             self._place_order_async(buy_partial),
             self._place_order_async(sell_partial)
         ]
-        responses = await asyncio.gather(*futures)
+        responses = self._loop.run_until_complete(asyncio.gather(*futures))
         return tuple(responses)
 
     @staticmethod

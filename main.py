@@ -5,7 +5,7 @@ from coinbitrage.engine import ArbitrageEngine
 bitlogging.configure()
 
 
-EXCHANGES = ['bittrex', 'hitbtc', 'poloniex']
+EXCHANGES = ['bittrex', 'poloniex']
 
 
 if __name__ == '__main__':
