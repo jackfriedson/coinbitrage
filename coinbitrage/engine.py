@@ -12,8 +12,8 @@ from coinbitrage import bitlogging, settings
 from coinbitrage.exchanges.errors import ServerError
 from coinbitrage.exchanges.manager import ExchangeManager
 from coinbitrage.exchanges.mixins import SeparateTradingAccountMixin
-from coinbitrage.exchanges.utils import retry_on_exception
 from coinbitrage.settings import CURRENCIES, MAX_TRANSFER_FEE
+from coinbitrage.utils import retry_on_exception
 
 
 BALANCE_MARGIN = 0.2
@@ -216,7 +216,8 @@ class ArbitrageEngine(object):
     async def _place_order_async(partial_fn: Callable[[], Optional[str]]):
         try:
             return partial_fn()
-        except RequestException:
+        except RequestException as e:
+            log.error(e, event_name='place_order.error')
             return False
 
     def arbitrage_table(self) -> pd.DataFrame:
@@ -236,32 +237,3 @@ class ArbitrageEngine(object):
                 result.loc[buy_name, sell_name] = self._arbitrage_profit_loss(buy_exchg, sell_exchg)
 
         return result
-
-
-def draw_arbitrage_table(table):
-    """Draws the arbitrage table."""
-    def format_as_percent(x):
-        if x is None:
-            return '-'
-        else:
-            return '{:.2f}%'.format(100*x)
-
-    def color_fn(x):
-        if x is None:
-            return 'white'
-        if x > COLOR_THRESH:
-            return 'lightgreen'
-        if x < -COLOR_THRESH:
-            return 'salmon'
-        return 'white'
-
-    formatted_data = [[format_as_percent(x) for x in row] for row in table.values]
-    cell_colors = [[color_fn(x) for x in row] for row in table.values]
-
-    fig, ax = plt.subplots()
-    ax.axis('off')
-    ax.axis('tight')
-    plt.table(cellText=formatted_data, cellColours=cell_colors, loc='center',
-              rowLabels=table.index.values, colLabels=table.columns.values)
-    fig.tight_layout()
-    plt.show()

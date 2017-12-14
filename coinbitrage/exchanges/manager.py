@@ -9,8 +9,8 @@ from coinbitrage import bitlogging
 from coinbitrage.exchanges import get_exchange
 from coinbitrage.exchanges.errors import ServerError
 from coinbitrage.exchanges.mixins import SeparateTradingAccountMixin
-from coinbitrage.exchanges.utils import retry_on_exception
 from coinbitrage.settings import CURRENCIES
+from coinbitrage.utils import retry_on_exception
 
 
 log = bitlogging.getLogger(__name__)

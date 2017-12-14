@@ -4,8 +4,7 @@ from typing import Dict, List, Optional, Union
 from bitex import GDAX
 from coinbase.wallet.client import Client
 
-from coinbitrage import bitlogging
-from coinbitrage.exchanges import utils
+from coinbitrage import bitlogging, utils
 from coinbitrage.exchanges.base import BaseExchangeClient
 from coinbitrage.exchanges.bitex import BitExRESTAdapter
 from coinbitrage.exchanges.interfaces import PrivateExchangeAPI

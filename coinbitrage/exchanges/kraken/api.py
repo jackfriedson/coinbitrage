@@ -11,7 +11,7 @@ import urllib.parse
 import requests
 
 from coinbitrage.exchanges.exceptions import APIException, AuthorizationException, ServiceUnavailableException
-from coinbitrage.exchanges.utils import retry_on_exception, retry_on_status_code
+from coinbitrage.utils import retry_on_exception, retry_on_status_code
 
 
 base_url = 'https://api.kraken.com'

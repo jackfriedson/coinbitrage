@@ -7,8 +7,8 @@ from typing import Dict
 from requests.exceptions import RequestException
 
 from coinbitrage import bitlogging
-from coinbitrage.exchanges.utils import thread_running
 from coinbitrage.settings import DEFAULT_QUOTE_CURRENCY
+from coinbitrage.utils import thread_running
 
 
 log = bitlogging.getLogger(__name__)

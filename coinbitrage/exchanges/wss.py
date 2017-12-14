@@ -12,7 +12,7 @@ from autobahn.wamp.types import ComponentConfig
 
 from coinbitrage import bitlogging
 from coinbitrage.exchanges.interfaces import WebsocketInterface
-from coinbitrage.exchanges.utils import thread_running
+from coinbitrage.utils import thread_running
 
 
 log = bitlogging.getLogger(__name__)

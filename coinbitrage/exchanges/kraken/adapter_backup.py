@@ -2,8 +2,7 @@ import logging
 from contextlib import contextmanager
 from typing import Dict, List, Optional
 
-from coinbitrage import bitlogging
-from coinbitrage.exchanges import utils
+from coinbitrage import bitlogging, utils
 from coinbitrage.exchanges.interfaces import PublicMarketAPI, PrivateExchangeAPI
 from coinbitrage.exchanges.exceptions import APIException
 from coinbitrage.exchanges.types import OHLC, OrderBook, Timestamp, Trade
