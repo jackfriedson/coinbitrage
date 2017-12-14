@@ -51,3 +51,9 @@ class BaseExchangeClient(object):
 
     def __getattr__(self, name):
         return getattr(self.api, name)
+
+    def bid(self):
+        return self.bid_ask()['bid']
+
+    def ask(self):
+        return self.bid_ask()['ask']

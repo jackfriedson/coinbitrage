@@ -44,6 +44,7 @@ class WebsocketMixin(LiveUpdateMixin):
 
     def _update(self):
         bid_ask = None
+        # TODO: update this so only the most recent bid/ask is kept
         while not self._websocket.queue.empty():
             bid_ask = self._websocket.queue.get()
         if bid_ask:
@@ -56,7 +57,6 @@ class WebsocketMixin(LiveUpdateMixin):
                 quote_currency: str = DEFAULT_QUOTE_CURRENCY):
         self._update()
         return self._bid_ask
-
 
 class PeriodicRefreshMixin(LiveUpdateMixin):
 
@@ -103,9 +103,7 @@ class PeriodicRefreshMixin(LiveUpdateMixin):
                               event_data={'exchange': self.name, 'bid_ask': format_bid_ask(self._bid_ask)})
             time.sleep(self._interval)
 
-    def bid_ask(self,
-                base_currency: str,
-                quote_currency: str = DEFAULT_QUOTE_CURRENCY):
+    def bid_ask(self):
         with self._lock:
             # TODO: do we actually need to acquire the lock here?
             # should we be creating a copy of the dict instead of passing a reference?
