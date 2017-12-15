@@ -75,8 +75,7 @@ class ArbitrageEngine(object):
 
         table = self.arbitrage_table()
         table = table.applymap(lambda x: '{:.2f}%'.format(x*100) if x else None)
-        print('\n ARBITRAGE TABLE')
-        print('-----------------')
+        print()
         print(table)
         print()
 
@@ -205,20 +204,15 @@ class ArbitrageEngine(object):
 
     def _place_orders_async(self, buy_partial: Callable[[], Optional[str]],
                                   sell_partial: Callable[[], Optional[str]]) -> Tuple[Optional[str], Optional[str]]:
-        futures = [
-            self._place_order_async(buy_partial),
-            self._place_order_async(sell_partial)
-        ]
-        responses = self._loop.run_until_complete(asyncio.gather(*futures))
-        return tuple(responses)
+        async def place_order_async(partial_fn: Callable[[], Optional[str]]):
+            try:
+                return partial_fn()
+            except RequestException as e:
+                log.error(e, event_name='place_order.error')
+                return False
 
-    @staticmethod
-    async def _place_order_async(partial_fn: Callable[[], Optional[str]]):
-        try:
-            return partial_fn()
-        except RequestException as e:
-            log.error(e, event_name='place_order.error')
-            return False
+        futures = [place_order_async(buy_partial), place_order_async(sell_partial)]
+        return tuple(self._loop.run_until_complete(asyncio.gather(*futures)))
 
     def arbitrage_table(self) -> pd.DataFrame:
         """Creates a table where rows represent to the exchange to buy from, and columns

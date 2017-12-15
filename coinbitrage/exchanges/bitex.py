@@ -52,7 +52,7 @@ class BitExFormatter(object):
         }
 
     def balance(self, data) -> Dict[str, float]:
-        return {cur: float(bal) for cur, bal in data.items()}
+        return {cur: float(bal) for cur, bal in data.items() if float(bal) != 0.}
 
 
 class BitExRESTAdapter(BaseExchangeAPI):

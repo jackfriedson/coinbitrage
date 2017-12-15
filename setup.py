@@ -13,5 +13,6 @@ setup(
     install_requires=get_requirements_from_file('requirements.txt'),
     entry_points='''
         [console_scripts]
+        coin=main:coin
     '''
 )

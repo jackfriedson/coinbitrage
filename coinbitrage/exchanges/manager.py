@@ -64,12 +64,17 @@ class ExchangeManager(object):
 
     def transfer_to_trading_accounts(self, currency: str = None):
         currencies = [currency] if currency else [self.base_currency, self.quote_currency]
-        for exchange in self._clients.values():
-            if isinstance(exchange.api, SeparateTradingAccountMixin):
-                for currency in currencies:
-                    bank_balance = exchange.bank_balance()[currency]
-                    if bank_balance > 0:
-                        exchange.bank_to_trading(currency, bank_balance)
+        filtered_exchanges = filter(lambda x: isinstance(x.api, SeparateTradingAccountMixin),
+                                    self._clients.values())
+
+        async def bank_to_trading(exchange):
+            for currency in currencies:
+                bank_balance = exchange.bank_balance()[currency]
+                if bank_balance > 0:
+                    exchange.bank_to_trading(currency, bank_balance)
+
+        futures = [bank_to_trading(exchg) for exchg in filtered_exchanges]
+        self._loop.run_until_complete(asyncio.gather(*futures))
 
     def redistribute_all(self):
         self.redistribute(self.base_currency)
@@ -118,7 +123,11 @@ class ExchangeManager(object):
                         event_data={'exception': e})
 
     def update_trading_balances(self):
-        futures = [self._get_balance_async(name, exchg) for name, exchg in self._clients.items()]
+        @retry_on_exception(Timeout, ServerError)
+        async def get_balance(name: str, exchange):
+            return name, exchange.balance()
+
+        futures = [get_balance(name, exchg) for name, exchg in self._clients.items()]
         results = self._loop.run_until_complete(asyncio.gather(*futures))
         self._balances = {
             name: {
@@ -134,11 +143,6 @@ class ExchangeManager(object):
             self._total_balances = new_totals
             log.info('Updated balances: {total_balances}', event_name='balances.update',
                      event_data={'total_balances': self._total_balances, 'full_balances': self._balances})
-
-    @staticmethod
-    @retry_on_exception(Timeout, ServerError)
-    async def _get_balance_async(name: str, exchange):
-        return name, exchange.balance()
 
     def update_active(self):
         self.update_trading_balances()
