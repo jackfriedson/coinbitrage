@@ -57,3 +57,19 @@ def retry_on_exception(*exc_classes, max_retries: int = 3, backoff_factor: float
 
         return retry_func
     return decorator
+
+
+class run_every(object):
+    def __init__(self, func: Callable, delay: int):
+        self._func = func
+        self._delay = delay
+        self._next_scheduled = 0
+
+    def __call__(self, *args, **kwargs):
+        if self._next_scheduled > time.time():
+            return
+
+        result = self._func(*args, **kwargs)
+
+        self._next_scheduled = time.time() + self._delay
+        return result

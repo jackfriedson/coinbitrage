@@ -30,6 +30,13 @@ class ExchangeManager(object):
         self._balances = None
         self._total_balances = {}
 
+    def manage_balances(self):
+        self._transfer_to_trading_accounts()
+        self._update_trading_balances()
+        self._redistribute(self.base_currency)
+        self._redistribute(self.quote_currency)
+        self.update_active()
+
     def valid_buys(self):
         def buy_exchange_filter(exchange):
             bid_ask = exchange.bid_ask()
@@ -62,7 +69,7 @@ class ExchangeManager(object):
             for exchange in self._clients.values():
                 exchange.stop_live_updates()
 
-    def transfer_to_trading_accounts(self, currency: str = None):
+    def _transfer_to_trading_accounts(self, currency: str = None):
         currencies = [currency] if currency else [self.base_currency, self.quote_currency]
         filtered_exchanges = filter(lambda x: isinstance(x.api, SeparateTradingAccountMixin),
                                     self._clients.values())
@@ -76,11 +83,7 @@ class ExchangeManager(object):
         futures = [bank_to_trading(exchg) for exchg in filtered_exchanges]
         self._loop.run_until_complete(asyncio.gather(*futures))
 
-    def redistribute_all(self):
-        self.redistribute(self.base_currency)
-        self.redistribute(self.quote_currency)
-
-    def redistribute(self, currency: str):
+    def _redistribute(self, currency: str):
         total_balance = self._total_balances[currency]
         order_size = CURRENCIES[currency]['order_size']
         average_balance = (total_balance - order_size) / len(self._clients)
@@ -122,7 +125,7 @@ class ExchangeManager(object):
             log.warning('Could not successfully redistribute funds', event_name='redistribute_funds.failure',
                         event_data={'exception': e})
 
-    def update_trading_balances(self):
+    def _update_trading_balances(self):
         @retry_on_exception(Timeout, ServerError)
         async def get_balance(name: str, exchange):
             return name, exchange.balance()
@@ -145,7 +148,7 @@ class ExchangeManager(object):
                      event_data={'total_balances': self._total_balances, 'full_balances': self._balances})
 
     def update_active(self):
-        self.update_trading_balances()
+        self._update_trading_balances()
         self._buy_active = [
             n for n, bal in self._balances.items()
             if bal[self.quote_currency] >= CURRENCIES[self.quote_currency]['order_size']

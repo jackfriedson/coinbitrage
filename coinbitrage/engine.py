@@ -13,7 +13,7 @@ from coinbitrage.exchanges.errors import ServerError
 from coinbitrage.exchanges.manager import ExchangeManager
 from coinbitrage.exchanges.mixins import SeparateTradingAccountMixin
 from coinbitrage.settings import CURRENCIES, MAX_TRANSFER_FEE
-from coinbitrage.utils import retry_on_exception
+from coinbitrage.utils import retry_on_exception, run_every
 
 
 BALANCE_MARGIN = 0.2
@@ -39,16 +39,18 @@ class ArbitrageEngine(object):
         self._exchanges = ExchangeManager(exchanges, base_currency, quote_currency, loop=self._loop)
         self._min_profit_threshold = min_profit
         self._acceptable_limit_margin = order_precision
-        self._next_scheduled = {}
 
     def run(self):
         """Runs the program."""
+        manage_balances = run_every(self._exchanges.manage_balances, REBALANCE_FUNDS_EVERY)
+        print_table = run_every(self._print_arbitrage_table, PRINT_TABLE_EVERY)
+
         with self._exchanges.live_updates():
             try:
                 while True:
-                    self._manage_balances()
+                    manage_balances()
                     self._attempt_arbitrage()
-                    self._print_arbitrage_table()
+                    print_table()
             except KeyboardInterrupt:
                 pass
             except Exception as e:
@@ -56,30 +58,12 @@ class ArbitrageEngine(object):
             finally:
                 self._loop.close()
 
-    def _manage_balances(self):
-        # TODO: abstract this logic into a decorator or context manager
-        if self._next_scheduled.get('manage_balances', 0) > time.time():
-            return
-
-        log.debug('Managing balances...', event_name='balance_manager.start')
-        self._exchanges.transfer_to_trading_accounts()
-        self._exchanges.update_trading_balances()
-        self._exchanges.redistribute_all()
-        self._exchanges.update_active()
-
-        self._next_scheduled['manage_balances'] = time.time() + REBALANCE_FUNDS_EVERY
-
     def _print_arbitrage_table(self):
-        if self._next_scheduled.get('print_table', 0) > time.time():
-            return
-
         table = self.arbitrage_table()
         table = table.applymap(lambda x: '{:.2f}%'.format(x*100) if x else None)
         print()
         print(table)
         print()
-
-        self._next_scheduled['print_table'] = time.time() + PRINT_TABLE_EVERY
 
     def _attempt_arbitrage(self):
         """Checks the arbitrage table to determine if there is an opportunity to profit,
