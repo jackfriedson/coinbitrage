@@ -34,4 +34,5 @@ def manage():
     hitbtc = get_exchange('hitbtc')
     kraken = get_exchange('kraken')
     poloniex = get_exchange('poloniex')
+    # TODO: find a better way to do this than ipdb
     ipdb.set_trace()
