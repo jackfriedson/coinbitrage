@@ -37,7 +37,7 @@ class ArbitrageEngine(object):
         self._exchanges = ExchangeManager(exchanges, base_currency, quote_currency, loop=self._loop)
         self._min_profit_threshold = min_profit
 
-    def run(self):
+    def run(self, transfers: bool = True):
         """Runs the program."""
         manage_balances = RunEvery(self._exchanges.manage_balances, delay=REBALANCE_FUNDS_EVERY)
         print_table = RunEvery(self._print_arbitrage_table, delay=PRINT_TABLE_EVERY)
@@ -45,7 +45,8 @@ class ArbitrageEngine(object):
         with self._exchanges.live_updates():
             try:
                 while True:
-                    manage_balances()
+                    if transfers:
+                        manage_balances()
                     self._attempt_arbitrage()
                     print_table()
             except KeyboardInterrupt:
@@ -57,45 +58,33 @@ class ArbitrageEngine(object):
 
     def _print_arbitrage_table(self):
         table = self.arbitrage_table()
-        table = table.applymap(lambda x: '{:.2f}%'.format(x*100) if x else None)
-        print()
-        print(table)
-        print()
+        if not table.empty:
+            table = table.applymap(lambda x: '{:.2f}%'.format(x*100) if x else '-')
+            print()
+            print(table)
+            print()
 
     def _attempt_arbitrage(self):
         """Checks the arbitrage table to determine if there is an opportunity to profit,
         and if so executes the corresponding trades.
         """
-        arbitrage_opportunity = self._maximum_profit()
+        buy_exchange = min(self._exchanges.valid_buys(), key=lambda x: x.ask(), default=None)
+        sell_exchange = max(self._exchanges.valid_sells(), key=lambda x: x.bid(), default=None)
 
-        if arbitrage_opportunity:
-            buy_exchange, sell_exchange, expected_profit = arbitrage_opportunity
+        if not (buy_exchange and sell_exchange):
+            return
 
-            buy_fee = buy_exchange.fee(self.base_currency)
-            sell_fee = sell_exchange.fee(self.base_currency)
-            expected_profit -= (buy_fee + sell_fee + (2*MAX_TRANSFER_FEE))
-
-            if expected_profit > self._min_profit_threshold:
-                self._place_orders(buy_exchange, sell_exchange, expected_profit)
-
-    def _maximum_profit(self):
-        """Determines the maximum profit attainable given the current prices.
-
-        :returns: a tuple representing the exchanges to buy and sell at, and the expected profit
-        """
-        # Determine the best exchanges to buy and sell at
-        best_buy_exchange = min(self._exchanges.valid_buys(), key=lambda x: x.ask(), default=None)
-        best_sell_exchange = max(self._exchanges.valid_sells(), key=lambda x: x.bid(), default=None)
-
-        if not (best_buy_exchange and best_sell_exchange):
-            return None
-
-        expected_profit = self._arbitrage_profit_loss(best_buy_exchange, best_sell_exchange)
+        expected_profit = self._arbitrage_profit_loss(buy_exchange, sell_exchange)
 
         if not expected_profit:
-            return None
+            return
 
-        return best_buy_exchange, best_sell_exchange, expected_profit
+        buy_fee = buy_exchange.fee(self.base_currency)
+        sell_fee = sell_exchange.fee(self.base_currency)
+        expected_profit -= (buy_fee + sell_fee + (2*MAX_TRANSFER_FEE))
+
+        if expected_profit > self._min_profit_threshold:
+            self._place_orders(buy_exchange, sell_exchange, expected_profit)
 
     def _arbitrage_profit_loss(self, buy_exchange, sell_exchange) -> float:
         """Calculates the profit/loss of buying at one exchange and selling at another.
@@ -204,11 +193,10 @@ class ArbitrageEngine(object):
         """
         buy_exchanges = {x.name: x for x in self._exchanges.valid_buys()}
         sell_exchanges = {x.name: x for x in self._exchanges.valid_sells()}
-
-        result = pd.DataFrame(index=buy_exchanges.keys(), columns=sell_exchanges.keys())
+        table = pd.DataFrame(index=buy_exchanges.keys(), columns=sell_exchanges.keys())
 
         for buy_name, buy_exchg in buy_exchanges.items():
             for sell_name, sell_exchg in sell_exchanges.items():
-                result.loc[buy_name, sell_name] = self._arbitrage_profit_loss(buy_exchg, sell_exchg)
+                table.loc[buy_name, sell_name] = self._arbitrage_profit_loss(buy_exchg, sell_exchg)
 
-        return result
+        return table

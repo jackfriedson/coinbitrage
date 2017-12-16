@@ -1,6 +1,7 @@
 import logging
 import time
 from abc import ABC, abstractproperty
+from functools import wraps
 from threading import Event, RLock, Thread
 from typing import Dict, Optional
 
@@ -149,8 +150,22 @@ class ProxyCurrencyWrapper(object):
         self.acceptable_bid = acceptable_bid
         self.acceptable_ask = acceptable_ask
 
-    def __getattr__(self, name):
-        return getattr(self._api, name)
+    def __getattr__(self, name: str):
+        attr = getattr(self._api, name)
+        if not callable(attr):
+            return attr
+        return self._proxy_wrapper(attr)
+
+    def _proxy_wrapper(self, func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            quote = kwargs.get('quote_currency')
+            if quote and quote == self.proxy_currency:
+                kwargs['quote_currency'] = self.quote_currency
+            result = func(*args, **kwargs)
+            # TODO: reverse proxy?
+            return result
+        return wrapper
 
     def balance(self, show_quote: bool = False):
         balances = self._api.balance()
@@ -163,20 +178,11 @@ class ProxyCurrencyWrapper(object):
     def withdraw(self, currency: str, address: str, amount: float, **kwargs) -> str:
         if currency == self.proxy_currency:
             balance = self.balance(show_quote=True)
-            proxy_bal = balance[self.proxy_currency]
+            proxy_bal = balance.get(self.proxy_currency, 0.)
             if proxy_bal < amount:
                 transfer_amt = amount - proxy_bal
                 self.quote_to_proxy(transfer_amt)
         return self._api.withdraw(currency, address, amount, **kwargs)
-
-    def limit_order(self,
-                    base_currency: str,
-                    *args,
-                    quote_currency: str = DEFAULT_QUOTE_CURRENCY,
-                    **kwargs) -> Optional[str]:
-        if quote_currency == self.proxy_currency:
-            quote_currency = self.quote_currency
-        return self._api.limit_order(base_currency, *args, quote_currency=quote_currency, **kwargs)
 
     def proxy_to_quote(self, amount: float = None):
         proxy_bid = self._api.ticker(self.proxy_currency, quote_currency=self.quote_currency)['bid']
@@ -190,11 +196,13 @@ class ProxyCurrencyWrapper(object):
                                   'acceptable_bid': self.acceptable_bid})
             raise ExchangeError('Unable to exchange proxy currency for quote currency')
 
-        if not amount:
-            amount = self.balance(show_quote=True)[self.proxy_currency]
+        if amount is None:
+            amount = self.balance(show_quote=True).get(self.proxy_currency, 0.)
         price = proxy_bid * (1 - ORDER_PRECISION)
-        return self._api.limit_order(self.proxy_currency, 'sell', price, amount,
-                                     quote_currency=self.quote_currency)
+
+        if amount > 0:
+            return self._api.limit_order(self.proxy_currency, 'sell', price, amount,
+                                         quote_currency=self.quote_currency)
 
     def quote_to_proxy(self, amount: float = None):
         proxy_ask = self._api.ticker(self.proxy_currency, quote_currency=self.quote_currency)['ask']
@@ -209,7 +217,9 @@ class ProxyCurrencyWrapper(object):
             raise ExchangeError('Unable to exchange quote currency for proxy currency')
 
         price = proxy_ask * (1 + ORDER_PRECISION)
-        if not amount:
-            amount = self.balance(show_quote=True)[self.quote_currency] / price
-        return self._api.limit_order(self.proxy_currency, 'buy', price, amount,
-                                     quote_currency=self.quote_currency)
+        if amount is None:
+            amount = self.balance(show_quote=True).get(self.quote_currency, 0.) / price
+
+        if amount > 0:
+            return self._api.limit_order(self.proxy_currency, 'buy', price, amount,
+                                         quote_currency=self.quote_currency)

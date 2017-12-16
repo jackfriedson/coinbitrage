@@ -20,19 +20,33 @@ MAX_REFRESH_DELAY = 10  # Filter exchanges not updated within the last 10 second
 
 class ExchangeManager(object):
 
+    # TODO: Implement credits system to know what is tolerable in terms of withdrawal tx fees
+    # TODO: Set a flag when deposits are pending to avoid rebalancing again; check at the beginning
+    #       of each rebalance whether deposits have completed and unset the flag if so
+
     def __init__(self, exchanges: List[str], base_currency: str, quote_currency: str, loop = None):
         self.base_currency = base_currency
         self.quote_currency = quote_currency
         self._loop = loop or asyncio.get_event_loop()
         self._buy_active = self._sell_active = set()
-        self._balances = None
+        self._balances = {}
         self._total_balances = {}
+        self._clients = {}
+
+        self._init_clients([get_exchange(name) for name in exchanges])
+        self.update_active_exchanges()
+
+    def _init_clients(self, all_clients: list):
+        async def init(exchg):
+            exchg.init()
+
+        futures = [init(exchg) for exchg in all_clients]
+        self._loop.run_until_complete(asyncio.gather(*futures))
+
         self._clients = {
-            exchg.name: exchg
-            for exchg in (get_exchange(name) for name in exchanges)
-            if exchg.supports_pair(base_currency, quote_currency)
+            exchg.name: exchg for exchg in all_clients
+            if exchg.supports_pair(self.base_currency, self.quote_currency)
         }
-        self._update_trading_balances()
 
     def get(self, exchange_name: str):
         return self._clients.get(exchange_name)
@@ -42,7 +56,7 @@ class ExchangeManager(object):
         return self._balances
 
     @property
-    def total_balances(self):
+    def totals(self):
         return self._total_balances
 
     def manage_balances(self):

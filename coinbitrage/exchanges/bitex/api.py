@@ -68,17 +68,17 @@ class BitExAPIAdapter(BaseExchangeAPI):
             try:
                 resp.raise_for_status()
             except HTTPError as e:
-                event_data = {'status_code': resp.status_code, 'response': resp.content,
-                              'method': method.__name__, 'args': args, 'kwargs': kwargs}
-                event_data['error_message'] = resp.content if len(resp.content) <= INCLUDE_MSG_LENGTH else ''
-
+                log_msg = '{exchange} encountered an HTTP error ({status_code})'
+                event_data = {'exchange': self.name, 'status_code': resp.status_code,
+                              'method': name, 'args': args, 'kwargs': kwargs}
+                if 'application/json' in resp.headers['Content-Type']:
+                    log_msg += ': {error_message}'
+                    event_data['error_message'] = resp.json()
                 if resp.status_code >= 400 and resp.status_code < 500:
-                    log.error('Encountered an HTTP error ({status_code}): {error_message}',
-                              event_name='exchange_api.http_error.client', event_data=event_data,)
+                    log.error(log_msg, event_name='exchange_api.http_error.client', event_data=event_data)
                     raise ClientError(e)
                 else:
-                    log.warning('Encountered an HTTP error ({status_code}): {error_message}',
-                                event_name='exchange_api.http_error.server', event_data=event_data)
+                    log.warning(log_msg, event_name='exchange_api.http_error.server', event_data=event_data)
                     raise ServerError(e)
 
             resp_data = resp.json()

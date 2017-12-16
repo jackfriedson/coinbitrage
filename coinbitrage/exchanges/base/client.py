@@ -10,6 +10,8 @@ class BaseExchangeClient(object):
 
     def __init__(self, key_file: str, **kwargs):
         self.api = self._api_class(self.name, key_file, **kwargs)
+        self.supported_pairs = []
+        self.currency_info = {}
 
     def __getattr__(self, name):
         return getattr(self.api, name)

@@ -12,5 +12,7 @@ class PoloniexClient(BaseExchangeClient, PeriodicRefreshMixin):
     def __init__(self, key_file: str):
         BaseExchangeClient.__init__(self, key_file)
         PeriodicRefreshMixin.__init__(self, 1)
+
+    def init(self):
         self.currency_info = self.api.currencies()
-        self.supported_pairs = set(self.api.pairs())
+        self.supported_pairs = self.api.pairs()

@@ -14,6 +14,8 @@ class KrakenClient(BaseExchangeClient, PeriodicRefreshMixin):
     def __init__(self, key_file: str):
         BaseExchangeClient.__init__(self, key_file)
         PeriodicRefreshMixin.__init__(self, refresh_interval=KRAKEN_CALL_RATE)
+
+    def init(self):
         self.supported_pairs = self.api.pairs()
 
     def supports_pair(self, base_currency: str, quote_currency: str) -> bool:
