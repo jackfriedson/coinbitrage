@@ -27,6 +27,7 @@ class BitExAPIAdapter(BaseExchangeAPI):
     def __getattr__(self, name: str):
         return self._wrapped_bitex_method(name)
 
+    # TODO: move most of this logic to BaseExchangeAPI
     def _wrapped_bitex_method(self, name: str):
         method = getattr(self._api, name)
 

@@ -3,9 +3,11 @@ from typing import Optional
 from bitex import Poloniex
 
 from coinbitrage import bitlogging
-from coinbitrage.exchanges.bitex import BitExAPIAdapter, BitExFormatter
+from coinbitrage.exchanges.bitex import BitExAPIAdapter
 from coinbitrage.exchanges.errors import ClientError
 from coinbitrage.settings import DEFAULT_QUOTE_CURRENCY
+
+from .formatter import PoloniexFormatter
 
 
 log = bitlogging.getLogger(__name__)
@@ -13,7 +15,7 @@ log = bitlogging.getLogger(__name__)
 
 class PoloniexAPIAdapter(BitExAPIAdapter):
     _api_class = Poloniex
-    _formatter = BitExFormatter(pair_delimiter='_')
+    _formatter = PoloniexFormatter()
 
     def __init__(self, name: str, key_file: str):
         super(PoloniexAPIAdapter, self).__init__(name, key_file)

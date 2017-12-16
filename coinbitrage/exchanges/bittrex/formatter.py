@@ -10,7 +10,7 @@ class BittrexFormatter(BitExFormatter):
 
     def currencies(self, data):
         return {
-            x['Currency']: {
+            self.format(x['Currency'], inverse=True): {
                 'tx_fee': x['TxFee'],
                 'min_confirmations': x['MinConfirmation'],
                 'is_active': x['IsActive'],

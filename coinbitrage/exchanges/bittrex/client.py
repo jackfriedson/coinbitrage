@@ -12,6 +12,4 @@ class BittrexClient(BaseExchangeClient, PeriodicRefreshMixin):
     def __init__(self, key_file: str):
         BaseExchangeClient.__init__(self, key_file)
         PeriodicRefreshMixin.__init__(self, refresh_interval=1)
-
-        # currency_info = self.api.currencies()
-        # import ipdb; ipdb.set_trace()
+        self.currency_info = self.api.currencies()
