@@ -121,9 +121,10 @@ class ExchangeManager(object):
                     to_exchange_client.get_funds_from(from_exchange_client, currency, credit)
                     credits.pop(from_exchange)
                     debts[to_exchange] = debt - credit
-        except RequestException as e:
+        except Exception as e:
             log.warning('Could not successfully redistribute funds', event_name='redistribute_funds.failure',
                         event_data={'exception': e})
+            raise
 
     def _update_trading_balances(self):
         @retry_on_exception(Timeout, ServerError)

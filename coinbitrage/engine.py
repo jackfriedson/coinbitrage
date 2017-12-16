@@ -13,10 +13,9 @@ from coinbitrage.exchanges.errors import ServerError
 from coinbitrage.exchanges.manager import ExchangeManager
 from coinbitrage.exchanges.mixins import SeparateTradingAccountMixin
 from coinbitrage.settings import CURRENCIES, MAX_TRANSFER_FEE
-from coinbitrage.utils import retry_on_exception, run_every
+from coinbitrage.utils import RunEvery, retry_on_exception
 
 
-BALANCE_MARGIN = 0.2
 COLOR_THRESH = 0.005
 REBALANCE_FUNDS_EVERY = 60 * 5  # Rebalance funds every 5 minutes
 PRINT_TABLE_EVERY = 60 * 1  # Print table every minute
@@ -31,19 +30,17 @@ class ArbitrageEngine(object):
                  exchanges: List[str],
                  base_currency: str,
                  quote_currency: str,
-                 min_profit: float = 0.,
-                 order_precision: float = 0.002):
+                 min_profit: float = 0.):
         self.base_currency = base_currency
         self.quote_currency = quote_currency
         self._loop = asyncio.get_event_loop()
         self._exchanges = ExchangeManager(exchanges, base_currency, quote_currency, loop=self._loop)
         self._min_profit_threshold = min_profit
-        self._acceptable_limit_margin = order_precision
 
     def run(self):
         """Runs the program."""
-        manage_balances = run_every(self._exchanges.manage_balances, REBALANCE_FUNDS_EVERY)
-        print_table = run_every(self._print_arbitrage_table, PRINT_TABLE_EVERY)
+        manage_balances = RunEvery(self._exchanges.manage_balances, delay=REBALANCE_FUNDS_EVERY)
+        print_table = RunEvery(self._print_arbitrage_table, delay=PRINT_TABLE_EVERY)
 
         with self._exchanges.live_updates():
             try:
@@ -124,8 +121,8 @@ class ArbitrageEngine(object):
         :param sell_exchange: The name of the excahnge to sell at
         :param expected_profit: The percent profit that can be expected
         """
-        buy_price = buy_exchange.ask() * (1 + self._acceptable_limit_margin)
-        sell_price = sell_exchange.bid() * (1 - self._acceptable_limit_margin)
+        buy_price = buy_exchange.ask() * (1 + settings.ORDER_PRECISION)
+        sell_price = sell_exchange.bid() * (1 - settings.ORDER_PRECISION)
 
         # Compute the order size
         multiplier = 2**int(expected_profit * 100)

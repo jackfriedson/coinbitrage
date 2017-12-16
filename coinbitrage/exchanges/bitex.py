@@ -3,6 +3,7 @@ from functools import partial, wraps
 from typing import Callable, Dict, List, Optional, Tuple, Union
 from queue import Queue
 
+import requests
 from requests.exceptions import HTTPError, RequestException
 
 from coinbitrage import bitlogging
@@ -62,9 +63,9 @@ class BitExRESTAdapter(BaseExchangeAPI):
     _float_precision = 6
     _currency_map = {}
 
-    def __init__(self, name: str, key_file: str):
+    def __init__(self, name: str, key_file: str, timeout: int = REQUESTS_TIMEOUT):
         super(BitExRESTAdapter, self).__init__(name)
-        self._api = self._api_class(key_file=key_file, timeout=REQUESTS_TIMEOUT)
+        self._api = self._api_class(key_file=key_file, timeout=timeout)
         self._inverse_currency_map = {v: k for k, v in self._currency_map.items()}
 
     def __getattr__(self, name: str):
@@ -82,7 +83,7 @@ class BitExRESTAdapter(BaseExchangeAPI):
                 args = (pair, *args[1:])
             elif 'currency' in kwargs:
                 currency = kwargs.pop('currency')
-                kwargs['currency'] = self._currency_map.get(currency, currency)
+                kwargs['currency'] = self._fmt_currency(currency)
 
             # Convert float values to strings
             def float_to_str(val):
@@ -95,6 +96,11 @@ class BitExRESTAdapter(BaseExchangeAPI):
 
             try:
                 resp = method(*args, **kwargs)
+            except RequestException as e:
+                log.error(e, event_name='exchange_api.request_error')
+                raise
+
+            try:
                 resp.raise_for_status()
             except HTTPError as e:
                 event_data = {'status_code': resp.status_code, 'response': resp.content,
@@ -107,13 +113,12 @@ class BitExRESTAdapter(BaseExchangeAPI):
                     log.warning('Encountered an HTTP error ({status_code}): {response}',
                                 event_name='exchange_api.http_error.server', event_data=event_data)
                     raise ServerError(e)
-            except RequestException as e:
-                log.error(e, event_name='exchange_api.request_error')
-                raise
 
-            # TODO: implement a single error format across exchanges
+            resp_data = resp.json()
+            self.raise_for_exchange_error(resp_data)
+
             if not resp.formatted:
-                log.warning('Possible exchange error: {response}', event_data={'response': resp.json()},
+                log.warning('Possible uncaught exchange error: {response}', event_data={'response': resp_data},
                             event_name='exchange_api.possible_error')
 
             formatter = getattr(self._formatter, name)
@@ -128,11 +133,12 @@ class BitExRESTAdapter(BaseExchangeAPI):
                     volume: float,
                     quote_currency: str = DEFAULT_QUOTE_CURRENCY,
                     **kwargs) -> Optional[str]:
-        order_fn_name = 'bid' if side == 'buy' else 'ask'
-        order_fn = self._wrapped_bitex_method(order_fn_name)
-        result = order_fn(base_currency, price, volume, quote_currency=quote_currency, **kwargs)
         event_data = {'exchange': self.name, 'side': side, 'volume': volume, 'price': price,
                       'base': base_currency, 'quote': quote_currency}
+
+        order_fn = self._wrapped_bitex_method('bid' if side == 'buy' else 'ask')
+        result = order_fn(base_currency, price, volume, quote_currency=quote_currency, **kwargs)
+
         if result:
             event_data.update({'order_id': result})
             log.info('Placed {side} order with {exchange} for {volume} {base} @ {price} {quote}',
@@ -142,6 +148,9 @@ class BitExRESTAdapter(BaseExchangeAPI):
             log.info('Unable to place {side} order with {exchange} for {volume} {base} @ {price} {quote}',
                      event_name='order.placed.failure', event_data=event_data)
         return result
+
+    def balance(self):
+        return self._wrapped_bitex_method('balance')()
 
     def deposit_address(self, currency: str) -> str:
         return self._wrapped_bitex_method('deposit_address')(currency=currency)
@@ -173,6 +182,9 @@ class BitExRESTAdapter(BaseExchangeAPI):
         base = self.fmt_currency(base, inverse=True)
         quote = self.fmt_currency(quote, inverse=True)
         return base, quote
+
+    def raise_for_exchange_error(self, response_data: dict):
+        pass
 
 
 class BitExWSSAdapter(WebsocketInterface):

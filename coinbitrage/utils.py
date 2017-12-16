@@ -59,7 +59,14 @@ def retry_on_exception(*exc_classes, max_retries: int = 3, backoff_factor: float
     return decorator
 
 
-class run_every(object):
+# TODO: see if this can be made into a decorator
+class RunEvery(object):
+    """Ensures the given function is only run at most once every `delay` seconds. If
+    called before `delay` seconds have passed since the last call, the function becomes
+    a no-op. Especially useful in loops where some functions should be run every iteration
+    and others only at certain intervals.
+    """
+
     def __init__(self, func: Callable, delay: int):
         self._func = func
         self._delay = delay

@@ -24,6 +24,13 @@ class BittrexAPIAdapter(BitExRESTAdapter):
         quote_currency = self.fmt_currency(currencies[0], inverse=True)
         return base_currency, quote_currency
 
+    def raise_for_exchange_error(self, response_data: dict):
+        if not response_data.get('success', False):
+            error_msg = response_data.get('message')
+            log.warning('Bittrex API returned an error -- {message}',
+                        event_name='bittrex_api.error', event_data={'message': error_msg})
+            raise ClientError(error_msg)
+
 
 class BittrexClient(BaseExchangeClient, PeriodicRefreshMixin):
     name = 'bittrex'
