@@ -70,26 +70,21 @@ class BitExAPIAdapter(BaseExchangeAPI):
             except HTTPError as e:
                 event_data = {'status_code': resp.status_code, 'response': resp.content,
                               'method': method.__name__, 'args': args, 'kwargs': kwargs}
-                event_data['message'] = resp.content if len(resp.content) <= INCLUDE_MSG_LENGTH else ''
+                event_data['error_message'] = resp.content if len(resp.content) <= INCLUDE_MSG_LENGTH else ''
 
                 if resp.status_code >= 400 and resp.status_code < 500:
-                    log.error('Encountered an HTTP error ({status_code}): {message}',
+                    log.error('Encountered an HTTP error ({status_code}): {error_message}',
                               event_name='exchange_api.http_error.client', event_data=event_data,)
                     raise ClientError(e)
                 else:
-                    log.warning('Encountered an HTTP error ({status_code}): {message}',
+                    log.warning('Encountered an HTTP error ({status_code}): {error_message}',
                                 event_name='exchange_api.http_error.server', event_data=event_data)
                     raise ServerError(e)
 
             resp_data = resp.json()
             self.raise_for_exchange_error(resp_data)
-
             formatter = getattr(self.formatter, name)
-            if not resp.formatted:
-                log.debug('Possible uncaught exchange error: {response}', event_data={'response': resp_data},
-                          event_name='exchange_api.possible_error')
-                return formatter(resp_data)
-            return formatter(resp.formatted)
+            return formatter(resp.formatted) if resp.formatted else formatter(resp_data)
 
         return wrapper
 
