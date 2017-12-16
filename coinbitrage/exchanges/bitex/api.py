@@ -1,7 +1,7 @@
 from functools import wraps
 from typing import Callable, Dict, List, Optional, Tuple, Union
 
-from requests.exceptions import HTTPError, RequestException, Timeout
+from requests.exceptions import HTTPError, ConnectTimeout, RequestException, ReadTimeout, Timeout
 
 from coinbitrage import bitlogging
 from coinbitrage.exchanges.base import BaseExchangeAPI
@@ -29,7 +29,7 @@ class BitExAPIAdapter(BaseExchangeAPI):
         self._api = self._api_class(key_file=key_file, timeout=timeout)
 
     def __getattr__(self, name: str):
-        return retry_on_exception(ServerError)(self._wrapped_bitex_method(name))
+        return retry_on_exception(ServerError, ConnectTimeout)(self._wrapped_bitex_method(name))
 
     # TODO: move most of this logic to BaseExchangeAPI
     def _wrapped_bitex_method(self, name: str):
@@ -88,7 +88,7 @@ class BitExAPIAdapter(BaseExchangeAPI):
 
         return wrapper
 
-    @retry_on_exception(ServerError)
+    @retry_on_exception(ServerError, ConnectTimeout)
     def limit_order(self,
                     base_currency: str,
                     side: str,
@@ -124,7 +124,7 @@ class BitExAPIAdapter(BaseExchangeAPI):
     def deposit_address(self, currency: str, **kwargs) -> str:
         return self._wrapped_bitex_method('deposit_address')(currency=currency, **kwargs)
 
-    @retry_on_exception(ServerError)
+    @retry_on_exception(ServerError, ConnectTimeout)
     def withdraw(self, currency: str, address: str, amount: float, **kwargs) -> bool:
         # assert amount >= CURRENCIES[currency]['min_transfer_size']
         event_data = {'exchange': self.name, 'amount': amount, 'currency': currency}

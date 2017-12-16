@@ -24,15 +24,26 @@ class ExchangeManager(object):
         self.base_currency = base_currency
         self.quote_currency = quote_currency
         self._loop = loop or asyncio.get_event_loop()
-        self._buy_active = self._sell_active = []
+        self._buy_active = self._sell_active = set()
         self._balances = None
         self._total_balances = {}
-
-        all_exchanges = [get_exchange(name) for name in exchanges]
         self._clients = {
-            exch.name: exchg for exchg in all_exchanges
+            exchg.name: exchg
+            for exchg in (get_exchange(name) for name in exchanges)
             if exchg.supports_pair(base_currency, quote_currency)
         }
+        self._update_trading_balances()
+
+    def get(self, exchange_name: str):
+        return self._clients.get(exchange_name)
+
+    @property
+    def balances(self):
+        return self._balances
+
+    @property
+    def total_balances(self):
+        return self._total_balances
 
     def manage_balances(self):
         self._pre_distribute_step()
@@ -86,7 +97,7 @@ class ExchangeManager(object):
 
         async def bank_to_trading(exchange):
             for currency in [self.base_currency, self.quote_currency]:
-                bank_balance = exchange.bank_balance()[currency]
+                bank_balance = exchange.bank_balance().get(currency, 0.)
                 if bank_balance > 0:
                     exchange.bank_to_trading(currency, bank_balance)
 
@@ -104,7 +115,7 @@ class ExchangeManager(object):
         self._loop.run_until_complete(asyncio.gather(*futures))
 
     def _redistribute(self, currency: str):
-        total_balance = self._total_balances[currency]
+        total_balance = self._total_balances.get(currency, 0.)
         order_size = CURRENCIES[currency]['order_size']
         average_balance = (total_balance - order_size) / len(self._clients)
         min_transfer = CURRENCIES[currency]['min_transfer_size']
@@ -113,7 +124,7 @@ class ExchangeManager(object):
         credits = {}
 
         for exchg, balances in self._balances.items():
-            balance = balances[currency]
+            balance = balances.get(currency, 0.)
             if balance < order_size:
                 debts[exchg] = average_balance - balance
             elif balance > average_balance + min_transfer:
@@ -126,8 +137,8 @@ class ExchangeManager(object):
             while debts and credits:
                 to_exchange, debt = max(debts.items(), key=lambda x: x[1])
                 from_exchange, credit = max(credits.items(), key=lambda x: x[1])
-                to_exchange_client = self._clients[to_exchange]
-                from_exchange_client = self._clients[from_exchange]
+                to_exchange_client = self.get(to_exchange)
+                from_exchange_client = self.get(from_exchange)
 
                 if debt < credit:
                     transfer_amt = max(debt, min_transfer)
@@ -147,10 +158,10 @@ class ExchangeManager(object):
             raise
 
     def _update_trading_balances(self):
-        async def get_balance(name: str, exchange):
-            return name, exchange.balance()
+        async def get_balance(exchange):
+            return exchange.name, exchange.balance()
 
-        futures = [get_balance(name, exchg) for name, exchg in self._clients.items()]
+        futures = [get_balance(exchg) for exchg in self._clients.values()]
         results = self._loop.run_until_complete(asyncio.gather(*futures))
 
         self._balances = {
@@ -161,7 +172,7 @@ class ExchangeManager(object):
         }
 
         new_totals = {
-            cur: sum([bal[cur] for bal in self._balances.values()])
+            cur: sum([bal.get(cur, 0.) for bal in self._balances.values()])
             for cur in [self.base_currency, self.quote_currency]
         }
 
@@ -172,15 +183,14 @@ class ExchangeManager(object):
 
     def update_active_exchanges(self):
         self._update_trading_balances()
-        self._buy_active = [
+        self._buy_active = {
             n for n, bal in self._balances.items()
-            if bal[self.quote_currency] >= CURRENCIES[self.quote_currency]['order_size']
-        ]
-        self._sell_active = [
+            if bal.get(self.quote_currency, 0.) >= CURRENCIES[self.quote_currency]['order_size']
+        }
+        self._sell_active = {
             n for n, bal in self._balances.items()
-            if bal[self.base_currency] >= CURRENCIES[self.base_currency]['order_size']
-        ]
+            if bal.get(self.base_currency, 0.) >= CURRENCIES[self.base_currency]['order_size']
+        }
         log.info('Buy exchanges: {buy_exchanges}; Sell exchanges: {sell_exchanges}',
                  event_data={'buy_exchanges': self._buy_active, 'sell_exchanges': self._sell_active},
                  event_name='active_exchanges.update',)
-

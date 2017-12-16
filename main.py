@@ -4,12 +4,13 @@ import ipdb
 from coinbitrage import bitlogging, settings
 from coinbitrage.engine import ArbitrageEngine
 from coinbitrage.exchanges import get_exchange
+from coinbitrage.exchanges.manager import ExchangeManager
 
 
 bitlogging.configure()
 
 
-EXCHANGES = ['bittrex', 'poloniex']
+EXCHANGES = ['bittrex', 'kraken', 'poloniex']
 
 
 @click.group()
@@ -35,4 +36,5 @@ def shell():
     kraken = get_exchange('kraken')
     poloniex = get_exchange('poloniex')
     # TODO: find a better way to do this than ipdb
+    exchanges = ExchangeManager(EXCHANGES, 'ETH', 'USDT')
     ipdb.set_trace()
