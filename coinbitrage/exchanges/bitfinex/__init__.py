@@ -1,1 +1,1 @@
-from .adapter import BitfinexAPIAdapter
+from .api import BitfinexAPIAdapter

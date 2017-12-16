@@ -1,3 +1,4 @@
+from collections import defaultdict
 from typing import Dict, Optional
 
 from bitex import Kraken
@@ -5,6 +6,7 @@ from bitex import Kraken
 from coinbitrage import bitlogging, settings
 from coinbitrage.exchanges.bitex import BitExAPIAdapter
 from coinbitrage.exchanges.errors import ClientError, ExchangeError, ServerError
+from coinbitrage.exchanges.mixins import ProxyCurrencyWrapper
 
 from .formatter import KrakenFormatter
 
@@ -12,21 +14,18 @@ from .formatter import KrakenFormatter
 log = bitlogging.getLogger(__name__)
 
 
-KRAKEN_TIMEOUT = 20
-KRAKEN_API_CALL_RATE = 3.
+KRAKEN_TIMEOUT = 30
 ACCEPTABLE_USDT_ASK = 1.01
 ACCEPTABLE_USDT_BID = 0.99
 
 
 class KrakenAPIAdapter(BitExAPIAdapter):
     _api_class = Kraken
-    _error_cls_map = {
-        'General': ClientError,
+    _error_cls_map = defaultdict(lambda: ClientError)
+    _error_cls_map.update({
         'Service': ServerError,
-        'Trade': ClientError,
-        'Order': ClientError,
-    }
-    _formatter = KrakenFormatter()
+    })
+    formatter = KrakenFormatter()
 
     def __init__(self, *args, **kwargs):
         if 'timeout' not in kwargs:
@@ -43,13 +42,8 @@ class KrakenAPIAdapter(BitExAPIAdapter):
         else:
             raise NotImplementedError('Deposit address not implemented for {}'.format(currency))
 
-        currency = self._formatter.format(currency)
-        resp = self._api.deposit_address(asset=currency, method=method)
-        resp.raise_for_status()
-        resp_data = resp.json()
-        self.raise_for_exchange_error(resp_data)
-        addr = resp_data['result'][0]['address']
-        return addr
+        currency = self.formatter.format(currency)
+        return super(KrakenAPIAdapter, self).deposit_address(currency, method=method)
 
     def raise_for_exchange_error(self, response_data: dict):
         errors = response_data.get('error')
@@ -69,60 +63,10 @@ class KrakenAPIAdapter(BitExAPIAdapter):
                 raise error_cls(error_msg)
 
 
-class KrakenTetherAdapter(KrakenAPIAdapter):
+class KrakenTetherAdapter(ProxyCurrencyWrapper):
 
-    def balance(self):
-        balances = super(KrakenTetherAdapter, self).balance()
-        usdt_bal = balances.get('USDT', 0.)
-
-        if usdt_bal == 0.:
-            balances['USDT'] = balances.pop('USD', 0.)
-            return balances
-
-        if not self._usdt_to_usd(usdt_bal):
-            raise ExchangeError('Couldn\'t sell USDT')
-
-        balances = super(KrakenTetherAdapter, self).balance()
-        assert balances.get('USDT', 0.) == 0.
-        balances['USDT'] = balances.pop('USD', 0.)
-        return balances
-
-    def withdraw(self, currency: str, address: str, amount: float, **kwargs) -> str:
-        if currency != 'USDT':
-            return super(KrakenTetherAdapter, self).withdraw(currency, address, amount, **kwargs)
-
-        if not self._usd_to_usdt(amount):
-            raise ExchangeError('Couldn\'t buy USDT')
-
-        return super(KrakenTetherAdapter, self).withdraw(currency, address, amount, **kwargs)
-
-    def limit_order(self,
-                    base_currency: str,
-                    *args,
-                    quote_currency: str = settings.DEFAULT_QUOTE_CURRENCY,
-                    **kwargs) -> Optional[str]:
-        if base_currency == 'USDT':
-            base_currency = 'USD'
-        if quote_currency == 'USDT':
-            quote_currency = 'USD'
-        return super(KrakenTetherAdapter, self).limit_order(base_currency, *args, quote_currency=quote_currency, **kwargs)
-
-    def _usdt_to_usd(self, amount: float):
-        usdt_bid = self.ticker('USDT', quote_currency='USD')['bid']
-        if usdt_bid < ACCEPTABLE_USDT_BID:
-            error_msg = 'Kraken USDT/USD bid is {} which is lower than the acceptable bid of {}'
-            raise ExchangeError(error_msg.format(usdt_bid, ACCEPTABLE_USDT_BID))
-
-        price = usdt_bid * (1 - settings.ORDER_PRECISION)
-        usdt_sell = super(KrakenTetherAdapter, self).limit_order('USDT', 'sell', price, amount, quote_currency='USD')
-        return usdt_sell
-
-    def _usd_to_usdt(self, amount: float):
-        usdt_ask = self.ticker('USDT', quote_currency='USD')['ask']
-        if usdt_ask > ACCEPTABLE_USDT_ASK:
-            error_msg = 'Kraken USDT/USD ask is {} which is higher than the acceptable ask of {}'
-            raise ExchangeError(error_msg.format(usdt_ask, ACCEPTABLE_USDT_ASK))
-
-        price = usdt_ask * (1 + settings.ORDER_PRECISION)
-        usdt_buy = super(KrakenTetherAdapter, self).limit_order('USDT', 'buy', price, amount, quote_currency='USD')
-        return usdt_buy
+    def __init__(self, *args, **kwargs):
+        api = KrakenAPIAdapter(*args, **kwargs)
+        super(KrakenTetherAdapter, self).__init__(api, 'USDT', 'USD',
+                                                  acceptable_bid=ACCEPTABLE_USDT_BID,
+                                                  acceptable_ask=ACCEPTABLE_USDT_ASK)

@@ -9,7 +9,7 @@ class BaseExchangeAPI(object):
     """An exchange's REST API. Handles making requests, formatting responses, parsing errors
     and raising them.
     """
-    _formatter = BaseFormatter()
+    formatter = BaseFormatter()
 
     def __init__(self, name: str):
         self.name = name

@@ -15,7 +15,7 @@ log = bitlogging.getLogger(__name__)
 
 class PoloniexAPIAdapter(BitExAPIAdapter):
     _api_class = Poloniex
-    _formatter = PoloniexFormatter()
+    formatter = PoloniexFormatter()
 
     def __init__(self, name: str, key_file: str):
         super(PoloniexAPIAdapter, self).__init__(name, key_file)
@@ -50,3 +50,7 @@ class PoloniexAPIAdapter(BitExAPIAdapter):
             log.warning('Poloniex API returned an error -- {message}',
                         event_name='poloniex_api.error', event_data={'message': error_msg})
             raise ClientError(error_msg)
+
+    def pairs(self):
+        resp = self._api.ticker(None)
+        return resp.json().keys()

@@ -13,7 +13,7 @@ from coinbitrage.exchanges.errors import ServerError
 from coinbitrage.exchanges.manager import ExchangeManager
 from coinbitrage.exchanges.mixins import SeparateTradingAccountMixin
 from coinbitrage.settings import CURRENCIES, MAX_TRANSFER_FEE
-from coinbitrage.utils import RunEvery, retry_on_exception
+from coinbitrage.utils import RunEvery
 
 
 COLOR_THRESH = 0.005
@@ -142,10 +142,10 @@ class ArbitrageEngine(object):
             self._exchanges.update_active()
             return
 
-        log_msg = 'Arbitrage opportunity: ' + \
-                  '{buy_exchange} buy {volume} {base_currency} @ {buy_price}; ' + \
-                  '{sell_exchange} sell {volume} {quote_currency} @ {sell_price}; ' + \
-                  'profit: {expected_profit:.2f}%'
+        log_msg = ('Arbitrage opportunity: '
+                  '{buy_exchange} buy {volume} {base_currency} @ {buy_price}; '
+                  '{sell_exchange} sell {volume} {quote_currency} @ {sell_price}; '
+                  'profit: {expected_profit:.2f}%')
         event_data = {'buy_exchange': buy_exchange.name, 'sell_exchange': sell_exchange.name, 'volume': order_volume,
                       'base_currency': self.base_currency, 'quote_currency': self.quote_currency,
                       'buy_price': buy_price, 'sell_price': sell_price, 'expected_profit': expected_profit*100}

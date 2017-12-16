@@ -27,7 +27,7 @@ def run(**kwargs):
 
 
 @coin.command()
-def manage():
+def shell():
     bitstamp = get_exchange('bitstamp')
     bittrex = get_exchange('bittrex')
     coinbase = get_exchange('coinbase')

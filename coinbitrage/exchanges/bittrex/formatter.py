@@ -17,6 +17,9 @@ class BittrexFormatter(BitExFormatter):
             } for x in data['result']
         }
 
+    def pairs(self, data):
+        return set([x['MarketName'] for x in data['result'] if x['IsActive']])
+
     def pair(self, base_currency: str, quote_currency: str) -> str:
         base = self.format(base_currency)
         quote = self.format(quote_currency)

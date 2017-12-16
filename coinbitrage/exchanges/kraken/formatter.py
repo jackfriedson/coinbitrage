@@ -7,3 +7,9 @@ class KrakenFormatter(BitExFormatter):
         'ETH': 'XETH',
         'USD': 'ZUSD',
     }
+
+    def pairs(self, data):
+        return set(data['result'].keys())
+
+    def deposit_address(self, data):
+        return data['result'][0]['address']

@@ -1,12 +1,13 @@
 from functools import wraps
 from typing import Callable, Dict, List, Optional, Tuple, Union
 
-from requests.exceptions import HTTPError, RequestException
+from requests.exceptions import HTTPError, RequestException, Timeout
 
 from coinbitrage import bitlogging
 from coinbitrage.exchanges.base import BaseExchangeAPI
 from coinbitrage.exchanges.errors import ClientError, ServerError
 from coinbitrage.settings import CURRENCIES, DEFAULT_QUOTE_CURRENCY, REQUESTS_TIMEOUT
+from coinbitrage.utils import retry_on_exception
 
 from .formatter import BitExFormatter
 
@@ -14,18 +15,21 @@ from .formatter import BitExFormatter
 log = bitlogging.getLogger(__name__)
 
 
+INCLUDE_MSG_LENGTH = 100
+
+
 class BitExAPIAdapter(BaseExchangeAPI):
     """Class for implementing REST API adapters using the BitEx library."""
     _api_class = None
-    _formatter = BitExFormatter()
-    _float_precision = 6
+    formatter = BitExFormatter()
+    float_precision = 6
 
     def __init__(self, name: str, key_file: str, timeout: int = REQUESTS_TIMEOUT):
         super(BitExAPIAdapter, self).__init__(name)
         self._api = self._api_class(key_file=key_file, timeout=timeout)
 
     def __getattr__(self, name: str):
-        return self._wrapped_bitex_method(name)
+        return retry_on_exception(ServerError)(self._wrapped_bitex_method(name))
 
     # TODO: move most of this logic to BaseExchangeAPI
     def _wrapped_bitex_method(self, name: str):
@@ -36,20 +40,24 @@ class BitExAPIAdapter(BaseExchangeAPI):
             if 'quote_currency' in kwargs and args:
                 base = args[0]
                 quote = kwargs.pop('quote_currency')
-                pair = self._formatter.pair(base, quote)
+                pair = self.formatter.pair(base, quote)
                 args = (pair, *args[1:])
             elif 'currency' in kwargs:
                 currency = kwargs.pop('currency')
-                kwargs['currency'] = self._formatter.format(currency)
+                kwargs['currency'] = self.formatter.format(currency)
 
             # Convert float values to strings
             def float_to_str(val):
                 if not isinstance(val, float):
                     return val
-                return '{:.{prec}}'.format(str(val), prec=self._float_precision)
+                return '{:.{prec}}'.format(str(val), prec=self.float_precision)
 
             args = [float_to_str(a) for a in args]
             kwargs = {kw: float_to_str(arg) for kw, arg in kwargs.items()}
+
+            log.debug('API call -- {exchange}.{method}(*{args}, **{kwargs})',
+                      event_name='exchange_api.call',
+                      event_data={'exchange': self.name, 'method': name, 'args': args, 'kwargs': kwargs})
 
             try:
                 resp = method(*args, **kwargs)
@@ -62,19 +70,21 @@ class BitExAPIAdapter(BaseExchangeAPI):
             except HTTPError as e:
                 event_data = {'status_code': resp.status_code, 'response': resp.content,
                               'method': method.__name__, 'args': args, 'kwargs': kwargs}
+                event_data['message'] = resp.content if len(resp.content) <= INCLUDE_MSG_LENGTH else ''
+
                 if resp.status_code >= 400 and resp.status_code < 500:
-                    log.error('Encountered an HTTP error ({status_code}): {response}',
+                    log.error('Encountered an HTTP error ({status_code}): {message}',
                               event_name='exchange_api.http_error.client', event_data=event_data,)
                     raise ClientError(e)
                 else:
-                    log.warning('Encountered an HTTP error ({status_code}): {response}',
+                    log.warning('Encountered an HTTP error ({status_code}): {message}',
                                 event_name='exchange_api.http_error.server', event_data=event_data)
                     raise ServerError(e)
 
             resp_data = resp.json()
             self.raise_for_exchange_error(resp_data)
 
-            formatter = getattr(self._formatter, name)
+            formatter = getattr(self.formatter, name)
             if not resp.formatted:
                 log.debug('Possible uncaught exchange error: {response}', event_data={'response': resp_data},
                           event_name='exchange_api.possible_error')
@@ -83,6 +93,7 @@ class BitExAPIAdapter(BaseExchangeAPI):
 
         return wrapper
 
+    @retry_on_exception(ServerError)
     def limit_order(self,
                     base_currency: str,
                     side: str,
@@ -106,15 +117,19 @@ class BitExAPIAdapter(BaseExchangeAPI):
                      event_name='order.placed.failure', event_data=event_data)
         return result
 
+    @retry_on_exception(ServerError, Timeout)
     def ticker(self, base_currency: str, quote_currency: str = DEFAULT_QUOTE_CURRENCY):
         return self._wrapped_bitex_method('ticker')(base_currency, quote_currency=quote_currency)
 
+    @retry_on_exception(ServerError, Timeout)
     def balance(self):
         return self._wrapped_bitex_method('balance')()
 
-    def deposit_address(self, currency: str) -> str:
-        return self._wrapped_bitex_method('deposit_address')(currency=currency)
+    @retry_on_exception(ServerError, Timeout)
+    def deposit_address(self, currency: str, **kwargs) -> str:
+        return self._wrapped_bitex_method('deposit_address')(currency=currency, **kwargs)
 
+    @retry_on_exception(ServerError)
     def withdraw(self, currency: str, address: str, amount: float, **kwargs) -> bool:
         # assert amount >= CURRENCIES[currency]['min_transfer_size']
         event_data = {'exchange': self.name, 'amount': amount, 'currency': currency}

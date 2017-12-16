@@ -8,9 +8,8 @@ from requests.exceptions import RequestException, Timeout
 from coinbitrage import bitlogging
 from coinbitrage.exchanges import get_exchange
 from coinbitrage.exchanges.errors import ServerError
-from coinbitrage.exchanges.mixins import SeparateTradingAccountMixin
+from coinbitrage.exchanges.mixins import ProxyCurrencyWrapper, SeparateTradingAccountMixin
 from coinbitrage.settings import CURRENCIES
-from coinbitrage.utils import retry_on_exception
 
 
 log = bitlogging.getLogger(__name__)
@@ -25,17 +24,23 @@ class ExchangeManager(object):
         self.base_currency = base_currency
         self.quote_currency = quote_currency
         self._loop = loop or asyncio.get_event_loop()
-        self._clients = {name: get_exchange(name) for name in exchanges}
         self._buy_active = self._sell_active = []
         self._balances = None
         self._total_balances = {}
 
+        all_exchanges = [get_exchange(name) for name in exchanges]
+        self._clients = {
+            exch.name: exchg for exchg in all_exchanges
+            if exchg.supports_pair(base_currency, quote_currency)
+        }
+
     def manage_balances(self):
-        self._transfer_to_trading_accounts()
+        self._pre_distribute_step()
         self._update_trading_balances()
         self._redistribute(self.base_currency)
         self._redistribute(self.quote_currency)
-        self.update_active()
+        self.update_active_exchanges()
+        self._pre_trading_step()
 
     def valid_buys(self):
         def buy_exchange_filter(exchange):
@@ -69,18 +74,33 @@ class ExchangeManager(object):
             for exchange in self._clients.values():
                 exchange.stop_live_updates()
 
-    def _transfer_to_trading_accounts(self, currency: str = None):
-        currencies = [currency] if currency else [self.base_currency, self.quote_currency]
+    def _pre_distribute_step(self):
+        self._transfer_to_trading_accounts()
+
+    def _pre_trading_step(self):
+        self._exchange_proxy_currencies()
+
+    def _transfer_to_trading_accounts(self):
         filtered_exchanges = filter(lambda x: isinstance(x.api, SeparateTradingAccountMixin),
                                     self._clients.values())
 
         async def bank_to_trading(exchange):
-            for currency in currencies:
+            for currency in [self.base_currency, self.quote_currency]:
                 bank_balance = exchange.bank_balance()[currency]
                 if bank_balance > 0:
                     exchange.bank_to_trading(currency, bank_balance)
 
         futures = [bank_to_trading(exchg) for exchg in filtered_exchanges]
+        self._loop.run_until_complete(asyncio.gather(*futures))
+
+    def _exchange_proxy_currencies(self):
+        filtered_exchanges = filter(lambda x: isinstance(x.api, ProxyCurrencyWrapper),
+                                    self._clients.values())
+
+        async def proxy_to_quote(exchange):
+            exchange.proxy_to_quote()
+
+        futures = [proxy_to_quote(exchg) for exchg in filtered_exchanges]
         self._loop.run_until_complete(asyncio.gather(*futures))
 
     def _redistribute(self, currency: str):
@@ -127,28 +147,30 @@ class ExchangeManager(object):
             raise
 
     def _update_trading_balances(self):
-        @retry_on_exception(Timeout, ServerError)
         async def get_balance(name: str, exchange):
             return name, exchange.balance()
 
         futures = [get_balance(name, exchg) for name, exchg in self._clients.items()]
         results = self._loop.run_until_complete(asyncio.gather(*futures))
+
         self._balances = {
             name: {
                 cur: bal for cur, bal in balances.items()
                 if cur in [self.base_currency, self.quote_currency]
             } for name, balances in results
         }
+
         new_totals = {
             cur: sum([bal[cur] for bal in self._balances.values()])
             for cur in [self.base_currency, self.quote_currency]
         }
+
         if new_totals != self._total_balances:
             self._total_balances = new_totals
             log.info('Updated balances: {total_balances}', event_name='balances.update',
                      event_data={'total_balances': self._total_balances, 'full_balances': self._balances})
 
-    def update_active(self):
+    def update_active_exchanges(self):
         self._update_trading_balances()
         self._buy_active = [
             n for n, bal in self._balances.items()

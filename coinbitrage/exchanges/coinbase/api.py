@@ -19,7 +19,7 @@ class CoinbaseAPIAdapter(BitExAPIAdapter, SeparateTradingAccountMixin):
         'ETH': 0.003,
         'LTC': 0.003
     }
-    _formatter = BitExFormatter(pair_delimiter='-')
+    formatter = BitExFormatter(pair_delimiter='-')
 
     def __init__(self, name: str, coinbase_key_file: str, gdax_key_file: str = None):
         super(CoinbaseAPIAdapter, self).__init__(name, gdax_key_file)

@@ -9,7 +9,7 @@ from .formatter import BittrexFormatter
 
 class BittrexAPIAdapter(BitExAPIAdapter):
     _api_class = Bittrex
-    _formatter = BittrexFormatter()
+    formatter = BittrexFormatter()
 
     def raise_for_exchange_error(self, response_data: dict):
         if not response_data.get('success', False):

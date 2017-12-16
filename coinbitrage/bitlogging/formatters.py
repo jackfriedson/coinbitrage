@@ -52,5 +52,3 @@ class JSONFormatter(BitLogFormatter):
         result = {k: str(v) for k, v in record.__dict__.items()}
         result.update({'asctime': self.formatTime(record)})
         return json.dumps(result)
-
-

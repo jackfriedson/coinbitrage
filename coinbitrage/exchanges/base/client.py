@@ -34,3 +34,7 @@ class BaseExchangeClient(object):
                         event_name='exchange_api.transfer.failure', event_data=event_data)
 
         return result
+
+    def supports_pair(self, base_currency: str, quote_currency: str) -> bool:
+        pair = self.api.formatter.pair(base_currency, quote_currency)
+        return pair in self.supported_pairs

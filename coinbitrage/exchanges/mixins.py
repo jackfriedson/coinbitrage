@@ -2,12 +2,12 @@ import logging
 import time
 from abc import ABC, abstractproperty
 from threading import Event, RLock, Thread
-from typing import Dict
+from typing import Dict, Optional
 
 from requests.exceptions import RequestException
 
 from coinbitrage import bitlogging
-from coinbitrage.settings import DEFAULT_QUOTE_CURRENCY
+from coinbitrage.settings import DEFAULT_QUOTE_CURRENCY, ORDER_PRECISION
 from coinbitrage.utils import thread_running
 
 
@@ -129,3 +129,87 @@ class SeparateTradingAccountMixin(object):
                  event_name='exchange_api.transfer.trading_to_bank',
                  event_data={'amount': amount, 'currency': currency, 'exchange': self.name})
         return self._transfer_between_accounts(False, currency, amount)
+
+
+class ProxyCurrencyWrapper(object):
+
+    def __init__(self,
+                 api,
+                 proxy_currency: str,
+                 quote_currency: str,
+                 acceptable_bid: float = None,
+                 acceptable_ask: float = None):
+        """
+        :param proxy_currency: the currency considered to be the "quote" currency by the client of the API
+        :param quote_currency: the actual quote currency that will be used on the exchange
+        """
+        self._api = api
+        self.quote_currency = quote_currency
+        self.proxy_currency = proxy_currency
+        self.acceptable_bid = acceptable_bid
+        self.acceptable_ask = acceptable_ask
+
+    def __getattr__(self, name):
+        return getattr(self._api, name)
+
+    def balance(self, show_quote: bool = False):
+        balances = self._api.balance()
+        if not show_quote:
+            quote_bal = balances.pop(self.quote_currency, 0.)
+            proxy_bal = balances.pop(self.proxy_currency, 0.)
+            balances[self.proxy_currency] = quote_bal + proxy_bal
+        return balances
+
+    def withdraw(self, currency: str, address: str, amount: float, **kwargs) -> str:
+        if currency == self.proxy_currency:
+            balance = self.balance(show_quote=True)
+            proxy_bal = balance[self.proxy_currency]
+            if proxy_bal < amount:
+                transfer_amt = amount - proxy_bal
+                self.quote_to_proxy(transfer_amt)
+        return self._api.withdraw(currency, address, amount, **kwargs)
+
+    def limit_order(self,
+                    base_currency: str,
+                    *args,
+                    quote_currency: str = DEFAULT_QUOTE_CURRENCY,
+                    **kwargs) -> Optional[str]:
+        if quote_currency == self.proxy_currency:
+            quote_currency = self.quote_currency
+        return self._api.limit_order(base_currency, *args, quote_currency=quote_currency, **kwargs)
+
+    def proxy_to_quote(self, amount: float = None):
+        proxy_bid = self._api.ticker(self.proxy_currency, quote_currency=self.quote_currency)['bid']
+
+        if self.acceptable_bid and proxy_bid < self.acceptable_bid:
+            log_msg = ('{exchange} {proxy}/{quote} bid is {actual_bid} which '
+                       'is lower than the acceptable bid of {acceptable_bid}')
+            log.error(log_msg, event_name='proxy_order.unacceptable_price',
+                      event_data={'exchange': self._api.name, 'proxy': self.proxy_currency,
+                                  'quote': self.quote_currency, 'actual_bid': proxy_bid,
+                                  'acceptable_bid': self.acceptable_bid})
+            raise ExchangeError('Unable to exchange proxy currency for quote currency')
+
+        if not amount:
+            amount = self.balance(show_quote=True)[self.proxy_currency]
+        price = proxy_bid * (1 - ORDER_PRECISION)
+        return self._api.limit_order(self.proxy_currency, 'sell', price, amount,
+                                     quote_currency=self.quote_currency)
+
+    def quote_to_proxy(self, amount: float = None):
+        proxy_ask = self._api.ticker(self.proxy_currency, quote_currency=self.quote_currency)['ask']
+
+        if self.acceptable_ask and proxy_ask > self.acceptable_ask:
+            log_msg = ('{exchange} {proxy}/{quote} ask is {actual_ask} which '
+                       'is higher than the acceptable ask of {acceptable_ask}')
+            log.error(log_msg, event_name='proxy_order.unacceptable_price',
+                      event_data={'exchange': self._api.name, 'proxy': self.proxy_currency,
+                                  'quote': self.quote_currency, 'actual_ask': proxy_ask,
+                                  'acceptable_ask': self.acceptable_ask})
+            raise ExchangeError('Unable to exchange quote currency for proxy currency')
+
+        price = proxy_ask * (1 + ORDER_PRECISION)
+        if not amount:
+            amount = self.balance(show_quote=True)[self.quote_currency] / price
+        return self._api.limit_order(self.proxy_currency, 'buy', price, amount,
+                                     quote_currency=self.quote_currency)
