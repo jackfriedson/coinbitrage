@@ -13,8 +13,10 @@ loggers:
 
 formatters:
   simple:
-    format: '{asctime} {levelname:8} {message}'
+    (): coinbitrage.bitlogging.BitLogFormatter
+    format: '{asctime}  {levelname:8} {message}'
     datefmt: '%Y-%m-%d %H:%M:%S (%Z)'
+    as_utc: False
     style: '{'
   json:
     (): coinbitrage.bitlogging.JSONFormatter

@@ -106,6 +106,9 @@ class BitExAPIAdapter(BaseExchangeAPI):
                      event_name='order.placed.failure', event_data=event_data)
         return result
 
+    def ticker(self, base_currency: str, quote_currency: str = DEFAULT_QUOTE_CURRENCY):
+        return self._wrapped_bitex_method('ticker')(base_currency, quote_currency=quote_currency)
+
     def balance(self):
         return self._wrapped_bitex_method('balance')()
 
@@ -113,7 +116,7 @@ class BitExAPIAdapter(BaseExchangeAPI):
         return self._wrapped_bitex_method('deposit_address')(currency=currency)
 
     def withdraw(self, currency: str, address: str, amount: float, **kwargs) -> bool:
-        assert amount >= CURRENCIES[currency]['min_transfer_size']
+        # assert amount >= CURRENCIES[currency]['min_transfer_size']
         event_data = {'exchange': self.name, 'amount': amount, 'currency': currency}
         result = self._wrapped_bitex_method('withdraw')(amount, address, currency=currency, **kwargs)
         if result:
