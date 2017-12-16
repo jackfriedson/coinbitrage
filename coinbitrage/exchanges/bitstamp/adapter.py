@@ -7,12 +7,12 @@ from bitex.api.WSS import BitstampWSS
 
 from coinbitrage import bitlogging
 from coinbitrage.exchanges.base import BaseExchangeClient
-from coinbitrage.exchanges.bitex import BitExRESTAdapter, BitExWSSAdapter
+from coinbitrage.exchanges.bitex import BitExAPIAdapter, BitExWSSAdapter
 from coinbitrage.exchanges.mixins import WebsocketMixin
 from coinbitrage.settings import DEFAULT_QUOTE_CURRENCY
 
 
-class BitstampAPIAdapter(BitExRESTAdapter):
+class BitstampAPIAdapter(BitExAPIAdapter):
     _api_class = Bitstamp
 
     def __init__(self, name: str, key_file: str):

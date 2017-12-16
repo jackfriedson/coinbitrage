@@ -1,22 +1,19 @@
-import logging
-import time
 from typing import Optional
 
 from bitex import Poloniex
 
 from coinbitrage import bitlogging
-from coinbitrage.exchanges.base import BaseExchangeClient
-from coinbitrage.exchanges.bitex import BitExRESTAdapter
+from coinbitrage.exchanges.bitex import BitExAPIAdapter, BitExFormatter
 from coinbitrage.exchanges.errors import ClientError
-from coinbitrage.exchanges.mixins import PeriodicRefreshMixin
 from coinbitrage.settings import DEFAULT_QUOTE_CURRENCY
 
 
 log = bitlogging.getLogger(__name__)
 
 
-class PoloniexAPIAdapter(BitExRESTAdapter):
+class PoloniexAPIAdapter(BitExAPIAdapter):
     _api_class = Poloniex
+    _formatter = BitExFormatter(pair_delimiter='_')
 
     def __init__(self, name: str, key_file: str):
         super(PoloniexAPIAdapter, self).__init__(name, key_file)
@@ -45,25 +42,9 @@ class PoloniexAPIAdapter(BitExRESTAdapter):
             kwargs.update({'fill_or_kill': 1})
         return super(PoloniexAPIAdapter, self).limit_order(*args, **kwargs)
 
-    def pair(self, base_currency: str, quote_currency: str) -> str:
-        return quote_currency + '_' + base_currency
-
-    def unpair(self, currency_pair: str):
-        currencies = currency_pair.split('_')
-        return currencies[0], currencies[1]
-
     def raise_for_exchange_error(self, response_data: dict):
         error_msg = response_data.get('error')
         if error_msg:
             log.warning('Poloniex API returned an error -- {message}',
                         event_name='poloniex_api.error', event_data={'message': error_msg})
             raise ClientError(error_msg)
-
-
-class PoloniexClient(BaseExchangeClient, PeriodicRefreshMixin):
-    name = 'poloniex'
-    _api_class = PoloniexAPIAdapter
-
-    def __init__(self, key_file: str):
-        BaseExchangeClient.__init__(self, key_file)
-        PeriodicRefreshMixin.__init__(self, 1)

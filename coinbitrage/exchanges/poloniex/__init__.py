@@ -1,1 +1,2 @@
-from .adapter import PoloniexAPIAdapter, PoloniexClient
+from .api import PoloniexAPIAdapter
+from .client import PoloniexClient

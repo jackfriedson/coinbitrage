@@ -2,10 +2,10 @@ from bitex import Bitfinex
 from bitex.api.WSS import BitfinexWSS
 
 from coinbitrage import settings
-from coinbitrage.exchanges.bitex import BitExRESTAdapter, BitExWSSAdapter
+from coinbitrage.exchanges.bitex import BitExAPIAdapter, BitExWSSAdapter
 
 
-class BitfinexAPIAdapter(BitExRESTAdapter, BitExWSSAdapter):
+class BitfinexAPIAdapter(BitExAPIAdapter, BitExWSSAdapter):
     formatters = {
         'ticker': lambda msg: {
             'time': msg[2][1],

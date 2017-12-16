@@ -4,14 +4,14 @@ from bitex import HitBtc
 from requests.exceptions import Timeout
 
 from coinbitrage.exchanges.base import BaseExchangeClient
-from coinbitrage.exchanges.bitex import BitExRESTAdapter
+from coinbitrage.exchanges.bitex import BitExAPIAdapter
 from coinbitrage.exchanges.errors import ServerError
 from coinbitrage.exchanges.mixins import PeriodicRefreshMixin, SeparateTradingAccountMixin
 from coinbitrage.settings import DEFAULT_QUOTE_CURRENCY
 from coinbitrage.utils import retry_on_exception
 
 
-class HitBTCAdapter(BitExRESTAdapter, SeparateTradingAccountMixin):
+class HitBTCAdapter(BitExAPIAdapter, SeparateTradingAccountMixin):
     _api_class = HitBtc
     _currency_map = {
         'USDT': 'USD'

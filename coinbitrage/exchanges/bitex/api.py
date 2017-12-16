@@ -1,72 +1,28 @@
-import logging
-from functools import partial, wraps
+from functools import wraps
 from typing import Callable, Dict, List, Optional, Tuple, Union
-from queue import Queue
 
-import requests
 from requests.exceptions import HTTPError, RequestException
 
 from coinbitrage import bitlogging
 from coinbitrage.exchanges.base import BaseExchangeAPI
 from coinbitrage.exchanges.errors import ClientError, ServerError
-from coinbitrage.exchanges.interfaces import WebsocketInterface
-from coinbitrage.exchanges.types import OHLC, Order, OrderBook, Timestamp, Trade
 from coinbitrage.settings import CURRENCIES, DEFAULT_QUOTE_CURRENCY, REQUESTS_TIMEOUT
+
+from .formatter import BitExFormatter
 
 
 log = bitlogging.getLogger(__name__)
 
 
-class BitExFormatter(object):
-
-    def __getattr__(self, name):
-        return lambda x: x
-
-    def ticker(self, data):
-        result = {
-            'bid': data[0],
-            'ask': data[1],
-            'high': data[2],
-            'low': data[3],
-            'open': data[4],
-            'close': data[5],
-            'last': data[6],
-            'volume': data[7],
-            'time': data[8]
-        }
-        result = {k: float(v) for k, v in result.items() if v}
-        return result
-
-    def trades(self, data) -> List[Trade]:
-        return [{
-            'id': None,
-            'time': trade[0],
-            'price': trade[1],
-            'amount': trade[2],
-            'side': trade[3]
-        } for trade in data]
-
-    def order_book(self, data) -> OrderBook:
-        return {
-            'asks': [{'price': ask[1], 'amount': ask[2]} for ask in data['asks']],
-            'bids': [{'price': bid[1], 'amount': bid[2]} for bid in data['bids']]
-        }
-
-    def balance(self, data) -> Dict[str, float]:
-        return {cur: float(bal) for cur, bal in data.items() if float(bal) != 0.}
-
-
-class BitExRESTAdapter(BaseExchangeAPI):
+class BitExAPIAdapter(BaseExchangeAPI):
     """Class for implementing REST API adapters using the BitEx library."""
     _api_class = None
     _formatter = BitExFormatter()
     _float_precision = 6
-    _currency_map = {}
 
     def __init__(self, name: str, key_file: str, timeout: int = REQUESTS_TIMEOUT):
-        super(BitExRESTAdapter, self).__init__(name)
+        super(BitExAPIAdapter, self).__init__(name)
         self._api = self._api_class(key_file=key_file, timeout=timeout)
-        self._inverse_currency_map = {v: k for k, v in self._currency_map.items()}
 
     def __getattr__(self, name: str):
         return self._wrapped_bitex_method(name)
@@ -79,11 +35,11 @@ class BitExRESTAdapter(BaseExchangeAPI):
             if 'quote_currency' in kwargs and args:
                 base = args[0]
                 quote = kwargs.pop('quote_currency')
-                pair = self.pair(base, quote)
+                pair = self._formatter.pair(base, quote)
                 args = (pair, *args[1:])
             elif 'currency' in kwargs:
                 currency = kwargs.pop('currency')
-                kwargs['currency'] = self._fmt_currency(currency)
+                kwargs['currency'] = self._formatter.format(currency)
 
             # Convert float values to strings
             def float_to_str(val):
@@ -117,11 +73,11 @@ class BitExRESTAdapter(BaseExchangeAPI):
             resp_data = resp.json()
             self.raise_for_exchange_error(resp_data)
 
-            if not resp.formatted:
-                log.warning('Possible uncaught exchange error: {response}', event_data={'response': resp_data},
-                            event_name='exchange_api.possible_error')
-
             formatter = getattr(self._formatter, name)
+            if not resp.formatted:
+                log.debug('Possible uncaught exchange error: {response}', event_data={'response': resp_data},
+                          event_name='exchange_api.possible_error')
+                return formatter(resp_data)
             return formatter(resp.formatted)
 
         return wrapper
@@ -168,66 +124,5 @@ class BitExRESTAdapter(BaseExchangeAPI):
                         event_name='exchange_api.withdraw.failure')
         return result
 
-    def fmt_currency(self, currency: str, inverse: bool = False) -> str:
-        cur_map = self._currency_map if not inverse else self._inverse_currency_map
-        return cur_map.get(currency, currency)
-
-    def pair(self, base_currency: str, quote_currency: str) -> str:
-        base = self.fmt_currency(base_currency)
-        quote = self.fmt_currency(quote_currency)
-        return super(BitExRESTAdapter, self).pair(base, quote)
-
-    def unpair(self, currency_pair: str) -> Tuple[str, str]:
-        base, quote = super(BitExRESTAdapter, self).unpair(currency_pair)
-        base = self.fmt_currency(base, inverse=True)
-        quote = self.fmt_currency(quote, inverse=True)
-        return base, quote
-
     def raise_for_exchange_error(self, response_data: dict):
         pass
-
-
-class BitExWSSAdapter(WebsocketInterface):
-    """Class for implementing WSS adapters using the BitEx library."""
-    _formatters = {}
-
-    class QueueWrapper(object):
-        """Wrapper around the BitEx websocket's data queue that adds additional
-        funcitonality such as filtering and formatting messages.
-        """
-        def __init__(self, queue: Queue, formatters: Dict[str, Callable]):
-            self._queue = queue
-            self._formatters = formatters
-            self._allowed_channels = set()
-            self._allowed_pairs = set()
-
-        def __getattr__(self, name: str):
-            return getattr(self._queue, name)
-
-        def get(self):
-            message = self._queue.get()
-            formatter = self._formatters[message[0]]
-            return formatter(message)
-
-    def __init__(self, websocket, *args, **kwargs):
-        self._websocket = None
-        self.queue = None
-        self._init_websocket(websocket)
-        super(BitExWSSAdapter, self).__init__(*args, **kwargs)
-
-    def _init_websocket(self, websocket):
-        self._websocket = websocket
-        queue_wrapper = self.QueueWrapper(self._websocket.data_q, self._formatters)
-        self._websocket.data_q = queue_wrapper
-        self.queue = self._websocket.data_q
-
-    def subscribe(self,
-                  base_currency: str,
-                  channel: str = 'ticker',
-                  quote_currency: str = DEFAULT_QUOTE_CURRENCY):
-        if not self._websocket.running:
-            self._websocket.start()
-
-    def shutdown(self):
-        self._websocket.stop()
-
