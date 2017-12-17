@@ -146,7 +146,7 @@ class ExchangeManager(object):
         if not self._total_balances.get(self.base_currency, 0.):
             return
 
-        best_price = min(self._clients.values(), key=lambda x: x.ask())
+        best_price = max(self._clients.values(), key=lambda x: x.bid())
         # TODO: Use best history once we have enough data
 
         hi_bal_name, hi_bal = max(self._balances.items(), key=lambda x: x[1][self.base_currency])
@@ -155,7 +155,7 @@ class ExchangeManager(object):
         if best_price.name == highest_balance.name:
             return
 
-        tx_fee = highest_balance.tx_fee(self.base_currency) * highest_balance.ask()
+        tx_fee = highest_balance.tx_fee(self.base_currency) * highest_balance.bid()
         if tx_fee > self.tx_credits:
             return
 
@@ -166,7 +166,7 @@ class ExchangeManager(object):
         if not self._total_balances.get(self.quote_currency, 0.):
             return
 
-        best_price = max(self._clients.values(), key=lambda x: x.bid())
+        best_price = min(self._clients.values(), key=lambda x: x.ask())
         # TODO: Use best history once we have enough data
 
         hi_bal_name, hi_bal = max(self._balances.items(), key=lambda x: x[1][self.quote_currency])
