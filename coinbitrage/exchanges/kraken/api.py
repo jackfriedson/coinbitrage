@@ -2,11 +2,13 @@ from collections import defaultdict
 from typing import Dict, Optional
 
 from bitex import Kraken
+from requests.exceptions import Timeout
 
 from coinbitrage import bitlogging, settings
 from coinbitrage.exchanges.bitex import BitExAPIAdapter
 from coinbitrage.exchanges.errors import ClientError, ExchangeError, ServerError
 from coinbitrage.exchanges.mixins import ProxyCurrencyWrapper
+from coinbitrage.utils import retry_on_exception
 
 from .formatter import KrakenFormatter
 
@@ -62,6 +64,7 @@ class KrakenAPIAdapter(BitExAPIAdapter):
                 error_cls = self._error_cls_map[category]
                 raise error_cls(error_msg)
 
+    @retry_on_exception(ServerError, Timeout)
     def order(self, order_id: str) -> Optional[dict]:
         order = self._wrapped_bitex_method('closed_orders')().get(order_id)
         if order is None:

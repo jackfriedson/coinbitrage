@@ -16,9 +16,6 @@ from .formatter import BitExFormatter
 log = bitlogging.getLogger(__name__)
 
 
-INCLUDE_MSG_LENGTH = 100
-
-
 class BitExAPIAdapter(BaseExchangeAPI):
     """Class for implementing REST API adapters using the BitEx library."""
     _api_class = None
@@ -128,6 +125,10 @@ class BitExAPIAdapter(BaseExchangeAPI):
     def deposit_address(self, currency: str, **kwargs) -> str:
         return self._wrapped_bitex_method('deposit_address')(currency=currency, **kwargs)
 
+    @retry_on_exception(ServerError, Timeout)
+    def order(self, order_id: str) -> Optional[dict]:
+        return self._wrapped_bitex_method('order')(order_id)
+
     @retry_on_exception(ServerError, ConnectTimeout)
     def withdraw(self, currency: str, address: str, amount: float, **kwargs) -> bool:
         # assert amount >= CURRENCIES[currency]['min_transfer_size']
@@ -142,18 +143,23 @@ class BitExAPIAdapter(BaseExchangeAPI):
                         event_name='exchange_api.withdraw.failure')
         return result
 
-    def wait_for_fill(self, order_id: str, sleep: int = 1, timeout: int = 60) -> Optional[dict]:
-        start_time = time.time()
+    def wait_for_fill(self, order_id: str, sleep: int = 3, timeout: int = 60) -> Optional[dict]:
+        if not order_id:
+            return None
 
+        start_time = time.time()
         while time.time() < start_time + timeout:
             order_info = self.order(order_id)
             if not order_info['is_open']:
+                log.info('{exchange} order {order_id} closed', event_name='order.fill.success',
+                         event_data={'exchange': self.name, 'order_id': order_id,
+                                     'order_info': order_info})
                 return order_info
             time.sleep(sleep)
 
         log.warning('Timed out waiting for order {order_id} to fill',
-                    event_name='exchange_api.order_fill_timeout',
-                    event_data={'order_id': order_id, 'timeout': timeout, 'exchange': self.name})
+                    event_name='order.fill.timeout',
+                    event_data={'exchange': self.name, 'order_id': order_id, 'timeout': timeout})
         return None
 
     def raise_for_exchange_error(self, response_data: dict):

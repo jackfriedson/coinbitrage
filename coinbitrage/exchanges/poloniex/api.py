@@ -1,11 +1,13 @@
 from typing import Optional
 
 from bitex import Poloniex
+from requests.exceptions import Timeout
 
 from coinbitrage import bitlogging
 from coinbitrage.exchanges.bitex import BitExAPIAdapter
-from coinbitrage.exchanges.errors import ClientError
+from coinbitrage.exchanges.errors import ClientError, ServerError
 from coinbitrage.settings import DEFAULT_QUOTE_CURRENCY
+from coinbitrage.utils import retry_on_exception
 
 from .formatter import PoloniexFormatter
 
@@ -34,15 +36,11 @@ class PoloniexAPIAdapter(BitExAPIAdapter):
             return all_addresses[currency]
         return self._generate_new_address(currency)
 
+    @retry_on_exception(ServerError, Timeout)
     def _generate_new_address(self, currency: str) -> str:
         params = {'currency': currency, 'command': 'generateNewAddress'}
         response = self._api.private_query('tradingApi', params=params)
         return response.json()['response']
-
-    def limit_order(self, *args, fill_or_kill: bool = False, **kwargs) -> Optional[str]:
-        if fill_or_kill:
-            kwargs.update({'fill_or_kill': 1})
-        return super(PoloniexAPIAdapter, self).limit_order(*args, **kwargs)
 
     def raise_for_exchange_error(self, response_data: dict):
         if isinstance(response_data, dict):
@@ -52,10 +50,12 @@ class PoloniexAPIAdapter(BitExAPIAdapter):
                             event_name='poloniex_api.error', event_data={'message': error_msg})
                 raise ClientError(error_msg)
 
+    @retry_on_exception(ServerError, Timeout)
     def pairs(self):
         resp = self._api.ticker(None)
         return resp.json().keys()
 
+    @retry_on_exception(ServerError, Timeout)
     def order(self, order_id: str) -> Optional[dict]:
         order = self._wrapped_bitex_method('orders')().get(order_id)
         if order is None:

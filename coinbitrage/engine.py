@@ -140,49 +140,32 @@ class ArbitrageEngine(object):
                       'buy_price': buy_price, 'sell_price': sell_price, 'expected_profit': expected_profit*100}
         log.info(log_msg, event_name='arbitrage.attempt', event_data=event_data)
 
-        partial_buy_order = partial(buy_exchange.limit_order, self.base_currency, 'buy',
-                                    buy_price, order_volume, quote_currency=self.quote_currency, fill_or_kill=True)
-        partial_sell_order = partial(sell_exchange.limit_order, self.base_currency, 'sell',
-                                     sell_price, order_volume, quote_currency=self.quote_currency, fill_or_kill=True)
+        async def place_order(exchange, *args, **kwargs):
+            try:
+                return exchange.wait_for_fill(exchange.limit_order(*args, **kwargs))
+            except RequestException as e:
+                log.error(e, event_name='place_order.error')
+                return None
 
-        # Place buy and sell orders asynchronously
-        buy_resp, sell_resp = self._place_orders_async(partial_buy_order, partial_sell_order)
+        futures = [
+            place_order(buy_exchange, self.base_currency, 'buy', buy_price, order_volume, quote_currency=self.quote_currency),
+            place_order(sell_exchange, self.base_currency, 'sell', sell_price, order_volume, quote_currency=self.quote_currency)
+        ]
+        buy_resp, sell_resp = tuple(self._loop.run_until_complete(asyncio.gather(*futures)))
 
         if buy_resp and sell_resp:
             log.info('Both orders placed successfully', event_name='arbitrage.place_order.success',
-                     event_data={'buy_order_id': buy_resp, 'sell_order_id': sell_resp})
+                     event_data={'buy_order': buy_resp, 'sell_order': sell_resp})
             self._exchanges.update_active()
-        elif (buy_resp and not sell_resp) or (sell_resp and not buy_resp):
-            if buy_resp:
-                success_side, fail_side, client, resp = 'buy', 'sell', buy_exchange, buy_resp
-            else:
-                success_side, fail_side, client, resp = 'sell', 'buy', sell_exchange, sell_resp
-
-            log.warning('{} order failed, attempting to cancel {} order'.format(fail_side.title(), success_side),
-                        event_name='arbitrage.place_order.partial_failure')
-            cancel_success = client.cancel_order(resp)
-            if cancel_success:
-                log.info('Order cancelled successfully'.format(success_side),
-                         event_name='cancel_order.success', event_data={'order_id': resp})
-            else:
-                log.warning('Order could not be cancelled'.format(success_side),
-                            event_name='cancel_order.failure', event_data={'order_id': resp})
-                raise Exception
+        elif any([buy_resp, sell_resp]):
+            log.warning('One order failed', event_name='arbitrage.place_order.partial_failure',
+                        event_data={'buy_order': buy_resp, 'sell_order': sell_resp})
+            raise Exception
+            # TODO: determine how to handle
         else:
             log.warning('Both orders failed', event_name='arbitrage.place_order.total_failure')
             raise Exception
-
-    def _place_orders_async(self, buy_partial: Callable[[], Optional[str]],
-                                  sell_partial: Callable[[], Optional[str]]) -> Tuple[Optional[str], Optional[str]]:
-        async def place_order_async(partial_fn: Callable[[], Optional[str]]):
-            try:
-                return partial_fn()
-            except RequestException as e:
-                log.error(e, event_name='place_order.error')
-                return False
-
-        futures = [place_order_async(buy_partial), place_order_async(sell_partial)]
-        return tuple(self._loop.run_until_complete(asyncio.gather(*futures)))
+            # TODO: determine how to handle
 
     def arbitrage_table(self) -> pd.DataFrame:
         """Creates a table where rows represent to the exchange to buy from, and columns

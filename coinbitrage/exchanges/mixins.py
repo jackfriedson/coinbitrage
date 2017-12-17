@@ -201,8 +201,9 @@ class ProxyCurrencyWrapper(object):
         price = proxy_bid * (1 - ORDER_PRECISION)
 
         if amount > 0:
-            return self._api.limit_order(self.proxy_currency, 'sell', price, amount,
-                                         quote_currency=self.quote_currency)
+            order_id = self._api.limit_order(self.proxy_currency, 'sell', price, amount,
+                                             quote_currency=self.quote_currency)
+            return self._api.wait_for_fill(order_id)
 
     def quote_to_proxy(self, amount: float = None):
         proxy_ask = self._api.ticker(self.proxy_currency, quote_currency=self.quote_currency)['ask']
@@ -221,5 +222,6 @@ class ProxyCurrencyWrapper(object):
             amount = self.balance(show_quote=True).get(self.quote_currency, 0.) / price
 
         if amount > 0:
-            return self._api.limit_order(self.proxy_currency, 'buy', price, amount,
-                                         quote_currency=self.quote_currency)
+            order_id = self._api.limit_order(self.proxy_currency, 'buy', price, amount,
+                                             quote_currency=self.quote_currency)
+            return self._api.wait_for_fill(order_id)
