@@ -17,7 +17,7 @@ CURRENCIES = {
     },
     'ETH': {
         'est_tx_fee': 0.0012,
-        'order_size': 0.06,
+        'order_size': 0.05,
     },
     'LTC': {
         'est_tx_fee': 0.0075,
@@ -30,9 +30,10 @@ CURRENCIES = {
     'USDT': {
         'est_tx_fee': 5.,
         'order_size': 25,
-    }
+    },
+    'USD': {},
 }
 
 
 for data in CURRENCIES.values():
-    data['min_transfer_size'] = data['est_tx_fee'] * (1. / MAX_TRANSFER_FEE)
+    data['min_transfer_size'] = data.get('est_tx_fee', 0.) * (1. / MAX_TRANSFER_FEE)

@@ -25,9 +25,9 @@ class BittrexFormatter(BitExFormatter):
             'base_currency': base,
             'quote_currency': quote,
             'is_open': d['IsOpen'],
-            'side': 'buy' if 'buy' in d['OrderType'].lower() else 'sell',
+            'side': d['Type'].split('_')[-1].lower(),
             'cost': float(d['Price']),
-            'avg_price': float(d['PricePerUnit']),
+            'avg_price': float(d['PricePerUnit']) if d['PricePerUnit'] else None,
             'fee': float(d['CommissionPaid']),
             'volume': float(d['Quantity']),
         }

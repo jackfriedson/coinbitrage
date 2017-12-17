@@ -24,7 +24,7 @@ def coin():
 @click.option('--transfers/--no-transfers', default=True)
 def run(transfers: bool, **kwargs):
     engine = ArbitrageEngine(exchanges=EXCHANGES, **kwargs)
-    engine.run(transfers=transfers)
+    engine.run(make_transfers=transfers)
 
 
 @coin.command()

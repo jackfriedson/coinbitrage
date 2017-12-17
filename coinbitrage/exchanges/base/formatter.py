@@ -1,5 +1,11 @@
 from typing import Tuple
 
+from coinbitrage import bitlogging
+from coinbitrage.settings import CURRENCIES
+
+
+log = bitlogging.getLogger(__name__)
+
 
 class BaseFormatter(object):
     _currency_map = {}
@@ -27,10 +33,8 @@ class BaseFormatter(object):
         else:
             mid = len(currency_pair) // 2
             base, quote = currency_pair[:mid], currency_pair[mid:]
-            if len(currency_pair) % 2 != 0:
-                log.warning('Ambiguous currency pair: {pair}; split into {base}, {quote}',
-                            event_name='unpair.ambiguous_pair',
-                            event_data={'pair': currency_pair, 'base': base, 'quote': quote})
+            if len(currency_pair) % 2 != 0 and not (base in CURRENCIES and quote in CURRENCIES):
+                base, quote = currency_pair[:mid+1], currency_pair[mid+1:]
         base = self.format(base, inverse=True)
         quote = self.format(quote, inverse=True)
         return base, quote

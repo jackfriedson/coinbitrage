@@ -37,7 +37,7 @@ class ArbitrageEngine(object):
         self._exchanges = ExchangeManager(exchanges, base_currency, quote_currency, loop=self._loop)
         self._min_profit_threshold = min_profit
 
-    def run(self, transfers: bool = True):
+    def run(self, make_transfers: bool = True):
         """Runs the program."""
         manage_balances = RunEvery(self._exchanges.manage_balances, delay=REBALANCE_FUNDS_EVERY)
         print_table = RunEvery(self._print_arbitrage_table, delay=PRINT_TABLE_EVERY)
@@ -45,7 +45,7 @@ class ArbitrageEngine(object):
         with self._exchanges.live_updates():
             try:
                 while True:
-                    if transfers:
+                    if make_transfers:
                         manage_balances()
                     self._attempt_arbitrage()
                     print_table()
@@ -117,18 +117,18 @@ class ArbitrageEngine(object):
         multiplier = 2**int(expected_profit * 100)
         assert multiplier > 0
         target_volume = CURRENCIES[self.base_currency]['order_size'] * multiplier
-        buy_balance = self._exchange_balances[buy_exchange][self.quote_currency] / buy_price
-        sell_balance = self._exchange_balances[sell_exchange][self.base_currency]
+        buy_balance = self._exchanges.balances[buy_exchange.name][self.quote_currency] / buy_price
+        sell_balance = self._exchanges.balances[sell_exchange.name][self.base_currency]
         order_volume = min(target_volume, buy_balance, sell_balance)
 
         if order_volume < CURRENCIES[self.base_currency]['order_size']:
             log.warning('Attempted arbitrage with insufficient funds; ' + \
-                        '{buy_exchange} buy: {buy_balance}; {sell_exchange} sell: {sell_balance}',
+                        '{buy_exchange} buy: {buy_balance} (base); {sell_exchange} sell: {sell_balance}',
                         event_data={'buy_exchange': buy_exchange.name, 'buy_balance': buy_balance,
                                     'sell_exchange': sell_exchange.name, 'sell_balance': sell_balance,
                                     'target_volume': target_volume},
                         event_name='arbitrage.insufficient_funds')
-            self._exchanges.update_active()
+            self._exchanges.update_active_exchanges()
             return
 
         log_msg = ('Arbitrage opportunity: '
@@ -156,7 +156,7 @@ class ArbitrageEngine(object):
         if buy_resp and sell_resp:
             log.info('Both orders placed successfully', event_name='arbitrage.place_order.success',
                      event_data={'buy_order': buy_resp, 'sell_order': sell_resp})
-            self._exchanges.update_active()
+            self._exchanges.update_active_exchanges()
         elif any([buy_resp, sell_resp]):
             log.warning('One order failed', event_name='arbitrage.place_order.partial_failure',
                         event_data={'buy_order': buy_resp, 'sell_order': sell_resp})
