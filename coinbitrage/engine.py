@@ -12,7 +12,7 @@ from coinbitrage import bitlogging
 from coinbitrage.exchanges.errors import ServerError
 from coinbitrage.exchanges.manager import ExchangeManager
 from coinbitrage.exchanges.mixins import SeparateTradingAccountMixin
-from coinbitrage.settings import CURRENCIES, MAX_TRANSFER_FEE, ORDER_PRECISION
+from coinbitrage.settings import CURRENCIES, ORDER_PRECISION
 from coinbitrage.utils import RunEvery
 
 

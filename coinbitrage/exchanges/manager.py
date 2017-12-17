@@ -61,9 +61,13 @@ class ExchangeManager(object):
     def totals(self):
         return self._total_balances
 
+    @property
+    def names(self):
+        return self._clients.keys()
+
     def manage_balances(self):
         self._pre_distribute_step()
-        self._update_trading_balances()
+        self.update_trading_balances()
         self._redistribute_base()
         self._redistribute_quote()
         self.update_active_exchanges()
@@ -188,7 +192,7 @@ class ExchangeManager(object):
         if best_price.get_funds_from(highest_balance, self.quote_currency, hi_bal[self.quote_currency]):
             self.tx_credits -= tx_fee
 
-    def _update_trading_balances(self):
+    def update_trading_balances(self):
         async def get_balance(exchange):
             return exchange.name, exchange.balance()
 
@@ -213,7 +217,7 @@ class ExchangeManager(object):
                      event_data={'total_balances': self._total_balances, 'full_balances': self._balances})
 
     def update_active_exchanges(self):
-        self._update_trading_balances()
+        self.update_trading_balances()
         self._buy_active = {
             n for n, bal in self._balances.items()
             if bal.get(self.quote_currency, 0.) >= CURRENCIES[self.quote_currency]['order_size']
