@@ -21,6 +21,8 @@ MAX_REFRESH_DELAY = 10  # Filter exchanges not updated within the last 10 second
 class ExchangeManager(object):
 
     # TODO: Implement credits system to know what is tolerable in terms of withdrawal tx fees
+    # TODO: Keep track of buy/sell counts to know which exchanges are more likely to have higher prices
+    #       and send more funds to those accounts
     # TODO: Set a flag when deposits are pending to avoid rebalancing again; check at the beginning
     #       of each rebalance whether deposits have completed and unset the flag if so
 

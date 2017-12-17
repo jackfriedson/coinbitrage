@@ -68,6 +68,8 @@ class ArbitrageEngine(object):
         """Checks the arbitrage table to determine if there is an opportunity to profit,
         and if so executes the corresponding trades.
         """
+
+        # TODO: consider balances (buy/sell power) in calculation of which is the "best" exchange
         buy_exchange = min(self._exchanges.valid_buys(), key=lambda x: x.ask(), default=None)
         sell_exchange = max(self._exchanges.valid_sells(), key=lambda x: x.bid(), default=None)
 
@@ -80,7 +82,7 @@ class ArbitrageEngine(object):
         if sell_price < buy_price:
             return
 
-        buy_tx_fee = buy_exchange.tx_fee(self.base_currency) / sell_price
+        buy_tx_fee = buy_exchange.tx_fee(self.base_currency) * buy_price
         sell_tx_fee = sell_exchange.tx_fee(self.quote_currency)
         total_tx_fee = buy_tx_fee + sell_tx_fee
 
