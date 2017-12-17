@@ -69,7 +69,7 @@ class KrakenAPIAdapter(BitExAPIAdapter):
     def order(self, order_id: str) -> Optional[dict]:
         order = self._wrapped_bitex_method('closed_orders')().get(order_id)
         if order is None:
-            order = self._wrapped_bitex_method('open_orders')().get(order_id)
+            order = self._wrapped_bitex_method('orders')().get(order_id)
         return order
 
 
