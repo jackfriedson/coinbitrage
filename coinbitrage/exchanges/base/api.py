@@ -36,3 +36,6 @@ class BaseExchangeAPI(object):
                     quote_currency: str = DEFAULT_QUOTE_CURRENCY,
                     **kwargs) -> Optional[str]:
         raise NotImplementedError
+
+    def wait_for_fill(self, order_id: str, sleep: int = 1, timeout: int = 60):
+        raise NotImplementedError

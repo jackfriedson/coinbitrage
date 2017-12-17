@@ -6,7 +6,7 @@ import yaml
 
 from .adapters import BitLoggerAdapter
 from .filters import EventNameFilter
-from .formatters import BitLogFormatter, JSONFormatter, OrderFormatter
+from .formatters import BaseFormatter, JSONFormatter
 
 
 LOG_DIR = Path().resolve()/'logs'

@@ -86,7 +86,7 @@ class ArbitrageEngine(object):
         if expected_profit > self._min_profit_threshold:
             self._place_orders(buy_exchange, sell_exchange, expected_profit)
 
-    def _arbitrage_profit_loss(self, buy_exchange, sell_exchange) -> float:
+    def _arbitrage_profit_loss(self, buy_exchange, sell_exchange) -> Optional[float]:
         """Calculates the profit/loss of buying at one exchange and selling at another.
 
         :param buy_exchange: the exchange to buy from

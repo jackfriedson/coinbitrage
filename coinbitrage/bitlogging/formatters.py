@@ -2,15 +2,16 @@ import datetime
 import json
 import logging
 import pytz
+from json import JSONEncoder
 
 from tzlocal import get_localzone
 
 
-class BitLogFormatter(logging.Formatter):
+class BaseFormatter(logging.Formatter):
     converter = datetime.datetime.fromtimestamp
 
     def __init__(self, fmt: str = None, datefmt: str = None, style: str = '%', as_utc: bool = True):
-        super(BitLogFormatter, self).__init__(fmt=fmt, style=style)
+        super(BaseFormatter, self).__init__(fmt=fmt, style=style)
         self.datefmt = datefmt
         self.as_utc = as_utc
 
@@ -27,28 +28,16 @@ class BitLogFormatter(logging.Formatter):
         return s
 
 
-class OrderFormatter(BitLogFormatter):
-    # TODO: Fix this formatter
+class JSONFormatter(BaseFormatter):
 
-    def __init__(self, *args, **kwargs):
-        super(OrderFormatter, self).__init__(datefmt='%Y-%m-%d %H:%M:%S')
-
-    def format(self, record: logging.LogRecord) -> str:
-        fmt = '{asctime} {event_name:20} -- {exchange} {side} ' + \
-              '{volume} {base} @ {price} {quote}{order_id}'
-        order_id = record.event_data.pop('order_id', None)
-        msg_args = {
-            'asctime': self.formatTime(record),
-            'event_name': record.event_name,
-            'order_id_str': ' ({})'.format(order_id) if order_id else '',
-        }
-        msg_args.update(record.event_data)
-        return self._fmt.format(**msg_args)
-
-
-class JSONFormatter(BitLogFormatter):
+    class BitLogJSONEncoder(JSONEncoder):
+        def default(self, o):
+            if isinstance(o, set):
+                return list(o)
+            if isinstance(o, object):
+                return repr(o)
+            return JSONEncoder.default(self, o)
 
     def format(self, record: logging.LogRecord) -> str:
-        result = {k: str(v) for k, v in record.__dict__.items()}
-        result.update({'asctime': self.formatTime(record)})
-        return json.dumps(result)
+        record.asctime = self.formatTime(record)
+        return json.dumps(record.__dict__, cls=self.BitLogJSONEncoder)

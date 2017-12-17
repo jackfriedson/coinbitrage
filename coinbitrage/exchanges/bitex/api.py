@@ -1,3 +1,4 @@
+import time
 from functools import wraps
 from typing import Callable, Dict, List, Optional, Tuple, Union
 
@@ -29,11 +30,14 @@ class BitExAPIAdapter(BaseExchangeAPI):
         self._api = self._api_class(key_file=key_file, timeout=timeout)
 
     def __getattr__(self, name: str):
+        attr = getattr(self._api, name)
+        if not callable(attr):
+            return attr
         return retry_on_exception(ServerError, ConnectTimeout)(self._wrapped_bitex_method(name))
 
     # TODO: move most of this logic to BaseExchangeAPI
-    def _wrapped_bitex_method(self, name: str):
-        method = getattr(self._api, name)
+    def _wrapped_bitex_method(self, method_name: str):
+        method = getattr(self._api, method_name)
 
         @wraps(method)
         def wrapper(*args, **kwargs):
@@ -57,7 +61,7 @@ class BitExAPIAdapter(BaseExchangeAPI):
 
             log.debug('API call -- {exchange}.{method}(*{args}, **{kwargs})',
                       event_name='exchange_api.call',
-                      event_data={'exchange': self.name, 'method': name, 'args': args, 'kwargs': kwargs})
+                      event_data={'exchange': self.name, 'method': method_name, 'args': args, 'kwargs': kwargs})
 
             try:
                 resp = method(*args, **kwargs)
@@ -70,7 +74,7 @@ class BitExAPIAdapter(BaseExchangeAPI):
             except HTTPError as e:
                 log_msg = '{exchange} encountered an HTTP error ({status_code})'
                 event_data = {'exchange': self.name, 'status_code': resp.status_code,
-                              'method': name, 'args': args, 'kwargs': kwargs}
+                              'method': method_name, 'args': args, 'kwargs': kwargs}
                 if 'application/json' in resp.headers['Content-Type']:
                     log_msg += ': {error_message}'
                     event_data['error_message'] = resp.json()
@@ -83,7 +87,7 @@ class BitExAPIAdapter(BaseExchangeAPI):
 
             resp_data = resp.json()
             self.raise_for_exchange_error(resp_data)
-            formatter = getattr(self.formatter, name)
+            formatter = getattr(self.formatter, method_name)
             return formatter(resp.formatted) if resp.formatted else formatter(resp_data)
 
         return wrapper
@@ -137,6 +141,20 @@ class BitExAPIAdapter(BaseExchangeAPI):
             log.warning('Unable to withdraw {amount} {currency} from {exchange}', event_data=event_data,
                         event_name='exchange_api.withdraw.failure')
         return result
+
+    def wait_for_fill(self, order_id: str, sleep: int = 1, timeout: int = 60) -> Optional[dict]:
+        start_time = time.time()
+        order_info = self._wrapped_bitex_method('order')
+
+        while time.time() < start_time + timeout:
+            order_info = order_info(order_id)
+            if order_info['is_closed']:
+                return order_info
+            time.sleep(sleep)
+
+        log.warning('Timed out waiting for order {order_id} to fill', event_name='exchange_api.order_fill_timeout',
+                    event_data={'order_id': order_id, 'timeout': timeout, 'exchange': self.name})
+        return None
 
     def raise_for_exchange_error(self, response_data: dict):
         pass
