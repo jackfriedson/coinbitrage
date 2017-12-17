@@ -68,11 +68,6 @@ class BaseExchangeAPI(object):
             return formatter(resp.formatted) if resp.formatted else formatter(resp_data)
         return wrapped
 
-    def fee(self,
-            base_currency: str,
-            quote_currency: str = DEFAULT_QUOTE_CURRENCY) -> float:
-        return DEFAULT_ORDER_FEE
-
     def deposit_address(self, currency: str) -> str:
         raise NotImplementedError
 

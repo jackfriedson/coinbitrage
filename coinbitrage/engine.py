@@ -71,34 +71,46 @@ class ArbitrageEngine(object):
         buy_exchange = min(self._exchanges.valid_buys(), key=lambda x: x.ask(), default=None)
         sell_exchange = max(self._exchanges.valid_sells(), key=lambda x: x.bid(), default=None)
 
-        if not (buy_exchange and sell_exchange):
+        if not (buy_exchange and sell_exchange) or buy_exchange.name == sell_exchange.name:
             return
-
-        expected_profit = self._arbitrage_profit_loss(buy_exchange, sell_exchange)
-
-        if not expected_profit:
-            return
-
-        buy_fee = buy_exchange.fee(self.base_currency)
-        sell_fee = sell_exchange.fee(self.base_currency)
-        expected_pct_profit -= (buy_fee + sell_fee + (2*ORDER_PRECISION))
-
-        buy_tx_fee = buy_exchange.tx_fee(self.base_currency)
-        sell_tx_fee = sell_exchange.tx_fee(self.quote_currency)
-
 
         buy_price = buy_exchange.ask() * (1 + ORDER_PRECISION)
         sell_price = sell_exchange.bid() * (1 - ORDER_PRECISION)
 
-        # Compute the order size
-        multiplier = 2**int(expected_profit*100)
-        target_volume = CURRENCIES[self.base_currency]['order_size'] * multiplier
-        buy_balance = self._exchanges.balances[buy_exchange.name][self.quote_currency] / buy_price
-        sell_balance = self._exchanges.balances[sell_exchange.name][self.base_currency]
-        order_volume = min(target_volume, buy_balance, sell_balance)
+        if sell_price > buy_price:
+            return
 
-        if expected_profit > self._min_profit_threshold:
-            self._place_orders(buy_exchange, sell_exchange, expected_profit)
+        buy_tx_fee = buy_exchange.tx_fee(self.base_currency) / sell_price
+        sell_tx_fee = sell_exchange.tx_fee(self.quote_currency)
+        total_tx_fee = buy_tx_fee + sell_tx_fee
+
+        # Amount of base currency that can be bought/sold at each exchange
+        max_buy = self._exchanges.balances[buy_exchange.name][self.quote_currency] / buy_price
+        max_sell = self._exchanges.balances[sell_exchange.name][self.base_currency]
+        order_size = min(max_buy, max_sell)
+
+        if order_size < CURRENCIES[self.base_currency]['order_size']:
+            self._exchanges.update_active_exchanges()
+            return
+
+        expected_profit = order_size * (sell_price - buy_price)
+        expected_profit -= total_tx_fee
+        expected_pct_profit = expected_profit / buy_price
+
+        buy_fee = buy_exchange.fee(self.base_currency, self.quote_currency)
+        sell_fee = sell_exchange.fee(self.base_currency, self.quote_currency)
+        expected_pct_profit -= (buy_fee + sell_fee)
+
+        if expected_pct_profit > self._min_profit_threshold:
+            log_msg = ('Arbitrage opportunity: '
+                      '{buy_exchange} buy {volume} {base_currency} @ {buy_price}; '
+                      '{sell_exchange} sell {volume} {quote_currency} @ {sell_price}; '
+                      'profit: {expected_profit:.2f}%')
+            event_data = {'buy_exchange': buy_exchange.name, 'sell_exchange': sell_exchange.name,
+                          'volume': order_size, 'base_currency': self.base_currency, 'quote_currency': self.quote_currency,
+                          'buy_price': buy_price, 'sell_price': sell_price, 'expected_profit': expected_pct_profit*100}
+            log.info(log_msg, event_name='arbitrage.attempt', event_data=event_data)
+            self._place_orders(buy_exchange, sell_exchange, buy_price, sell_price, order_size)
 
     def _arbitrage_profit_loss(self, buy_exchange, sell_exchange) -> Optional[float]:
         """Calculates the profit/loss of buying at one exchange and selling at another.
@@ -106,52 +118,22 @@ class ArbitrageEngine(object):
         :param buy_exchange: the exchange to buy from
         :param sell_exchange: the exchange to sell to
         """
-        if buy_exchange.name == sell_exchange.name:
+        buy_ask = buy_exchange.ask()
+        sell_bid = sell_exchange.bid()
+
+        if buy_exchange.name == sell_exchange.name or not (buy_ask and sell_bid):
             return None
 
-        sell_exchange_price = sell_exchange.bid()
-        buy_exchange_price = buy_exchange.ask()
+        return (sell_bid / buy_ask) - (1 + 2*ORDER_PRECISION)
 
-        if not (sell_exchange_price and buy_exchange_price):
-            return None
-
-        return (sell_exchange_price / buy_exchange_price) - 1.
-
-    def _place_orders(self, buy_exchange, sell_exchange, expected_profit: float):
+    def _place_orders(self, buy_exchange, sell_exchange, buy_price: float, sell_price: float,
+                      order_volume: float) -> bool:
         """Places buy and sell orders at the corresponding exchanges.
 
         :param buy_exchange: The name of the exchange to buy from
         :param sell_exchange: The name of the excahnge to sell at
         :param expected_profit: The percent profit that can be expected
         """
-        buy_price = buy_exchange.ask() * (1 + ORDER_PRECISION)
-        sell_price = sell_exchange.bid() * (1 - ORDER_PRECISION)
-
-        # Compute the order size
-        multiplier = 2**int(expected_profit*100)
-        target_volume = CURRENCIES[self.base_currency]['order_size'] * multiplier
-        buy_balance = self._exchanges.balances[buy_exchange.name][self.quote_currency] / buy_price
-        sell_balance = self._exchanges.balances[sell_exchange.name][self.base_currency]
-        order_volume = min(target_volume, buy_balance, sell_balance)
-
-        if order_volume < CURRENCIES[self.base_currency]['order_size']:
-            log.warning('Attempted arbitrage with insufficient funds; ' + \
-                        '{buy_exchange} buy: {buy_balance} (base); {sell_exchange} sell: {sell_balance}',
-                        event_data={'buy_exchange': buy_exchange.name, 'buy_balance': buy_balance,
-                                    'sell_exchange': sell_exchange.name, 'sell_balance': sell_balance,
-                                    'target_volume': target_volume},
-                        event_name='arbitrage.insufficient_funds')
-            self._exchanges.update_active_exchanges()
-            return
-
-        log_msg = ('Arbitrage opportunity: '
-                  '{buy_exchange} buy {volume} {base_currency} @ {buy_price}; '
-                  '{sell_exchange} sell {volume} {quote_currency} @ {sell_price}; '
-                  'profit: {expected_profit:.2f}%')
-        event_data = {'buy_exchange': buy_exchange.name, 'sell_exchange': sell_exchange.name, 'volume': order_volume,
-                      'base_currency': self.base_currency, 'quote_currency': self.quote_currency,
-                      'buy_price': buy_price, 'sell_price': sell_price, 'expected_profit': expected_profit*100}
-        log.info(log_msg, event_name='arbitrage.attempt', event_data=event_data)
 
         async def place_order(exchange, *args, **kwargs):
             try:
@@ -170,6 +152,7 @@ class ArbitrageEngine(object):
             log.info('Both orders placed successfully', event_name='arbitrage.place_order.success',
                      event_data={'buy_order': buy_resp, 'sell_order': sell_resp})
             self._exchanges.update_active_exchanges()
+            return True
         elif any([buy_resp, sell_resp]):
             log.warning('One order failed', event_name='arbitrage.place_order.partial_failure',
                         event_data={'buy_order': buy_resp, 'sell_order': sell_resp})
