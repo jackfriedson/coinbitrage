@@ -77,7 +77,7 @@ class ArbitrageEngine(object):
         buy_price = buy_exchange.ask() * (1 + ORDER_PRECISION)
         sell_price = sell_exchange.bid() * (1 - ORDER_PRECISION)
 
-        if sell_price > buy_price:
+        if sell_price < buy_price:
             return
 
         buy_tx_fee = buy_exchange.tx_fee(self.base_currency) / sell_price
