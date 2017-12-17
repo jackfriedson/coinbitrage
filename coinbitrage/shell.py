@@ -30,7 +30,7 @@ class CoinbitrageShell(cmd.Cmd):
         self._active_exchange = None
         return stop
 
-    def do_balances(self, args):
+    def do_balances(self, args: str):
         if '--update' in args:
             self._exchanges.update_trading_balances()
         balances = self._exchanges.balances
@@ -39,21 +39,21 @@ class CoinbitrageShell(cmd.Cmd):
         else:
             print(balances[self._active_exchange.name])
 
-    def do_totals(self, args):
+    def do_totals(self, args: str):
         if '--update' in args:
             self._exchanges.update_trading_balances()
         print(self._exchanges.totals)
 
-    def do_deposit_address(self, currency):
+    def do_deposit_address(self, currency: str):
         if self._active_exchange:
             addr = self._active_exchange.deposit_address(currency.upper())
             print(addr)
 
-    def do_update(self, args):
+    def do_update(self, args: str):
         self._exchanges.update_trading_balances()
 
-    def do_manage(self, args):
+    def do_manage(self, args: str):
         self._exchanges.manage_balances()
 
-    def do_exit(self, args):
+    def do_exit(self, args: str):
         return True

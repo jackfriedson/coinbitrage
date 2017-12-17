@@ -133,6 +133,7 @@ class SeparateTradingAccountMixin(object):
 
 
 class ProxyCurrencyWrapper(object):
+    float_precision = 4
 
     def __init__(self,
                  api,
@@ -198,7 +199,7 @@ class ProxyCurrencyWrapper(object):
 
         if amount is None:
             amount = self.balance(show_quote=True).get(self.proxy_currency, 0.)
-        price = proxy_bid * (1 - ORDER_PRECISION)
+        price = '{:.{prec}f}'.format(proxy_bid * (1 - ORDER_PRECISION), prec=self.float_precision)
 
         if amount > 0:
             order_id = self._api.limit_order(self.proxy_currency, 'sell', price, amount,
@@ -217,7 +218,7 @@ class ProxyCurrencyWrapper(object):
                                   'acceptable_ask': self.acceptable_ask})
             raise ExchangeError('Unable to exchange quote currency for proxy currency')
 
-        price = proxy_ask * (1 + ORDER_PRECISION)
+        price = '{:.{prec}f}'.format(proxy_ask * (1 + ORDER_PRECISION), prec=self.float_precision)
         if amount is None:
             amount = self.balance(show_quote=True).get(self.quote_currency, 0.) / price
 
