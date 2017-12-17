@@ -16,3 +16,7 @@ class PoloniexClient(BaseExchangeClient, PeriodicRefreshMixin):
     def init(self):
         self.currency_info = self.api.currencies()
         self.supported_pairs = self.api.pairs()
+        self._fee = float(self.api.fees()['takerFee'])
+
+    def fee(self, base_currency: str, quote_currency: str) -> float:
+        return self._fee

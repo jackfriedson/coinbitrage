@@ -8,11 +8,11 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 import pandas as pd
 from requests.exceptions import RequestException, Timeout
 
-from coinbitrage import bitlogging, settings
+from coinbitrage import bitlogging
 from coinbitrage.exchanges.errors import ServerError
 from coinbitrage.exchanges.manager import ExchangeManager
 from coinbitrage.exchanges.mixins import SeparateTradingAccountMixin
-from coinbitrage.settings import CURRENCIES, MAX_TRANSFER_FEE
+from coinbitrage.settings import CURRENCIES, MAX_TRANSFER_FEE, ORDER_PRECISION
 from coinbitrage.utils import RunEvery
 
 
@@ -81,7 +81,21 @@ class ArbitrageEngine(object):
 
         buy_fee = buy_exchange.fee(self.base_currency)
         sell_fee = sell_exchange.fee(self.base_currency)
-        expected_profit -= (buy_fee + sell_fee + (2*MAX_TRANSFER_FEE))
+        expected_pct_profit -= (buy_fee + sell_fee + (2*ORDER_PRECISION))
+
+        buy_tx_fee = buy_exchange.tx_fee(self.base_currency)
+        sell_tx_fee = sell_exchange.tx_fee(self.quote_currency)
+
+
+        buy_price = buy_exchange.ask() * (1 + ORDER_PRECISION)
+        sell_price = sell_exchange.bid() * (1 - ORDER_PRECISION)
+
+        # Compute the order size
+        multiplier = 2**int(expected_profit*100)
+        target_volume = CURRENCIES[self.base_currency]['order_size'] * multiplier
+        buy_balance = self._exchanges.balances[buy_exchange.name][self.quote_currency] / buy_price
+        sell_balance = self._exchanges.balances[sell_exchange.name][self.base_currency]
+        order_volume = min(target_volume, buy_balance, sell_balance)
 
         if expected_profit > self._min_profit_threshold:
             self._place_orders(buy_exchange, sell_exchange, expected_profit)
@@ -110,12 +124,11 @@ class ArbitrageEngine(object):
         :param sell_exchange: The name of the excahnge to sell at
         :param expected_profit: The percent profit that can be expected
         """
-        buy_price = buy_exchange.ask() * (1 + settings.ORDER_PRECISION)
-        sell_price = sell_exchange.bid() * (1 - settings.ORDER_PRECISION)
+        buy_price = buy_exchange.ask() * (1 + ORDER_PRECISION)
+        sell_price = sell_exchange.bid() * (1 - ORDER_PRECISION)
 
         # Compute the order size
-        multiplier = 2**int(expected_profit * 100)
-        assert multiplier > 0
+        multiplier = 2**int(expected_profit*100)
         target_volume = CURRENCIES[self.base_currency]['order_size'] * multiplier
         buy_balance = self._exchanges.balances[buy_exchange.name][self.quote_currency] / buy_price
         sell_balance = self._exchanges.balances[sell_exchange.name][self.base_currency]

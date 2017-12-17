@@ -29,7 +29,7 @@ class KrakenFormatter(BitExFormatter):
         return self._format_orders(data['result']['open'], True)
 
     def pairs(self, data):
-        return set(data['result'].keys())
+        return data['result']
 
     def deposit_address(self, data):
         return data['result'][0]['address']

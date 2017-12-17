@@ -1,4 +1,5 @@
 from coinbitrage import bitlogging
+from coinbitrage.settings import DEFAULT_ORDER_FEE, DEFAULT_QUOTE_CURRENCY
 
 
 log = bitlogging.getLogger(__name__)
@@ -40,3 +41,9 @@ class BaseExchangeClient(object):
     def supports_pair(self, base_currency: str, quote_currency: str) -> bool:
         pair = self.api.formatter.pair(base_currency, quote_currency)
         return pair in self.supported_pairs
+
+    def tx_fee(self, currency: str) -> float:
+        return float(self.currency_info[currency]['tx_fee'])
+
+    def fee(self, base_currency: str, quote_currency: str) -> float:
+        return DEFAULT_ORDER_FEE

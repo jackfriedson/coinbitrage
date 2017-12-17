@@ -34,5 +34,4 @@ def shell():
     kraken = exchanges.get('kraken')
     poloniex = exchanges.get('poloniex')
     bittrex = exchanges.get('bittrex')
-    resp = poloniex.order('149603815580')
     import ipdb; ipdb.set_trace()
