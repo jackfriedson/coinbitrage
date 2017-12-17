@@ -1,4 +1,5 @@
 import time
+from collections import defaultdict
 from contextlib import contextmanager
 from typing import Dict, List, Union
 
@@ -20,9 +21,6 @@ MAX_REFRESH_DELAY = 10  # Filter exchanges not updated within the last 10 second
 
 class ExchangeManager(object):
 
-    # TODO: Implement credits system to know what is tolerable in terms of withdrawal tx fees
-    # TODO: Keep track of buy/sell counts to know which exchanges are more likely to have higher prices
-    #       and send more funds to those accounts
     # TODO: Set a flag when deposits are pending to avoid rebalancing again; check at the beginning
     #       of each rebalance whether deposits have completed and unset the flag if so
 
@@ -34,6 +32,8 @@ class ExchangeManager(object):
         self._balances = {}
         self._total_balances = {}
         self._clients = {}
+        self._order_history = defaultdict(list)
+        self.tx_credits = 0.  # In quote currency
 
         self._init_clients([get_exchange(name) for name in exchanges])
         self.update_active_exchanges()
@@ -64,8 +64,8 @@ class ExchangeManager(object):
     def manage_balances(self):
         self._pre_distribute_step()
         self._update_trading_balances()
-        self._redistribute(self.base_currency)
-        self._redistribute(self.quote_currency)
+        self._redistribute_base()
+        self._redistribute_quote()
         self.update_active_exchanges()
         self._pre_trading_step()
 
@@ -88,6 +88,18 @@ class ExchangeManager(object):
             return all([is_active, has_price, updated_recently])
 
         return filter(sell_exchange_filter, self._clients.values())
+
+    def add_order(self, side: str, exchange_name: str):
+        self._order_history[side].append({'exchange': exchange_name, 'time': time.time()})
+
+    def best_history(self, side: str) -> List[str]:
+        hist = self._order_history[side]
+        counts = defaultdict(int)
+        for order in hist:
+            # TODO: use EMA, taking time into consideration
+            counts[order['exchange']] += 1
+        sorted_hist = sorted(counts.items(), key=lambda x: x[1], reverse=True)
+        return [x[0] for x in sorted_hist]
 
     @contextmanager
     def live_updates(self):
@@ -130,48 +142,45 @@ class ExchangeManager(object):
         futures = [proxy_to_quote(exchg) for exchg in filtered_exchanges]
         self._loop.run_until_complete(asyncio.gather(*futures))
 
-    def _redistribute(self, currency: str):
-        total_balance = self._total_balances.get(currency, 0.)
-        order_size = CURRENCIES[currency]['order_size']
-        average_balance = (total_balance - order_size) / len(self._clients)
-        min_transfer = CURRENCIES[currency]['min_transfer_size']
+    def _redistribute_base(self):
+        if not self._total_balances.get(self.base_currency, 0.):
+            return
 
-        debts = {}
-        credits = {}
+        best_price = min(self._clients.values(), key=lambda x: x.ask())
+        # TODO: Use best history once we have enough data
 
-        for exchg, balances in self._balances.items():
-            balance = balances.get(currency, 0.)
-            if balance < order_size:
-                debts[exchg] = average_balance - balance
-            elif balance > average_balance + min_transfer:
-                credits[exchg] = balance - average_balance
+        hi_bal_name, hi_bal = max(self._balances.items(), key=lambda x: x[1][self.base_currency])
+        highest_balance = self.get(hi_bal_name)
 
-        log.debug('{} debts: {}'.format(currency, debts))
-        log.debug('{} credits: {}'.format(currency, credits))
+        if best_price.name == highest_balance.name:
+            return
 
-        try:
-            while debts and credits:
-                to_exchange, debt = max(debts.items(), key=lambda x: x[1])
-                from_exchange, credit = max(credits.items(), key=lambda x: x[1])
-                to_exchange_client = self.get(to_exchange)
-                from_exchange_client = self.get(from_exchange)
+        tx_fee = highest_balance.tx_fee(self.base_currency) * highest_balance.ask()
+        if tx_fee > self.tx_credits:
+            return
 
-                if debt < credit:
-                    transfer_amt = max(debt, min_transfer)
-                    to_exchange_client.get_funds_from(from_exchange_client, currency, transfer_amt)
-                    debts.pop(to_exchange)
-                    credits[from_exchange] = credit - transfer_amt
-                    if credits[from_exchange] < min_transfer:
-                        credits.pop(from_exchange)
-                else:
-                    assert credit >= min_transfer
-                    to_exchange_client.get_funds_from(from_exchange_client, currency, credit)
-                    credits.pop(from_exchange)
-                    debts[to_exchange] = debt - credit
-        except Exception as e:
-            log.warning('Could not successfully redistribute funds', event_name='redistribute_funds.failure',
-                        event_data={'exception': e})
-            raise
+        if best_price.get_funds_from(highest_balance, self.base_currency, hi_bal):
+            self.tx_credits -= tx_fee
+
+    def _redistribute_quote(self):
+        if not self._total_balances.get(self.quote_currency, 0.):
+            return
+
+        best_price = max(self._clients.values(), key=lambda x: x.bid())
+        # TODO: Use best history once we have enough data
+
+        hi_bal_name, hi_bal = max(self._balances.items(), key=lambda x: x[1][self.quote_currency])
+        highest_balance = self.get(hi_bal_name)
+
+        if best_price.name == highest_balance.name:
+            return
+
+        tx_fee = highest_balance.tx_fee(self.quote_currency)
+        if tx_fee > self.tx_credits:
+            return
+
+        if best_price.get_funds_from(highest_balance, self.quote_currency, hi_bal):
+            self.tx_credits -= tx_fee
 
     def _update_trading_balances(self):
         async def get_balance(exchange):

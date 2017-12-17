@@ -99,20 +99,27 @@ class ArbitrageEngine(object):
         expected_profit -= total_tx_fee
         expected_pct_profit = expected_profit / buy_price
 
+        # TODO: consider converting fees to actual value (not percent)
         buy_fee = buy_exchange.fee(self.base_currency, self.quote_currency)
         sell_fee = sell_exchange.fee(self.base_currency, self.quote_currency)
         expected_pct_profit -= (buy_fee + sell_fee)
 
-        if expected_pct_profit > self._min_profit_threshold:
-            log_msg = ('Arbitrage opportunity: '
-                      '{buy_exchange} buy {volume} {base_currency} @ {buy_price}; '
-                      '{sell_exchange} sell {volume} {quote_currency} @ {sell_price}; '
-                      'profit: {expected_profit:.2f}%')
-            event_data = {'buy_exchange': buy_exchange.name, 'sell_exchange': sell_exchange.name,
-                          'volume': order_size, 'base_currency': self.base_currency, 'quote_currency': self.quote_currency,
-                          'buy_price': buy_price, 'sell_price': sell_price, 'expected_profit': expected_pct_profit*100}
-            log.info(log_msg, event_name='arbitrage.attempt', event_data=event_data)
-            self._place_orders(buy_exchange, sell_exchange, buy_price, sell_price, order_size)
+        if expected_pct_profit <= self._min_profit_threshold:
+            return
+
+        log_msg = ('Arbitrage opportunity: '
+                  '{buy_exchange} buy {volume} {base_currency} @ {buy_price}; '
+                  '{sell_exchange} sell {volume} {quote_currency} @ {sell_price}; '
+                  'profit: {expected_profit:.2f}%')
+        event_data = {'buy_exchange': buy_exchange.name, 'sell_exchange': sell_exchange.name,
+                      'volume': order_size, 'base_currency': self.base_currency, 'quote_currency': self.quote_currency,
+                      'buy_price': buy_price, 'sell_price': sell_price, 'expected_profit': expected_pct_profit*100}
+        log.info(log_msg, event_name='arbitrage.attempt', event_data=event_data)
+        if self._place_orders(buy_exchange, sell_exchange, buy_price, sell_price, order_size):
+            self._exchanges.add_order('buy', buy_exchange.name)
+            self._exchanges.add_order('sell', sell_exchange.name)
+            self._exchanges.tx_credits += total_tx_fee
+            self._exchanges.update_active_exchanges()
 
     def _arbitrage_profit_loss(self, buy_exchange, sell_exchange) -> Optional[float]:
         """Calculates the profit/loss of buying at one exchange and selling at another.
@@ -153,7 +160,6 @@ class ArbitrageEngine(object):
         if buy_resp and sell_resp:
             log.info('Both orders placed successfully', event_name='arbitrage.place_order.success',
                      event_data={'buy_order': buy_resp, 'sell_order': sell_resp})
-            self._exchanges.update_active_exchanges()
             return True
         elif any([buy_resp, sell_resp]):
             log.warning('One order failed', event_name='arbitrage.place_order.partial_failure',
