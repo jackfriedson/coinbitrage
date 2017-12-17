@@ -146,6 +146,9 @@ class ExchangeManager(object):
         if not self._total_balances.get(self.base_currency, 0.):
             return
 
+        if not all([x.bid() for x in self._clients.values()]):
+            return
+
         best_price = max(self._clients.values(), key=lambda x: x.bid())
         # TODO: Use best history once we have enough data
 
@@ -159,11 +162,14 @@ class ExchangeManager(object):
         if tx_fee > self.tx_credits:
             return
 
-        if best_price.get_funds_from(highest_balance, self.base_currency, hi_bal):
+        if best_price.get_funds_from(highest_balance, self.base_currency, hi_bal[self.base_currency]):
             self.tx_credits -= tx_fee
 
     def _redistribute_quote(self):
         if not self._total_balances.get(self.quote_currency, 0.):
+            return
+
+        if not all([x.ask() for x in self._clients.values()]):
             return
 
         best_price = min(self._clients.values(), key=lambda x: x.ask())
@@ -179,7 +185,7 @@ class ExchangeManager(object):
         if tx_fee > self.tx_credits:
             return
 
-        if best_price.get_funds_from(highest_balance, self.quote_currency, hi_bal):
+        if best_price.get_funds_from(highest_balance, self.quote_currency, hi_bal[self.quote_currency]):
             self.tx_credits -= tx_fee
 
     def _update_trading_balances(self):
