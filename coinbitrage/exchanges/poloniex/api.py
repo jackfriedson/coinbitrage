@@ -39,8 +39,10 @@ class PoloniexAPIAdapter(BitExAPIAdapter):
     @retry_on_exception(ServerError, Timeout)
     def _generate_new_address(self, currency: str) -> str:
         params = {'currency': currency, 'command': 'generateNewAddress'}
-        response = self._api.private_query('tradingApi', params=params)
-        return response.json()['response']
+        resp = self._api.private_query('tradingApi', params=params)
+        resp.raise_for_status()
+        self.raise_for_exchange_error(resp.json())
+        return resp.json()['response']
 
     def raise_for_exchange_error(self, response_data: dict):
         if isinstance(response_data, dict):

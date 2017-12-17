@@ -20,7 +20,6 @@ class BitExAPIAdapter(BaseExchangeAPI):
     """Class for implementing REST API adapters using the BitEx library."""
     _api_class = None
     formatter = BitExFormatter()
-    float_precision = 6
 
     def __init__(self, name: str, key_file: str, timeout: int = REQUESTS_TIMEOUT):
         super(BitExAPIAdapter, self).__init__(name)
@@ -47,46 +46,7 @@ class BitExAPIAdapter(BaseExchangeAPI):
                 currency = kwargs.pop('currency')
                 kwargs['currency'] = self.formatter.format(currency)
 
-            # Convert float values to strings
-            def float_to_str(val):
-                if not isinstance(val, float):
-                    return val
-                return '{:.{prec}}'.format(str(val), prec=self.float_precision)
-
-            args = [float_to_str(a) for a in args]
-            kwargs = {kw: float_to_str(arg) for kw, arg in kwargs.items()}
-
-            log.debug('API call -- {exchange}.{method}(*{args}, **{kwargs})',
-                      event_name='exchange_api.call',
-                      event_data={'exchange': self.name, 'method': method_name, 'args': args, 'kwargs': kwargs})
-
-            try:
-                resp = method(*args, **kwargs)
-            except RequestException as e:
-                log.error(e, event_name='exchange_api.request_error')
-                raise
-
-            try:
-                resp.raise_for_status()
-            except HTTPError as e:
-                log_msg = '{exchange} encountered an HTTP error ({status_code})'
-                event_data = {'exchange': self.name, 'status_code': resp.status_code,
-                              'method': method_name, 'args': args, 'kwargs': kwargs}
-                if 'application/json' in resp.headers['Content-Type']:
-                    log_msg += ': {error_message}'
-                    event_data['error_message'] = resp.json()
-                if resp.status_code >= 400 and resp.status_code < 500:
-                    log.error(log_msg, event_name='exchange_api.http_error.client', event_data=event_data)
-                    raise ClientError(e)
-                else:
-                    log.warning(log_msg, event_name='exchange_api.http_error.server', event_data=event_data)
-                    raise ServerError(e)
-
-            resp_data = resp.json()
-            self.raise_for_exchange_error(resp_data)
-            formatter = getattr(self.formatter, method_name)
-            return formatter(resp.formatted) if resp.formatted else formatter(resp_data)
-
+            return self._wrap(method)(*args, **kwargs)
         return wrapper
 
     @retry_on_exception(ServerError, ConnectTimeout)
