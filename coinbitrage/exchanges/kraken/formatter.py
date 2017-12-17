@@ -5,6 +5,7 @@ class KrakenFormatter(BitExFormatter):
     _currency_map = {
         'BTC': 'XXBT',
         'ETH': 'XETH',
+        'LTC': 'XLTC',
         'USD': 'ZUSD',
     }
 

@@ -23,6 +23,12 @@ ACCEPTABLE_USDT_BID = 0.99
 
 class KrakenAPIAdapter(BitExAPIAdapter):
     _api_class = Kraken
+    _deposit_methods = {
+        'BTC': 'Bitcoin',
+        'ETH': 'Ether (Hex)',
+        'LTC': 'Litecoin',
+        'USDT': 'Tether USD'
+    }
     _error_cls_map = defaultdict(lambda: ClientError)
     _error_cls_map.update({
         'Service': ServerError,
@@ -35,17 +41,12 @@ class KrakenAPIAdapter(BitExAPIAdapter):
         super(KrakenAPIAdapter, self).__init__(*args, **kwargs)
 
     def deposit_address(self, currency: str) -> str:
-        if currency == 'BTC':
-            method = 'Bitcoin'
-        elif currency == 'ETH':
-            method = 'Ether (Hex)'
-        elif currency == 'USDT':
-            method = 'Tether USD'
-        else:
+        deposit_method = self._deposit_methods.get(currency)
+        if not deposit_method:
             raise NotImplementedError('Deposit address not implemented for {}'.format(currency))
 
         currency = self.formatter.format(currency)
-        return super(KrakenAPIAdapter, self).deposit_address(currency, method=method)
+        return super(KrakenAPIAdapter, self).deposit_address(currency, method=deposit_method)
 
     def raise_for_exchange_error(self, response_data: dict):
         errors = response_data.get('error')
