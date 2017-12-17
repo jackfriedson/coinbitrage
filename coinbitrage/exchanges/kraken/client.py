@@ -43,6 +43,6 @@ class KrakenClient(BaseExchangeClient, PeriodicRefreshMixin):
         if isinstance(self.api, KrakenTetherAdapter) and quote_currency == 'USDT':
             quote_currency = 'USD'
             proxy_pair = self.api.formatter.pair(self.api.proxy_currency, self.api.quote_currency)
-            result += 2*self._fees[proxy_pair]
+            result += self._fees[proxy_pair]
         pair = self.api.formatter.pair(base_currency, quote_currency)
         return result + self._fees[pair]
