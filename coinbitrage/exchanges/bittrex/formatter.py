@@ -17,6 +17,21 @@ class BittrexFormatter(BitExFormatter):
             } for x in data['result']
         }
 
+    def order(self, data):
+        d = data['result']
+        base, quote = self.unpair(d['Exchange'])
+        return {
+            'id': d['OrderUuid'],
+            'base_currency': base,
+            'quote_currency': quote,
+            'is_open': d['IsOpen'],
+            'side': 'buy' if 'buy' in d['OrderType'].lower() else 'sell',
+            'cost': float(d['Price']),
+            'avg_price': float(d['PricePerUnit']),
+            'fee': float(d['CommissionPaid']),
+            'volume': float(d['Quantity']),
+        }
+
     def pairs(self, data):
         return set([x['MarketName'] for x in data['result'] if x['IsActive']])
 

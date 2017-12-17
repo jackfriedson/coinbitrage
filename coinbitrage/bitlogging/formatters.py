@@ -40,4 +40,4 @@ class JSONFormatter(BaseFormatter):
 
     def format(self, record: logging.LogRecord) -> str:
         record.asctime = self.formatTime(record)
-        return json.dumps(record.__dict__, cls=self.BitLogJSONEncoder)
+        return json.dumps(record.__dict__, cls=self.BitLogJSONEncoder, sort_keys=True)

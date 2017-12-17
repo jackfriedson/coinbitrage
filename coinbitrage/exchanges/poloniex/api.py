@@ -45,12 +45,20 @@ class PoloniexAPIAdapter(BitExAPIAdapter):
         return super(PoloniexAPIAdapter, self).limit_order(*args, **kwargs)
 
     def raise_for_exchange_error(self, response_data: dict):
-        error_msg = response_data.get('error')
-        if error_msg:
-            log.warning('Poloniex API returned an error -- {message}',
-                        event_name='poloniex_api.error', event_data={'message': error_msg})
-            raise ClientError(error_msg)
+        if isinstance(response_data, dict):
+            error_msg = response_data.get('error')
+            if error_msg:
+                log.warning('Poloniex API returned an error -- {message}',
+                            event_name='poloniex_api.error', event_data={'message': error_msg})
+                raise ClientError(error_msg)
 
     def pairs(self):
         resp = self._api.ticker(None)
         return resp.json().keys()
+
+    def order(self, order_id: str) -> Optional[dict]:
+        order = self._wrapped_bitex_method('orders')().get(order_id)
+        if order is None:
+            order = self._wrapped_bitex_method('order_trades')(order_id)
+            order['is_open'] = False
+        return order

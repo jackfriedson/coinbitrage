@@ -25,8 +25,12 @@ class BaseFormatter(object):
         if self._pair_delimiter:
             base, quote = tuple(currency_pair.split(self._pair_delimiter))
         else:
-            mid = len(currency_pair)/2
+            mid = len(currency_pair) // 2
             base, quote = currency_pair[:mid], currency_pair[mid:]
+            if len(currency_pair) % 2 != 0:
+                log.warning('Ambiguous currency pair: {pair}; split into {base}, {quote}',
+                            event_name='unpair.ambiguous_pair',
+                            event_data={'pair': currency_pair, 'base': base, 'quote': quote})
         base = self.format(base, inverse=True)
         quote = self.format(quote, inverse=True)
         return base, quote

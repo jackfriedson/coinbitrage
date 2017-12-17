@@ -144,15 +144,15 @@ class BitExAPIAdapter(BaseExchangeAPI):
 
     def wait_for_fill(self, order_id: str, sleep: int = 1, timeout: int = 60) -> Optional[dict]:
         start_time = time.time()
-        order_info = self._wrapped_bitex_method('order')
 
         while time.time() < start_time + timeout:
-            order_info = order_info(order_id)
-            if order_info['is_closed']:
+            order_info = self.order(order_id)
+            if not order_info['is_open']:
                 return order_info
             time.sleep(sleep)
 
-        log.warning('Timed out waiting for order {order_id} to fill', event_name='exchange_api.order_fill_timeout',
+        log.warning('Timed out waiting for order {order_id} to fill',
+                    event_name='exchange_api.order_fill_timeout',
                     event_data={'order_id': order_id, 'timeout': timeout, 'exchange': self.name})
         return None
 

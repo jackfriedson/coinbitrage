@@ -62,6 +62,12 @@ class KrakenAPIAdapter(BitExAPIAdapter):
                 error_cls = self._error_cls_map[category]
                 raise error_cls(error_msg)
 
+    def order(self, order_id: str) -> Optional[dict]:
+        order = self._wrapped_bitex_method('closed_orders')().get(order_id)
+        if order is None:
+            order = self._wrapped_bitex_method('open_orders')().get(order_id)
+        return order
+
 
 class KrakenTetherAdapter(ProxyCurrencyWrapper):
 
