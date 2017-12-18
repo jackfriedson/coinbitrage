@@ -1,0 +1,89 @@
+from functools import wraps
+
+import click
+
+from coinbitrage.settings import CURRENCIES
+
+
+@click.command()
+@click.option('--update/--no-update', default=False)
+@click.pass_obj
+def balances(obj, update: bool):
+    if update:
+        obj['exchanges'].update_trading_balances()
+    active_exchange = obj.get('active_exchange')
+    if not active_exchange:
+        print(obj['exchanges'].balances)
+    else:
+        print(obj['exchanges'].balances[active_exchange.name])
+
+
+@click.command()
+@click.pass_obj
+def manage(obj):
+    obj['exchanges'].manage_balances()
+
+
+@click.command()
+@click.option('--update/--no-update', default=False)
+@click.pass_obj
+def totals(obj, update: bool):
+    if update:
+        obj['exchanges'].update_trading_balances()
+    print(obj['exchanges'].totals)
+
+
+@click.command()
+@click.argument('amount', type=float)
+@click.argument('currency', type=click.Choice(CURRENCIES.keys()))
+@click.option('from_exchange', '--from', type=str)
+@click.option('to_exchange', '--to', type=str)
+@click.pass_obj
+def transfer(obj, amount, currency, from_exchange, to_exchange):
+    to_exchg = obj['exchanges'].get(to_exchange)
+    from_exchg = obj['exchanges'].get(from_exchange)
+    to_exchg.get_funds_from(from_exchg, currency, amount)
+
+
+# ---------------------- Exchange-specific commands ------------------------ #
+
+
+def exchange_command(f):
+    @click.pass_obj
+    @wraps(f)
+    def decorator(obj, *args, **kwargs):
+        exchg = obj.get('active_exchange')
+        if exchg:
+            return f(exchg, *args, **kwargs)
+    return decorator
+
+
+@click.command()
+@click.argument('currency', click.Choice(CURRENCIES.keys()))
+@exchange_command
+def address(exchg, currency: str):
+    print(exchg.deposit_address(currency.upper()))
+
+
+@click.command()
+@click.option('base', '--base', type=click.Choice(CURRENCIES.keys()))
+@click.option('quote', '--quote', type=click.Choice(CURRENCIES.keys()))
+@exchange_command
+def fee(exchg, base, quote):
+    print(exchg.fee(base, quote))
+
+
+@click.command()
+@click.argument('currency', type=click.Choice(CURRENCIES.keys()))
+@exchange_command
+def txfee(exchg, currency):
+    print(exchg.tx_fee(currency))
+
+
+@click.command()
+@click.argument('amount', type=float)
+@click.argument('currency', type=click.Choice(CURRENCIES.keys()))
+@click.option('--address', type=str)
+@exchange_command
+def withdraw(exchg, amount, currency, address):
+    exchg.withdraw(currency, address, amount)

@@ -16,9 +16,7 @@ log = bitlogging.getLogger(__name__)
 
 
 def format_bid_ask(bid_ask: Dict[str, float]) -> Dict[str, str]:
-    return {
-        k: '{:.6f}'.format(v) for k, v in bid_ask.items()
-    }
+    return {k: '{:.6f}'.format(v) for k, v in bid_ask.items()}
 
 
 class LiveUpdateMixin(ABC):
