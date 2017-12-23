@@ -72,11 +72,12 @@ class ExchangeManager(object):
     def names(self):
         return self._clients.keys()
 
-    def manage_balances(self):
+    def manage_balances(self, make_transfers: bool):
         self._pre_distribute_step()
         self.update_trading_balances()
-        self._redistribute_base()
-        self._redistribute_quote()
+        if make_transfers:
+            self._redistribute_base()
+            self._redistribute_quote()
         self.update_active_exchanges()
         self._pre_trading_step()
 

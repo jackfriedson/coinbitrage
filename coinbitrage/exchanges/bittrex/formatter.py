@@ -5,7 +5,8 @@ from coinbitrage.exchanges.bitex import BitExFormatter
 
 class BittrexFormatter(BitExFormatter):
     _currency_map = {
-        'BCH': 'BCC'
+        'BCH': 'BCC',
+        'USD': 'USDT'
     }
 
     def currencies(self, data):

@@ -8,7 +8,7 @@ ACCEPTABLE_USDT_BID = 0.99
 
 DEFAULT_ORDER_FEE = 0.0025
 DEFAULT_BASE_CURRENCY = 'ETH'
-DEFAULT_QUOTE_CURRENCY = 'USDT'
+DEFAULT_QUOTE_CURRENCY = 'USD'
 ORDER_PRECISION = 0.
 
 REQUESTS_TIMEOUT = 10
@@ -32,5 +32,7 @@ CURRENCIES = {
     'USDT': {
         'order_size': 25,
     },
-    'USD': {},
+    'USD': {
+        'order_size': 25,
+    },
 }

@@ -34,6 +34,7 @@ class ArbitrageEngine(object):
                  min_profit: float = 0.):
         self.base_currency = base_currency
         self.quote_currency = quote_currency
+        self._include_tx_fees = True
         self._loop = asyncio.get_event_loop()
         self._exchanges = ExchangeManager(exchanges, base_currency, quote_currency, loop=self._loop)
         self._min_profit_threshold = min_profit
@@ -41,14 +42,14 @@ class ArbitrageEngine(object):
 
     def run(self, make_transfers: bool = True):
         """Runs the program."""
+        self._include_tx_fees = make_transfers
         manage_balances = RunEvery(self._exchanges.manage_balances, delay=REBALANCE_FUNDS_EVERY)
         print_table = RunEvery(self._print_arbitrage_table, delay=PRINT_TABLE_EVERY)
 
         with self._exchanges.live_updates():
             try:
                 while True:
-                    if make_transfers:
-                        manage_balances()
+                    manage_balances(make_transfers)
                     self._attempt_arbitrage()
                     print_table()
             except KeyboardInterrupt:
@@ -93,9 +94,12 @@ class ArbitrageEngine(object):
             buy_fee = order_size * buy_price * buy_exchange.fee(self.base_currency, self.quote_currency)
             sell_fee = order_size * sell_price * sell_exchange.fee(self.base_currency, self.quote_currency)
 
-            buy_tx_fee = buy_exchange.tx_fee(self.base_currency) * buy_price
-            sell_tx_fee = sell_exchange.tx_fee(self.quote_currency)
-            total_tx_fee = buy_tx_fee + sell_tx_fee
+            if self._include_tx_fees:
+                buy_tx_fee = buy_exchange.tx_fee(self.base_currency) * buy_price
+                sell_tx_fee = sell_exchange.tx_fee(self.quote_currency)
+                total_tx_fee = buy_tx_fee + sell_tx_fee
+            else:
+                total_tx_fee = 0.
 
             total_fees = buy_fee + sell_fee + total_tx_fee
             net_profit = gross_profit - total_fees

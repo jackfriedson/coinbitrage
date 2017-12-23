@@ -12,6 +12,7 @@ class HitBtcClient(BaseExchangeClient, PeriodicRefreshMixin):
     name = 'hitbtc'
     _api_class = HitBtcAPIAdapter
     _tx_fees = {
+        'BCH': 0.002,
         'BTC': 0.001,
         'ETH': 0.01,
         'LTC': 0.003,

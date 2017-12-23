@@ -6,6 +6,10 @@ from coinbitrage.exchanges.bitex import BitExFormatter
 
 
 class PoloniexFormatter(BitExFormatter):
+    _currency_map = {
+        'USD': 'USDT',
+    }
+
     def __init__(self):
         super(PoloniexFormatter, self).__init__(pair_delimiter='_')
 
