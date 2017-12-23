@@ -3,6 +3,7 @@ import logging
 import time
 from contextlib import contextmanager
 from functools import partial
+from itertools import product
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import pandas as pd
@@ -36,6 +37,7 @@ class ArbitrageEngine(object):
         self._loop = asyncio.get_event_loop()
         self._exchanges = ExchangeManager(exchanges, base_currency, quote_currency, loop=self._loop)
         self._min_profit_threshold = min_profit
+        self._next_scheduled_debug = 0
 
     def run(self, make_transfers: bool = True):
         """Runs the program."""
@@ -64,57 +66,99 @@ class ArbitrageEngine(object):
             print(table)
             print()
 
+    def _find_best_arbitrage_opportunity(self):
+        best_opportunity = None
+
+        for buy_exchange, sell_exchange in product(self._exchanges.valid_buys(), self._exchanges.valid_sells()):
+            if buy_exchange.name == sell_exchange.name:
+                continue
+
+            buy_price = buy_exchange.ask() * (1 + ORDER_PRECISION)
+            sell_price = sell_exchange.bid() * (1 - ORDER_PRECISION)
+
+            if sell_price < buy_price:
+                continue
+
+            # Amount of base currency that can be bought/sold at each exchange
+            max_buy = self._exchanges.balances[buy_exchange.name][self.quote_currency] / buy_price
+            max_sell = self._exchanges.balances[sell_exchange.name][self.base_currency]
+            order_size = min(max_buy, max_sell)
+
+            if order_size < CURRENCIES[self.base_currency]['order_size']:
+                continue
+
+            gross_percent_profit = (sell_price / buy_price) - 1
+            gross_profit = gross_percent_profit * buy_price * order_size
+
+            buy_fee = order_size * buy_price * buy_exchange.fee(self.base_currency, self.quote_currency)
+            sell_fee = order_size * sell_price * sell_exchange.fee(self.base_currency, self.quote_currency)
+
+            buy_tx_fee = buy_exchange.tx_fee(self.base_currency) * buy_price
+            sell_tx_fee = sell_exchange.tx_fee(self.quote_currency)
+            total_tx_fee = buy_tx_fee + sell_tx_fee
+
+            total_fees = buy_fee + sell_fee + total_tx_fee
+            net_profit = gross_profit - total_fees
+
+            if best_opportunity is None or net_profit > best_opportunity['net_profit']:
+                # Mostly for logging/debugging
+                best_opportunity = {
+                    'buy_exchange': buy_exchange.name,
+                    'buy_price': buy_price,
+                    'sell_exchange': sell_exchange.name,
+                    'sell_price': sell_price,
+                    'gross_percent_profit': gross_percent_profit,
+                    'net_profit': net_profit,
+                    'gross_profit': gross_profit,
+                    'order_size': order_size,
+                    'total_tx_fee': total_tx_fee,
+                    'total_fees': total_fees,
+                    'buy_tx_fee': buy_tx_fee,
+                    'sell_tx_fee': sell_tx_fee,
+                    'buy_fee': buy_fee,
+                    'sell_fee': sell_fee,
+                    'max_buy': max_buy,
+                    'max_sell': max_sell
+                }
+
+        return best_opportunity
+
     def _attempt_arbitrage(self):
         """Checks the arbitrage table to determine if there is an opportunity to profit,
         and if so executes the corresponding trades.
         """
-
-        # TODO: consider balances (buy/sell power) in calculation of which is the "best" exchange
-        buy_exchange = min(self._exchanges.valid_buys(), key=lambda x: x.ask(), default=None)
-        sell_exchange = max(self._exchanges.valid_sells(), key=lambda x: x.bid(), default=None)
-
-        if not (buy_exchange and sell_exchange) or buy_exchange.name == sell_exchange.name:
+        opportunity = self._find_best_arbitrage_opportunity()
+        if not opportunity:
             return
 
-        buy_price = buy_exchange.ask() * (1 + ORDER_PRECISION)
-        sell_price = sell_exchange.bid() * (1 - ORDER_PRECISION)
+        if opportunity['net_profit'] > self._min_profit_threshold:
+            self._execute_arbitrage(**opportunity)
 
-        if sell_price < buy_price:
-            return
+        # now = time.time()
+        # if self._next_scheduled_debug > now:
+        #     return
+        # log.debug('', event_name='arbitrage.debug', event_data={'arbitrage_info': opportunity})
+        # self._next_scheduled_debug = now + 0.5
 
-        buy_tx_fee = buy_exchange.tx_fee(self.base_currency) * buy_price
-        sell_tx_fee = sell_exchange.tx_fee(self.quote_currency)
-        total_tx_fee = buy_tx_fee + sell_tx_fee
-
-        # Amount of base currency that can be bought/sold at each exchange
-        max_buy = self._exchanges.balances[buy_exchange.name][self.quote_currency] / buy_price
-        max_sell = self._exchanges.balances[sell_exchange.name][self.base_currency]
-        order_size = min(max_buy, max_sell)
-
-        if order_size < CURRENCIES[self.base_currency]['order_size']:
-            self._exchanges.update_active_exchanges()
-            return
-
-        expected_profit = order_size * (sell_price - buy_price)
-        expected_profit -= total_tx_fee
-        expected_pct_profit = expected_profit / buy_price
-
-        # TODO: consider converting fees to actual value (not percent)
-        buy_fee = buy_exchange.fee(self.base_currency, self.quote_currency)
-        sell_fee = sell_exchange.fee(self.base_currency, self.quote_currency)
-        expected_pct_profit -= (buy_fee + sell_fee)
-
-        if expected_pct_profit <= self._min_profit_threshold:
-            return
+    def _execute_arbitrage(self,
+                              buy_exchange: str,
+                              sell_exchange: str,
+                              buy_price: float,
+                              sell_price: float,
+                              order_size: float,
+                              total_tx_fee: float, **kwargs):
+        buy_exchange = self._exchanges.get(buy_exchange)
+        sell_exchange = self._exchanges.get(sell_exchange)
 
         log_msg = ('Arbitrage opportunity: '
                   '{buy_exchange} buy {volume} {base_currency} @ {buy_price}; '
                   '{sell_exchange} sell {volume} {quote_currency} @ {sell_price}; '
-                  'profit: {expected_profit:.2f}%')
+                  'profit: {profit:.2f}%')
         event_data = {'buy_exchange': buy_exchange.name, 'sell_exchange': sell_exchange.name,
                       'volume': order_size, 'base_currency': self.base_currency, 'quote_currency': self.quote_currency,
-                      'buy_price': buy_price, 'sell_price': sell_price, 'expected_profit': expected_pct_profit*100}
+                      'buy_price': buy_price, 'sell_price': sell_price, 'profit': pct_profit*100}
         log.info(log_msg, event_name='arbitrage.attempt', event_data=event_data)
+
         if self._place_orders(buy_exchange, sell_exchange, buy_price, sell_price, order_size):
             self._exchanges.add_order('buy', buy_exchange.name)
             self._exchanges.add_order('sell', sell_exchange.name)

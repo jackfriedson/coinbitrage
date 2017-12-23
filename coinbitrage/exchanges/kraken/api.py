@@ -4,10 +4,11 @@ from typing import Dict, Optional
 from bitex import Kraken
 from requests.exceptions import Timeout
 
-from coinbitrage import bitlogging, settings
+from coinbitrage import bitlogging
 from coinbitrage.exchanges.bitex import BitExAPIAdapter
 from coinbitrage.exchanges.errors import ClientError, ExchangeError, ServerError
 from coinbitrage.exchanges.mixins import ProxyCurrencyWrapper
+from coinbitrage.settings import ACCEPTABLE_USDT_ASK, ACCEPTABLE_USDT_BID
 from coinbitrage.utils import retry_on_exception
 
 from .formatter import KrakenFormatter
@@ -17,8 +18,6 @@ log = bitlogging.getLogger(__name__)
 
 
 KRAKEN_TIMEOUT = 30
-ACCEPTABLE_USDT_ASK = 1.01
-ACCEPTABLE_USDT_BID = 0.99
 
 
 class KrakenAPIAdapter(BitExAPIAdapter):
@@ -36,8 +35,7 @@ class KrakenAPIAdapter(BitExAPIAdapter):
     formatter = KrakenFormatter()
 
     def __init__(self, *args, **kwargs):
-        if 'timeout' not in kwargs:
-            kwargs['timeout'] = KRAKEN_TIMEOUT
+        kwargs.setdefault('timeout', KRAKEN_TIMEOUT)
         super(KrakenAPIAdapter, self).__init__(*args, **kwargs)
 
     def deposit_address(self, currency: str) -> str:
@@ -77,6 +75,8 @@ class KrakenTetherAdapter(ProxyCurrencyWrapper):
 
     def __init__(self, *args, **kwargs):
         api = KrakenAPIAdapter(*args, **kwargs)
-        super(KrakenTetherAdapter, self).__init__(api, 'USDT', 'USD',
+        super(KrakenTetherAdapter, self).__init__(api,
+                                                  proxy_currency='USDT',
+                                                  quote_currency='USD',
                                                   acceptable_bid=ACCEPTABLE_USDT_BID,
                                                   acceptable_ask=ACCEPTABLE_USDT_ASK)

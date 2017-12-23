@@ -1,1 +1,2 @@
-from .adapter import HitBTCAdapter, HitBTCClient
+from .api import HitBtcAPIAdapter
+from .client import HitBtcClient

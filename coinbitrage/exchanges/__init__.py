@@ -3,7 +3,7 @@ from coinbitrage import settings
 from .bitstamp import BitstampClient as Bitstamp
 from .bittrex import BittrexClient as Bittrex
 from .coinbase import CoinbaseClient as Coinbase
-from .hitbtc import HitBTCClient as HitBTC
+from .hitbtc import HitBtcClient as HitBtc
 from .kraken import KrakenClient as Kraken
 from .poloniex import PoloniexClient as Poloniex
 
@@ -12,7 +12,7 @@ _exchange_map = {
     'bitstamp': Bitstamp,
     'bittrex': Bittrex,
     'coinbase': Coinbase,
-    'hitbtc': HitBTC,
+    'hitbtc': HitBtc,
     'kraken': Kraken,
     'poloniex': Poloniex
 }

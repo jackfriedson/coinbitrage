@@ -3,15 +3,18 @@ from pathlib import Path
 
 API_KEY_DIR = Path.home()/'.api_keys'
 
+ACCEPTABLE_USDT_ASK = 1.01
+ACCEPTABLE_USDT_BID = 0.99
+
 DEFAULT_ORDER_FEE = 0.0025
 DEFAULT_BASE_CURRENCY = 'ETH'
 DEFAULT_QUOTE_CURRENCY = 'USDT'
-ORDER_PRECISION = 0.0005
+ORDER_PRECISION = 0.
 
 REQUESTS_TIMEOUT = 10
 
 
-EXCHANGES = ['bittrex', 'kraken', 'poloniex']
+EXCHANGES = ['bittrex', 'hitbtc', 'kraken', 'poloniex']
 
 CURRENCIES = {
     'BTC': {

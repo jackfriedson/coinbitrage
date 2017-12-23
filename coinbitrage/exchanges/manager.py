@@ -10,7 +10,7 @@ from coinbitrage import bitlogging
 from coinbitrage.exchanges import get_exchange
 from coinbitrage.exchanges.errors import ServerError
 from coinbitrage.exchanges.mixins import ProxyCurrencyWrapper, SeparateTradingAccountMixin
-from coinbitrage.settings import CURRENCIES
+from coinbitrage.settings import CURRENCIES, ORDER_PRECISION
 
 
 log = bitlogging.getLogger(__name__)
@@ -38,6 +38,9 @@ class ExchangeManager(object):
         self._init_clients([get_exchange(name) for name in exchanges])
         self.update_active_exchanges()
 
+    # TODO: implement withdraw-all function to transfer funds from all exchanges (of a single currency)
+    # to a single address
+
     def _init_clients(self, all_clients: list):
         async def init(exchg):
             exchg.init()
@@ -55,7 +58,11 @@ class ExchangeManager(object):
 
     @property
     def balances(self):
-        return self._balances
+        return {
+            exchg: {
+                cur: bal for cur, bal in bals.items()
+            } for exchg, bals in self._balances.items()
+        }
 
     @property
     def totals(self):
@@ -202,7 +209,6 @@ class ExchangeManager(object):
         self._balances = {
             name: {
                 cur: bal for cur, bal in balances.items()
-                if cur in [self.base_currency, self.quote_currency]
             } for name, balances in results
         }
 

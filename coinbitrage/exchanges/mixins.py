@@ -57,6 +57,7 @@ class WebsocketMixin(LiveUpdateMixin):
         self._update()
         return self._bid_ask
 
+
 class PeriodicRefreshMixin(LiveUpdateMixin):
 
     def __init__(self, refresh_interval: int, *args, **kwargs):

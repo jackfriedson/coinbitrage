@@ -47,7 +47,6 @@ def transfer(obj, amount, currency, from_exchange, to_exchange):
 
 # ---------------------- Exchange-specific commands ------------------------ #
 
-
 def exchange_command(f):
     @click.pass_obj
     @wraps(f)
@@ -74,6 +73,14 @@ def fee(exchg, base, quote):
 
 
 @click.command()
+@click.argument('base', type=click.Choice(CURRENCIES.keys()))
+@click.argument('quote', type=click.Choice(CURRENCIES.keys()))
+@exchange_command
+def supports(exchg, base, quote):
+    print(exchg.supports_pair(base, quote))
+
+
+@click.command()
 @click.argument('currency', type=click.Choice(CURRENCIES.keys()))
 @exchange_command
 def txfee(exchg, currency):
@@ -83,7 +90,7 @@ def txfee(exchg, currency):
 @click.command()
 @click.argument('amount', type=float)
 @click.argument('currency', type=click.Choice(CURRENCIES.keys()))
-@click.option('--address', type=str)
+@click.option('--address', type=str, prompt=True)
 @exchange_command
 def withdraw(exchg, amount, currency, address):
     exchg.withdraw(currency, address, amount)
