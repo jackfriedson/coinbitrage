@@ -94,12 +94,10 @@ class ArbitrageEngine(object):
             buy_fee = order_size * buy_price * buy_exchange.fee(self.base_currency, self.quote_currency)
             sell_fee = order_size * sell_price * sell_exchange.fee(self.base_currency, self.quote_currency)
 
-            if self._include_tx_fees:
-                buy_tx_fee = buy_exchange.tx_fee(self.base_currency) * buy_price
-                sell_tx_fee = sell_exchange.tx_fee(self.quote_currency)
-                total_tx_fee = buy_tx_fee + sell_tx_fee
-            else:
-                total_tx_fee = 0.
+            buy_tx_fee = buy_exchange.tx_fee(self.base_currency) * buy_price
+            # sell_tx_fee = sell_exchange.tx_fee(self.quote_currency)
+            sell_tx_fee = 0.
+            total_tx_fee = buy_tx_fee + sell_tx_fee
 
             total_fees = buy_fee + sell_fee + total_tx_fee
             net_profit = gross_profit - total_fees
@@ -112,6 +110,7 @@ class ArbitrageEngine(object):
                     'sell_exchange': sell_exchange.name,
                     'sell_price': sell_price,
                     'gross_percent_profit': gross_percent_profit,
+                    'net_pct_profit': net_profit / buy_price,
                     'net_profit': net_profit,
                     'gross_profit': gross_profit,
                     'order_size': order_size,
@@ -135,32 +134,28 @@ class ArbitrageEngine(object):
         if not opportunity:
             return
 
-        if opportunity['net_profit'] > self._min_profit_threshold:
+        if opportunity['net_pct_profit'] > self._min_profit_threshold:
             self._execute_arbitrage(**opportunity)
 
-        # now = time.time()
-        # if self._next_scheduled_debug > now:
-        #     return
-        # log.debug('', event_name='arbitrage.debug', event_data={'arbitrage_info': opportunity})
-        # self._next_scheduled_debug = now + 0.5
-
     def _execute_arbitrage(self,
-                              buy_exchange: str,
-                              sell_exchange: str,
-                              buy_price: float,
-                              sell_price: float,
-                              order_size: float,
-                              total_tx_fee: float, **kwargs):
+                           buy_exchange: str,
+                           sell_exchange: str,
+                           buy_price: float,
+                           sell_price: float,
+                           order_size: float,
+                           total_tx_fee: float,
+                           net_pct_profit: float, **kwargs):
         buy_exchange = self._exchanges.get(buy_exchange)
         sell_exchange = self._exchanges.get(sell_exchange)
 
         log_msg = ('Arbitrage opportunity: '
-                  '{buy_exchange} buy {volume} {base_currency} @ {buy_price}; '
-                  '{sell_exchange} sell {volume} {quote_currency} @ {sell_price}; '
-                  'profit: {profit:.2f}%')
+                   '{buy_exchange} buy {volume} {base_currency} @ {buy_price}; '
+                   '{sell_exchange} sell {volume} {quote_currency} @ {sell_price}; '
+                   'profit: {profit:.2f}%')
         event_data = {'buy_exchange': buy_exchange.name, 'sell_exchange': sell_exchange.name,
                       'volume': order_size, 'base_currency': self.base_currency, 'quote_currency': self.quote_currency,
-                      'buy_price': buy_price, 'sell_price': sell_price, 'profit': pct_profit*100}
+                      'buy_price': buy_price, 'sell_price': sell_price, 'profit': net_pct_profit*100}
+        event_data.update(kwargs)
         log.info(log_msg, event_name='arbitrage.attempt', event_data=event_data)
 
         if self._place_orders(buy_exchange, sell_exchange, buy_price, sell_price, order_size):

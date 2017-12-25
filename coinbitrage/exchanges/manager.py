@@ -76,8 +76,8 @@ class ExchangeManager(object):
         self._pre_distribute_step()
         self.update_trading_balances()
         if make_transfers:
-            self._redistribute_base()
-            self._redistribute_quote()
+            self._redistribute_base(self.base_currency)
+            # self._redistribute_quote()
         self.update_active_exchanges()
         self._pre_trading_step()
 
@@ -154,27 +154,33 @@ class ExchangeManager(object):
         futures = [proxy_to_quote(exchg) for exchg in filtered_exchanges]
         self._loop.run_until_complete(asyncio.gather(*futures))
 
-    def _redistribute_base(self):
-        if not self._total_balances.get(self.base_currency, 0.):
+    def _redistribute_base(self, currency: str):
+        total_bal = self._total_balances.get(currency)
+        if not total_bal:
             return
+        target_bal = total_bal / len(self._clients)
 
         if not all([x.bid() for x in self._clients.values()]):
             return
 
         best_price = max(self._clients.values(), key=lambda x: x.bid())
+        lo_bal = self._balances[best_price.name][currency]
         # TODO: Use best history once we have enough data
 
-        hi_bal_name, hi_bal = max(self._balances.items(), key=lambda x: x[1][self.base_currency])
+        hi_bal_name, balances = max(self._balances.items(), key=lambda x: x[1][currency])
+        hi_bal = balances[currency]
         highest_balance = self.get(hi_bal_name)
 
         if best_price.name == highest_balance.name:
             return
 
-        tx_fee = highest_balance.tx_fee(self.base_currency) * highest_balance.bid()
+        transfer_amt = max(hi_bal - target_bal, target_bal - lo_bal)
+
+        tx_fee = highest_balance.tx_fee(currency) * highest_balance.bid()
         if tx_fee > self.tx_credits:
             return
 
-        if best_price.get_funds_from(highest_balance, self.base_currency, hi_bal[self.base_currency]):
+        if best_price.get_funds_from(highest_balance, currency, transfer_amt):
             self.tx_credits -= tx_fee
 
     def _redistribute_quote(self):

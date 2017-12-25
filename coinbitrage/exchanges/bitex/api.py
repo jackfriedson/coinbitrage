@@ -2,6 +2,7 @@ import time
 from functools import wraps
 from typing import Callable, Dict, List, Optional, Tuple, Union
 
+import asyncio
 from requests.exceptions import HTTPError, ConnectTimeout, RequestException, ReadTimeout, Timeout
 
 from coinbitrage import bitlogging
@@ -110,12 +111,12 @@ class BitExAPIAdapter(BaseExchangeAPI):
         start_time = time.time()
         while time.time() < start_time + timeout:
             order_info = self.order(order_id)
-            if not order_info['is_open']:
+            if order_info and not order_info['is_open']:
                 log.info('{exchange} order {order_id} closed', event_name='order.fill.success',
                          event_data={'exchange': self.name, 'order_id': order_id,
                                      'order_info': order_info})
                 return order_info
-            time.sleep(sleep)
+            asyncio.sleep(sleep)
 
         log.warning('Timed out waiting for order {order_id} to fill',
                     event_name='order.fill.timeout',
