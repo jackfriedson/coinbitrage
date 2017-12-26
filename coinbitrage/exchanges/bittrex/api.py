@@ -4,6 +4,7 @@ from bitex import Bittrex
 
 from coinbitrage import bitlogging
 from coinbitrage.exchanges.bitex import BitExAPIAdapter
+from coinbitrage.exchanges.errors import ClientError
 
 from .formatter import BittrexFormatter
 
