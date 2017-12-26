@@ -1,5 +1,5 @@
 import cmd
-from typing import List
+from typing import List, Union
 
 import click
 
@@ -15,7 +15,7 @@ class CoinbitrageShell(cmd.Cmd):
 
     def __init__(self,
                  exchanges: List[str],
-                 base_currency: str,
+                 base_currency: Union[str, List[str]],
                  quote_currency: str,
                  *args, **kwargs):
         self._exchanges = ExchangeManager(exchanges, base_currency, quote_currency)

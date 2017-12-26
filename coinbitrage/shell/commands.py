@@ -7,15 +7,16 @@ from coinbitrage.settings import CURRENCIES
 
 @click.command()
 @click.option('--update/--no-update', default=False)
+@click.option('--full/--not-full', default=False)
 @click.pass_obj
-def balances(obj, update: bool):
+def balances(obj, update: bool, full: bool):
     if update:
         obj['exchanges'].update_trading_balances()
     active_exchange = obj.get('active_exchange')
     if not active_exchange:
-        print(obj['exchanges'].balances)
+        print(obj['exchanges'].balances(full=full))
     else:
-        print(obj['exchanges'].balances[active_exchange.name])
+        print(obj['exchanges'].balances(full=full)[active_exchange.name])
 
 
 @click.command()
@@ -26,11 +27,12 @@ def manage(obj):
 
 @click.command()
 @click.option('--update/--no-update', default=False)
+@click.option('--full/--not-full', default=False)
 @click.pass_obj
-def totals(obj, update: bool):
+def totals(obj, update: bool, full: bool):
     if update:
         obj['exchanges'].update_trading_balances()
-    print(obj['exchanges'].totals)
+    print(obj['exchanges'].totals(full=full))
 
 
 @click.command()

@@ -24,9 +24,14 @@ class ExchangeManager(object):
     # TODO: Set a flag when deposits are pending to avoid rebalancing again; check at the beginning
     #       of each rebalance whether deposits have completed and unset the flag if so
 
-    def __init__(self, exchanges: List[str], base_currency: str, quote_currency: str, loop = None):
-        self.base_currency = base_currency
+    def __init__(self,
+                 exchanges: List[str],
+                 base_currency: Union[str, List[str]],
+                 quote_currency: str,
+                 loop = None):
+        self.base_currencies = base_currency if isinstance(base_currency, list) else [base_currency]
         self.quote_currency = quote_currency
+        self.all_currencies = self.base_currencies + [quote_currency]
         self._loop = loop or asyncio.get_event_loop()
         self._buy_active = self._sell_active = set()
         self._balances = {}
@@ -36,7 +41,7 @@ class ExchangeManager(object):
         self.tx_credits = 0.  # In quote currency
 
         self._init_clients([get_exchange(name) for name in exchanges])
-        self.update_active_exchanges()
+        self.update_trading_balances()
 
     # TODO: implement withdraw-all function to transfer funds from all exchanges (of a single currency)
     # to a single address
@@ -50,23 +55,25 @@ class ExchangeManager(object):
 
         self._clients = {
             exchg.name: exchg for exchg in all_clients
-            if exchg.supports_pair(self.base_currency, self.quote_currency)
+            if any(exchg.supports_pair(base, self.quote_currency) for base in self.base_currencies)
         }
 
     def get(self, exchange_name: str):
         return self._clients.get(exchange_name)
 
-    @property
-    def balances(self):
+    def balances(self, full: bool = False):
         return {
             exchg: {
                 cur: bal for cur, bal in bals.items()
+                if not full or cur in self.all_currencies
             } for exchg, bals in self._balances.items()
         }
 
-    @property
-    def totals(self):
-        return self._total_balances
+    def totals(self, full: bool = False):
+        result = defaultdict(float)
+        for cur, bal in self.balances(full=full).values():
+            result[cur] += bal
+        return result
 
     @property
     def names(self):
@@ -76,28 +83,28 @@ class ExchangeManager(object):
         self._pre_distribute_step()
         self.update_trading_balances()
         if make_transfers:
-            self._redistribute_base(self.base_currency)
-            # self._redistribute_quote()
-        self.update_active_exchanges()
+            for base in self.base_currencies:
+                self._redistribute_base(base)
+            self.update_trading_balances()
         self._pre_trading_step()
 
-    def valid_buys(self):
+    def valid_buys(self, base_currency: str):
         def buy_exchange_filter(exchange):
-            bid_ask = exchange.bid_ask()
-            is_active = exchange.name in self._buy_active
+            bid_ask = exchange.bid_ask(base_currency)
+            min_balance = self._balances[exchange.name].get(self.quote_currency, 0.) >= CURRENCIES[self.quote_currency]['order_size']
             has_price = bid_ask['ask'] is not None
             updated_recently = bid_ask['time'] and bid_ask['time'] > time.time() - MAX_REFRESH_DELAY
-            return all([is_active, has_price, updated_recently])
+            return all([min_balance, has_price, updated_recently])
 
         return filter(buy_exchange_filter, self._clients.values())
 
-    def valid_sells(self):
+    def valid_sells(self, base_currency: str):
         def sell_exchange_filter(exchange):
-            bid_ask = exchange.bid_ask()
-            is_active = exchange.name in self._sell_active
+            bid_ask = exchange.bid_ask(base_currency)
+            min_balance = self._balances[exchange.name].get(base_currency, 0.) >= CURRENCIES[base_currency]['order_size']
             has_price = bid_ask['bid'] is not None
             updated_recently = bid_ask['time'] and bid_ask['time'] > time.time() - MAX_REFRESH_DELAY
-            return all([is_active, has_price, updated_recently])
+            return all([min_balance, has_price, updated_recently])
 
         return filter(sell_exchange_filter, self._clients.values())
 
@@ -119,7 +126,7 @@ class ExchangeManager(object):
         exchanges."""
         try:
             for exchange in self._clients.values():
-                exchange.start_live_updates(self.base_currency, self.quote_currency)
+                exchange.start_live_updates(self.base_currencies, self.quote_currency)
             yield
         finally:
             for exchange in self._clients.values():
@@ -136,7 +143,7 @@ class ExchangeManager(object):
                                     self._clients.values())
 
         async def bank_to_trading(exchange):
-            for currency in [self.base_currency, self.quote_currency]:
+            for currency in self.all_currencies:
                 bank_balance = exchange.bank_balance().get(currency, 0.)
                 if bank_balance > 0:
                     exchange.bank_to_trading(currency, bank_balance)
@@ -164,7 +171,7 @@ class ExchangeManager(object):
             return
 
         best_price = max(self._clients.values(), key=lambda x: x.bid())
-        lo_bal = self._balances[best_price.name][currency]
+        lo_bal = self._balances[best_price.name].get(currency, 0.)
         # TODO: Use best history once we have enough data
 
         hi_bal_name, balances = max(self._balances.items(), key=lambda x: x[1][currency])
@@ -218,27 +225,3 @@ class ExchangeManager(object):
                 cur: bal for cur, bal in balances.items()
             } for name, balances in results
         }
-
-        new_totals = {
-            cur: sum([bal.get(cur, 0.) for bal in self._balances.values()])
-            for cur in [self.base_currency, self.quote_currency]
-        }
-
-        if new_totals != self._total_balances:
-            self._total_balances = new_totals
-            log.info('Updated balances: {total_balances}', event_name='balances.update',
-                     event_data={'total_balances': self._total_balances, 'full_balances': self._balances})
-
-    def update_active_exchanges(self):
-        self.update_trading_balances()
-        self._buy_active = {
-            n for n, bal in self._balances.items()
-            if bal.get(self.quote_currency, 0.) >= CURRENCIES[self.quote_currency]['order_size']
-        }
-        self._sell_active = {
-            n for n, bal in self._balances.items()
-            if bal.get(self.base_currency, 0.) >= CURRENCIES[self.base_currency]['order_size']
-        }
-        log.info('Buy exchanges: {buy_exchanges}; Sell exchanges: {sell_exchanges}',
-                 event_data={'buy_exchanges': self._buy_active, 'sell_exchanges': self._sell_active},
-                 event_name='active_exchanges.update',)

@@ -1,9 +1,9 @@
 import logging
 import time
 from abc import ABC, abstractproperty
-from functools import wraps
+from functools import partial, wraps
 from threading import Event, RLock, Thread
-from typing import Dict, Optional
+from typing import Dict, List, Optional, Union
 
 from requests.exceptions import RequestException
 
@@ -21,7 +21,7 @@ def format_bid_ask(bid_ask: Dict[str, float]) -> Dict[str, str]:
 
 class LiveUpdateMixin(ABC):
 
-    def start_live_updates(self, base_currency: str, quote_currency: str = DEFAULT_QUOTE_CURRENCY):
+    def start_live_updates(self, base_currency: Union[str, List[str]], quote_currency: str = DEFAULT_QUOTE_CURRENCY):
         pass
 
     def stop_live_updates(self):
@@ -29,6 +29,7 @@ class LiveUpdateMixin(ABC):
 
 
 class WebsocketMixin(LiveUpdateMixin):
+    # TODO: implement for multiple base currencies
 
     def __init__(self, websocket, *args, **kwargs):
         self._websocket = websocket
@@ -64,29 +65,32 @@ class PeriodicRefreshMixin(LiveUpdateMixin):
         self._interval = refresh_interval
         self._running = Event()
         self._lock = RLock()
-        self._refresh_thread = None
+        self._refresh_threads = {}
         self._bid_ask = {'bid': None, 'ask': None, 'time': None}
         super(PeriodicRefreshMixin, self).__init__(*args, **kwargs)
 
-    def start_live_updates(self, base_currency: str, quote_currency: str = DEFAULT_QUOTE_CURRENCY):
-        if not thread_running(self._refresh_thread):
-            self._base = base_currency
-            self._quote = quote_currency
-            self._running.set()
-            self._refresh_thread = Thread(target=self._refresh, daemon=True,
-                                          name='{}RefreshThread'.format(self.name.title()))
-            self._refresh_thread.start()
+    def start_live_updates(self, base_currency: Union[str, List[str]], quote_currency: str = DEFAULT_QUOTE_CURRENCY):
+        if isinstance(base_currency, str):
+            base_currency = [base_currency]
+        for currency in base_currency:
+            if not thread_running(self._refresh_threads.get(currency)):
+                self._base = base_currency
+                self._quote = quote_currency
+                self._running.set()
+                self._refresh_threads[currency] = Thread(target=partial(self._refresh, currency), daemon=True,
+                                                         name='{}{}RefreshThread'.format(self.name.title(), currency))
+                self._refresh_threads[currency].start()
 
     def stop_live_updates(self):
-        if thread_running(self._refresh_thread):
-            self._running.clear()
-            self._refresh_thread.join()
-            self._refresh_thread = None
+        self._running.clear()
+        for currency, thread in self._refresh_threads.items():
+            if thread_running(thread):
+                thread.join()
 
-    def _refresh(self):
+    def _refresh(self, currency):
         while self._running.is_set():
             try:
-                ticker = self.ticker(self._base, quote_currency=self._quote)
+                ticker = self.ticker(currency, quote_currency=self._quote)
             except RequestException as e:
                 log.warning('Exception while connecting to {exchange}: {exception}',
                             event_name='refresh_mixin.request_error',
@@ -98,16 +102,17 @@ class PeriodicRefreshMixin(LiveUpdateMixin):
                     'time': ticker.get('time', time.time())
                 }
                 with self._lock:
-                    self._bid_ask = bid_ask
-                    log.debug('{exchange} {bid_ask}', event_name='refresh_mixin.update',
-                              event_data={'exchange': self.name, 'bid_ask': format_bid_ask(self._bid_ask)})
+                    self._bid_ask[currency] = bid_ask
+                    log.debug('{exchange} {currency} {bid_ask}', event_name='refresh_mixin.update',
+                              event_data={'exchange': self.name, 'currency': currency,
+                                          'bid_ask': format_bid_ask(bid_ask)})
             time.sleep(self._interval)
 
-    def bid_ask(self):
+    def bid_ask(self, currency: str):
         with self._lock:
             # TODO: do we actually need to acquire the lock here?
             # should we be creating a copy of the dict instead of passing a reference?
-            return self._bid_ask
+            return self._bid_ask[currency]
 
 
 class SeparateTradingAccountMixin(object):

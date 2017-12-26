@@ -9,6 +9,12 @@ class KrakenFormatter(BitExFormatter):
         'USD': 'ZUSD',
     }
 
+    def pair(self, base_currency: str, quote_currency: str) -> str:
+        if base_currency in ['BCH', 'EOS', 'GNO']:
+            quote_currency = 'XBT' if quote_currency == 'BTC' else quote_currency
+            return base_currency + quote_currency
+        return super(KrakenFormatter, self).pair(base_currency, quote_currency)
+
     def _format_orders(self, orders: dict, is_open: bool):
         return {
             order_id: {
