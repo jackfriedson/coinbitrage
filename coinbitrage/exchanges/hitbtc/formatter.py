@@ -2,9 +2,13 @@ from coinbitrage.exchanges.bitex import BitExFormatter
 
 
 class HitBtcFormatter(BitExFormatter):
-    _currency_map = {
-        'USDT': 'USD'
-    }
+
+    def balance(self, data):
+        def inv_map(cur):
+            if cur == 'USDT':
+                return 'USD'
+            return cur
+        return {inv_map(k): float(v) for k, v in data.items()}
 
     def currencies(self, data):
         return {
