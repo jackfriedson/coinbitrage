@@ -65,15 +65,16 @@ class ExchangeManager(object):
         return {
             exchg: {
                 cur: bal for cur, bal in bals.items()
-                if not full or cur in self.all_currencies
+                if full or cur in self.all_currencies
             } for exchg, bals in self._balances.items()
         }
 
     def totals(self, full: bool = False):
         result = defaultdict(float)
-        for cur, bal in self.balances(full=full).values():
-            result[cur] += bal
-        return result
+        for exchg_balances in self.balances(full=full).values():
+            for cur, bal in exchg_balances.items():
+                result[cur] += bal
+        return dict(result)
 
     @property
     def names(self):
