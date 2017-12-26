@@ -87,6 +87,8 @@ class ExchangeManager(object):
                 self._redistribute_base(base)
             self.update_trading_balances()
         self._pre_trading_step()
+        log.info('Total balances: {totals}', event_name='update.total_balances',
+                 event_data={'totals': self.totals()})
 
     def valid_buys(self, base_currency: str):
         def buy_exchange_filter(exchange):

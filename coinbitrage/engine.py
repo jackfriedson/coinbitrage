@@ -57,6 +57,9 @@ class ArbitrageEngine(object):
                 self._loop.close()
 
     def _print_arbitrage_table(self):
+        # TODO: keep track of actual arbitrage values and just print those, instead of
+        # doing a separate computation here
+
         for currency in self.base_currencies:
             table = self.arbitrage_table(currency)
             if not table.empty:
