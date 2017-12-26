@@ -8,7 +8,7 @@ class HitBtcFormatter(BitExFormatter):
             if cur == 'USDT':
                 return 'USD'
             return cur
-        return {inv_map(k): float(v) for k, v in data.items()}
+        return {inv_map(k): v for k, v in super(HitBtcFormatter, self).balance(data).items()}
 
     def currencies(self, data):
         return {

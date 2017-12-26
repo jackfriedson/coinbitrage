@@ -14,7 +14,7 @@ ORDER_PRECISION = 0.
 REQUESTS_TIMEOUT = 10
 
 
-EXCHANGES = ['bittrex', 'hitbtc', 'kraken', 'poloniex']
+EXCHANGES = ['bittrex', 'coinbase', 'hitbtc', 'kraken', 'poloniex']
 
 CURRENCIES = {
     'BTC': {
