@@ -28,7 +28,8 @@ class ExchangeManager(object):
                  exchanges: List[str],
                  base_currency: Union[str, List[str]],
                  quote_currency: str,
-                 loop = None):
+                 loop = None,
+                 initial_tx_credit: float = 0.):
         self.base_currencies = base_currency if isinstance(base_currency, list) else [base_currency]
         self.quote_currency = quote_currency
         self.all_currencies = self.base_currencies + [quote_currency]
@@ -37,7 +38,7 @@ class ExchangeManager(object):
         self._balances = {}
         self._clients = {}
         self._order_history = defaultdict(list)
-        self.tx_credits = 0.  # In quote currency
+        self.tx_credits = initial_tx_credit  # In quote currency
 
         self._init_clients([get_exchange(name) for name in exchanges])
         self.update_trading_balances()

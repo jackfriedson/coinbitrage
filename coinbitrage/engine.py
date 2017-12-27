@@ -30,11 +30,12 @@ class ArbitrageEngine(object):
                  exchanges: List[str],
                  base_currency: Union[str, List[str]],
                  quote_currency: str,
-                 min_profit: float = 0.):
+                 min_profit: float = 0.,
+                 **kwargs):
         self.base_currencies = base_currency if isinstance(base_currency, list) else [base_currency]
         self.quote_currency = quote_currency
         self._loop = asyncio.get_event_loop()
-        self._exchanges = ExchangeManager(exchanges, base_currency, quote_currency, loop=self._loop)
+        self._exchanges = ExchangeManager(exchanges, base_currency, quote_currency, loop=self._loop, **kwargs)
         self._min_profit_threshold = min_profit
 
     def run(self):

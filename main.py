@@ -21,6 +21,7 @@ def coin():
 @click.option('--base-currency', type=list, default=DEFAULT_BASE_CURRENCIES)
 @click.option('--quote-currency', type=click.Choice(CURRENCIES.keys()), default=DEFAULT_QUOTE_CURRENCY)
 @click.option('--min-profit', type=float, default=0.0025)
+@click.option('--initial-tx-credit', type=float, default=0.)
 def run(**kwargs):
     engine = ArbitrageEngine(exchanges=EXCHANGES, **kwargs)
     engine.run()
