@@ -16,7 +16,7 @@ from coinbitrage.settings import CURRENCIES, ORDER_PRECISION
 log = bitlogging.getLogger(__name__)
 
 
-MAX_REFRESH_DELAY = 10  # Filter exchanges not updated within the last 10 seconds
+MAX_REFRESH_DELAY = 5  # Filter exchanges not updated within the last 5 seconds
 
 
 class ExchangeManager(object):
