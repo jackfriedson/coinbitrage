@@ -104,7 +104,7 @@ class BitExAPIAdapter(BaseExchangeAPI):
                         event_name='exchange_api.withdraw.failure')
         return result
 
-    def wait_for_fill(self, order_id: str, sleep: int = 3, timeout: int = 60) -> Optional[dict]:
+    async def wait_for_fill(self, order_id: str, sleep: int = 3, timeout: int = 60, do_async: bool = False) -> Optional[dict]:
         if not order_id:
             return None
 
@@ -116,7 +116,11 @@ class BitExAPIAdapter(BaseExchangeAPI):
                          event_data={'exchange': self.name, 'order_id': order_id,
                                      'order_info': order_info})
                 return order_info
-            asyncio.sleep(sleep)
+
+            if do_async:
+                await asyncio.sleep(sleep)
+            else:
+                time.sleep(sleep)
 
         log.warning('Timed out waiting for order {order_id} to fill',
                     event_name='order.fill.timeout',

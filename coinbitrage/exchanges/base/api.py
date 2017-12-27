@@ -81,5 +81,5 @@ class BaseExchangeAPI(object):
                     **kwargs) -> Optional[str]:
         raise NotImplementedError
 
-    def wait_for_fill(self, order_id: str, sleep: int = 1, timeout: int = 60):
+    async def wait_for_fill(self, order_id: str, sleep: int = 1, timeout: int = 60, do_async: bool = False):
         raise NotImplementedError

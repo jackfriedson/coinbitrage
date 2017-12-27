@@ -210,7 +210,7 @@ class ArbitrageEngine(object):
 
         async def place_order(exchange, *args, **kwargs):
             try:
-                return exchange.wait_for_fill(exchange.limit_order(*args, **kwargs))
+                return await exchange.wait_for_fill(exchange.limit_order(*args, **kwargs), do_async=True)
             except RequestException as e:
                 log.error(e, event_name='place_order.error')
                 return None
