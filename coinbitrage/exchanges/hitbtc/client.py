@@ -2,7 +2,9 @@ import time
 
 from coinbitrage import bitlogging
 from coinbitrage.exchanges.base import BaseExchangeClient
+from coinbitrage.exchanges.errors import ClientError
 from coinbitrage.exchanges.mixins import PeriodicRefreshMixin
+from coinbitrage.utils import retry_on_exception
 
 from .api import HitBtcAPIAdapter
 
@@ -38,10 +40,14 @@ class HitBtcClient(BaseExchangeClient, PeriodicRefreshMixin):
         return self._tx_fees[currency]
 
     def withdraw(self, currency: str, address: str, amount: float, **kwargs) -> bool:
-        tx_id = self.api.withdraw(currency, address, amount, autoCommit=False)
-        time.sleep(0.5)
-        tx_info = self.api.transaction(currency, txid=tx_id)
-        fees = tx_info['fee'] + tx_info['networkFee']
+        tx_id = self.api.withdraw(currency, address, amount, autoCommit=False).get('id')
+
+        @retry_on_exception(ClientError, max_retries=5, backoff_factor=1.)
+        def wait_for_transaction(tx_id):
+            return self.api.transaction(currency, txid=tx_id)
+
+        tx_info = wait_for_transaction(tx_id)
+        fees = float(tx_info['fee']) + float(tx_info['networkFee'])
         if fees > self._tx_fees[currency]:
             log.warning('HitBTC withdrawal fee ({actual}) higher than expected ({expected})',
                         event_name='hitbtc_api.unexpected_fee',
