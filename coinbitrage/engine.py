@@ -38,7 +38,7 @@ class ArbitrageEngine(object):
         self._exchanges = ExchangeManager(exchanges, base_currency, quote_currency, loop=self._loop)
         self._min_profit_threshold = min_profit
 
-    def run(self, make_transfers: bool = True):
+    def run(self):
         """Runs the program."""
         manage_balances = RunEvery(self._exchanges.manage_balances, delay=REBALANCE_FUNDS_EVERY)
         print_table = RunEvery(self._print_arbitrage_table, delay=PRINT_TABLE_EVERY)
@@ -46,7 +46,7 @@ class ArbitrageEngine(object):
         with self._exchanges.live_updates():
             try:
                 while True:
-                    manage_balances(make_transfers)
+                    manage_balances()
                     self._attempt_arbitrage()
                     print_table()
             except KeyboardInterrupt:
@@ -103,6 +103,7 @@ class ArbitrageEngine(object):
 
             total_fees = buy_fee + sell_fee + total_tx_fee
             net_profit = gross_profit - total_fees
+            net_pct_profit = net_profit / buy_price
 
             if best_opportunity is None or net_profit > best_opportunity['net_profit']:
                 # Mostly for logging/debugging
@@ -114,7 +115,7 @@ class ArbitrageEngine(object):
                     'sell_exchange': sell_exchange.name,
                     'sell_price': sell_price,
                     'gross_percent_profit': gross_percent_profit,
-                    'net_pct_profit': net_profit / buy_price,
+                    'net_pct_profit': net_pct_profit,
                     'net_profit': net_profit,
                     'gross_profit': gross_profit,
                     'order_size': order_size,

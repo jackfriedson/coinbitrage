@@ -35,7 +35,6 @@ class ExchangeManager(object):
         self._loop = loop or asyncio.get_event_loop()
         self._buy_active = self._sell_active = set()
         self._balances = {}
-        self._total_balances = {}
         self._clients = {}
         self._order_history = defaultdict(list)
         self.tx_credits = 0.  # In quote currency
@@ -80,13 +79,12 @@ class ExchangeManager(object):
     def names(self):
         return self._clients.keys()
 
-    def manage_balances(self, make_transfers: bool):
+    def manage_balances(self):
         self._pre_distribute_step()
         self.update_trading_balances()
-        if make_transfers:
-            for base in self.base_currencies:
-                self._redistribute_base(base)
-            self.update_trading_balances()
+        for base in self.base_currencies:
+            self._redistribute_base(base)
+        self.update_trading_balances()
         self._pre_trading_step()
         log.info('Total balances: {totals}', event_name='update.total_balances',
                  event_data={'totals': self.totals()})
@@ -165,15 +163,15 @@ class ExchangeManager(object):
         self._loop.run_until_complete(asyncio.gather(*futures))
 
     def _redistribute_base(self, currency: str):
-        total_bal = self._total_balances.get(currency)
+        total_bal = self.totals().get(currency)
         if not total_bal:
             return
         target_bal = total_bal / len(self._clients)
 
-        if not all([x.bid() for x in self._clients.values()]):
+        if not all(x.bid(currency) for x in self._clients.values()):
             return
 
-        best_price = max(self._clients.values(), key=lambda x: x.bid())
+        best_price = max(self._clients.values(), key=lambda x: x.bid(currency))
         lo_bal = self._balances[best_price.name].get(currency, 0.)
         # TODO: Use best history once we have enough data
 
@@ -186,35 +184,35 @@ class ExchangeManager(object):
 
         transfer_amt = max(hi_bal - target_bal, target_bal - lo_bal)
 
-        tx_fee = highest_balance.tx_fee(currency) * highest_balance.bid()
+        tx_fee = highest_balance.tx_fee(currency) * highest_balance.bid(currency)
         if tx_fee > self.tx_credits:
             return
 
         if best_price.get_funds_from(highest_balance, currency, transfer_amt):
             self.tx_credits -= tx_fee
 
-    def _redistribute_quote(self):
-        if not self._total_balances.get(self.quote_currency, 0.):
-            return
+    # def _redistribute_quote(self):
+    #     if not self._total_balances.get(self.quote_currency, 0.):
+    #         return
 
-        if not all([x.ask() for x in self._clients.values()]):
-            return
+    #     if not all([x.ask() for x in self._clients.values()]):
+    #         return
 
-        best_price = min(self._clients.values(), key=lambda x: x.ask())
-        # TODO: Use best history once we have enough data
+    #     best_price = min(self._clients.values(), key=lambda x: x.ask())
+    #     # TODO: Use best history once we have enough data
 
-        hi_bal_name, hi_bal = max(self._balances.items(), key=lambda x: x[1][self.quote_currency])
-        highest_balance = self.get(hi_bal_name)
+    #     hi_bal_name, hi_bal = max(self._balances.items(), key=lambda x: x[1][self.quote_currency])
+    #     highest_balance = self.get(hi_bal_name)
 
-        if best_price.name == highest_balance.name:
-            return
+    #     if best_price.name == highest_balance.name:
+    #         return
 
-        tx_fee = highest_balance.tx_fee(self.quote_currency)
-        if tx_fee > self.tx_credits:
-            return
+    #     tx_fee = highest_balance.tx_fee(self.quote_currency)
+    #     if tx_fee > self.tx_credits:
+    #         return
 
-        if best_price.get_funds_from(highest_balance, self.quote_currency, hi_bal[self.quote_currency]):
-            self.tx_credits -= tx_fee
+    #     if best_price.get_funds_from(highest_balance, self.quote_currency, hi_bal[self.quote_currency]):
+    #         self.tx_credits -= tx_fee
 
     def update_trading_balances(self):
         async def get_balance(exchange):

@@ -24,6 +24,7 @@ class KrakenAPIAdapter(BitExAPIAdapter):
     _api_class = Kraken
     _deposit_methods = {
         'BTC': 'Bitcoin',
+        'BCH': 'Bitcoin Cash',
         'ETH': 'Ether (Hex)',
         'LTC': 'Litecoin',
         'USDT': 'Tether USD'

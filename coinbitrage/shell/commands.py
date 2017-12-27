@@ -1,4 +1,5 @@
 from functools import wraps
+from pprint import PrettyPrinter
 
 import click
 
@@ -13,10 +14,10 @@ def balances(obj, update: bool, full: bool):
     if update:
         obj['exchanges'].update_trading_balances()
     active_exchange = obj.get('active_exchange')
-    if not active_exchange:
-        print(obj['exchanges'].balances(full=full))
-    else:
-        print(obj['exchanges'].balances(full=full)[active_exchange.name])
+    balances = obj['exchanges'].balances(full=full)
+    if active_exchange:
+        balances = balances[active_exchange.name]
+    PrettyPrinter().pprint(balances)
 
 
 @click.command()
@@ -32,7 +33,7 @@ def manage(obj):
 def totals(obj, update: bool, full: bool):
     if update:
         obj['exchanges'].update_trading_balances()
-    print(obj['exchanges'].totals(full=full))
+    PrettyPrinter().pprint(obj['exchanges'].totals(full=full))
 
 
 @click.command()

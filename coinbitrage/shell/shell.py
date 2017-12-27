@@ -11,7 +11,7 @@ class CoinbitrageShell(cmd.Cmd):
     intro = 'Welcome to the Coinbitrage shell\n'
     prompt = '(coin) '
     file = None
-    _exit_commands = ['exit', 'quit', 'q']
+    exit_commands = ['exit', 'quit', 'q']
 
     def __init__(self,
                  exchanges: List[str],
@@ -33,7 +33,7 @@ class CoinbitrageShell(cmd.Cmd):
             return self.emptyline()
 
         exchg, cmd, args = self.parseline(line)
-        if cmd in self._exit_commands:
+        if cmd in self.exit_commands:
             return True
         self.lastcmd = line
 

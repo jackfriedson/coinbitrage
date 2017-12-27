@@ -21,10 +21,9 @@ def coin():
 @click.option('--base-currency', type=list, default=DEFAULT_BASE_CURRENCIES)
 @click.option('--quote-currency', type=click.Choice(CURRENCIES.keys()), default=DEFAULT_QUOTE_CURRENCY)
 @click.option('--min-profit', type=float, default=0.005)
-@click.option('--transfers/--no-transfers', default=True)
-def run(transfers: bool, **kwargs):
+def run(**kwargs):
     engine = ArbitrageEngine(exchanges=EXCHANGES, **kwargs)
-    engine.run(make_transfers=transfers)
+    engine.run()
 
 
 @coin.command()
@@ -37,5 +36,6 @@ def shell(base_currency, quote_currency):
 
 @coin.command()
 def pdb():
-    hitbtc = get_exchange('hitbtc')
+    # hitbtc = get_exchange('hitbtc')
+    kraken = get_exchange('kraken')
     import ipdb; ipdb.set_trace()

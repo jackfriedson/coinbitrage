@@ -12,9 +12,16 @@ from .formatter import BittrexFormatter
 log = bitlogging.getLogger(__name__)
 
 
+BITTREX_TIMEOUT = 15
+
+
 class BittrexAPIAdapter(BitExAPIAdapter):
     _api_class = Bittrex
     formatter = BittrexFormatter()
+
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault('timeout', BITTREX_TIMEOUT)
+        super(BittrexAPIAdapter, self).__init__(*args, **kwargs)
 
     def raise_for_exchange_error(self, response_data: dict):
         if not response_data.get('success', False):
