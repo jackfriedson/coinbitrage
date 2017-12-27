@@ -175,7 +175,7 @@ class ExchangeManager(object):
         lo_bal = self._balances[best_price.name].get(currency, 0.)
         # TODO: Use best history once we have enough data
 
-        hi_bal_name, balances = max(self._balances.items(), key=lambda x: x[1][currency])
+        hi_bal_name, balances = max(self._balances.items(), key=lambda x: x[1].get(currency, 0.))
         hi_bal = balances[currency]
         highest_balance = self.get(hi_bal_name)
 

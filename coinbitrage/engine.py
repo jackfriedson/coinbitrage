@@ -17,7 +17,6 @@ from coinbitrage.settings import CURRENCIES, ORDER_PRECISION
 from coinbitrage.utils import RunEvery
 
 
-COLOR_THRESH = 0.005
 REBALANCE_FUNDS_EVERY = 60 * 5  # Rebalance funds every 5 minutes
 PRINT_TABLE_EVERY = 60 * 1  # Print table every minute
 
@@ -63,7 +62,7 @@ class ArbitrageEngine(object):
         for currency in self.base_currencies:
             table = self.arbitrage_table(currency)
             if not table.empty:
-                table = table.applymap(lambda x: '{:.2f}%'.format(x*100) if x else '-')
+                table = table.applymap(lambda x: '{:.2f}%'.format(x*100) if x is not None else '-')
                 print()
                 print(currency)
                 print(table)
@@ -166,7 +165,7 @@ class ArbitrageEngine(object):
         event_data.update(kwargs)
         log.info(log_msg, event_name='arbitrage.attempt', event_data=event_data)
 
-        if self._place_orders(buy_exchange, sell_exchange, buy_price, sell_price, order_size):
+        if self._place_orders(base_currency, quote_currency, buy_exchange, sell_exchange, buy_price, sell_price, order_size):
             self._exchanges.add_order('buy', buy_exchange.name)
             self._exchanges.add_order('sell', sell_exchange.name)
             self._exchanges.tx_credits += total_tx_fee
