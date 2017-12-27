@@ -166,7 +166,7 @@ class ArbitrageEngine(object):
 
         log_msg = ('Arbitrage opportunity: '
                    '{buy_exchange} buy {volume} {base_currency} @ {buy_price}; '
-                   '{sell_exchange} sell {volume} {quote_currency} @ {sell_price}; '
+                   '{sell_exchange} sell {volume} {base_currency} @ {sell_price}; '
                    'profit: {profit:.2f}%')
         event_data = {'buy_exchange': buy_exchange.name, 'sell_exchange': sell_exchange.name,
                       'volume': order_size, 'base_currency': base_currency, 'quote_currency': quote_currency,

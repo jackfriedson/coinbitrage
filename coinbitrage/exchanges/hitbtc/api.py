@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Optional
 
 from bitex import HitBtc
 from requests.exceptions import Timeout
@@ -43,6 +43,10 @@ class HitBtcAPIAdapter(BitExAPIAdapter, SeparateTradingAccountMixin):
                         event_data=error)
             error_cls = ServerError if int(error['code']) in [500, 503, 504] else ClientError
             raise error_cls(error['message'])
+
+    @retry_on_exception(ClientError, Timeout)
+    def order(self, order_id: str) -> Optional[dict]:
+        return self._wrapped_bitex_method('order')(order_id)
 
     def withdraw(self, currency: str, address: str, amount: float, **kwargs) -> bool:
         if self.trading_to_bank(currency, amount):
