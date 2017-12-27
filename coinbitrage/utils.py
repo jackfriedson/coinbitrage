@@ -13,6 +13,13 @@ from coinbitrage.exchanges.types import Timestamp
 log = bitlogging.getLogger(__name__)
 
 
+def format_float(value, precision: int = 2):
+    if not isinstance(value, float):
+        return value
+    leading, trailing = tuple(str(value).split('.'))
+    return '{:.{prec}}'.format(str(value), prec=precision+len(leading)+1)
+
+
 def thread_running(thread: Thread) -> bool:
     return thread and thread.is_alive()
 

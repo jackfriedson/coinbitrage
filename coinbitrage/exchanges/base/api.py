@@ -6,6 +6,7 @@ from requests.exceptions import HTTPError, RequestException
 from coinbitrage import bitlogging
 from coinbitrage.exchanges.errors import ClientError, ServerError
 from coinbitrage.settings import DEFAULT_ORDER_FEE, DEFAULT_QUOTE_CURRENCY
+from coinbitrage.utils import format_float
 
 from .formatter import BaseFormatter
 
@@ -26,14 +27,8 @@ class BaseExchangeAPI(object):
     def _wrap(self, func):
         @wraps(func)
         def wrapped(*args, **kwargs):
-            # Convert float values to strings
-            def float_to_str(val):
-                if not isinstance(val, float):
-                    return val
-                return '{:.{prec}}'.format(str(val), prec=self.float_precision+2)
-
-            args = tuple([float_to_str(a) for a in args])
-            kwargs = {kw: float_to_str(arg) for kw, arg in kwargs.items()}
+            args = tuple([format_float(a, self.float_precision) for a in args])
+            kwargs = {kw: format_float(arg, self.float_precision) for kw, arg in kwargs.items()}
 
             log_args = tuple(list(args) + ['{}={}'.format(kw, arg) for kw, arg in kwargs.items()])
             log.debug('API call -- {exchange}.{method}{log_args}',

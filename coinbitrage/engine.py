@@ -14,7 +14,7 @@ from coinbitrage.exchanges.errors import ServerError
 from coinbitrage.exchanges.manager import ExchangeManager
 from coinbitrage.exchanges.mixins import SeparateTradingAccountMixin
 from coinbitrage.settings import CURRENCIES, ORDER_PRECISION
-from coinbitrage.utils import RunEvery
+from coinbitrage.utils import RunEvery, format_float
 
 
 REBALANCE_FUNDS_EVERY = 60 * 5  # Rebalance funds every 5 minutes
@@ -78,6 +78,12 @@ class ArbitrageEngine(object):
 
             buy_price = buy_exchange.ask(base_currency) * (1 + ORDER_PRECISION)
             sell_price = sell_exchange.bid(base_currency) * (1 - ORDER_PRECISION)
+
+            if base_currency == 'LTC':
+                if buy_exchange.name == 'kraken':
+                    buy_price = float(format_float(buy_price, 2))
+                elif sell_exchange.name == 'kraken':
+                    sell_price = float(format_float(sell_price, 2))
 
             if sell_price < buy_price:
                 continue
