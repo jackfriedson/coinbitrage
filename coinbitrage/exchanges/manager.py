@@ -20,7 +20,6 @@ MAX_REFRESH_DELAY = 10  # Filter exchanges not updated within the last 10 second
 
 
 class ExchangeManager(object):
-
     # TODO: Set a flag when deposits are pending to avoid rebalancing again; check at the beginning
     #       of each rebalance whether deposits have completed and unset the flag if so
 

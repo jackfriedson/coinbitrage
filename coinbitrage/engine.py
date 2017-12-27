@@ -143,6 +143,8 @@ class ArbitrageEngine(object):
             if opportunity['net_pct_profit'] > self._min_profit_threshold:
                 self._execute_arbitrage(**opportunity)
 
+            # log.debug('', event_name='arbitrage.debug', event_data=opportunity)
+
     def _execute_arbitrage(self,
                            base_currency: str,
                            quote_currency: str,

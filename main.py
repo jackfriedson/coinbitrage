@@ -39,4 +39,5 @@ def shell(base_currency, quote_currency):
 def pdb():
     # hitbtc = get_exchange('hitbtc')
     kraken = get_exchange('kraken')
+    hitbtc = get_exchange('hitbtc')
     import ipdb; ipdb.set_trace()

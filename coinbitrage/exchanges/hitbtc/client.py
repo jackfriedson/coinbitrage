@@ -1,3 +1,5 @@
+import time
+
 from coinbitrage import bitlogging
 from coinbitrage.exchanges.base import BaseExchangeClient
 from coinbitrage.exchanges.mixins import PeriodicRefreshMixin
@@ -36,7 +38,8 @@ class HitBtcClient(BaseExchangeClient, PeriodicRefreshMixin):
         return self._tx_fees[currency]
 
     def withdraw(self, currency: str, address: str, amount: float, **kwargs) -> bool:
-        tx_id = self.api.withdraw(curency, address, amount, autoCommit=False)
+        tx_id = self.api.withdraw(currency, address, amount, autoCommit=False)
+        time.sleep(0.5)
         tx_info = self.api.transaction(currency, txid=tx_id)
         fees = tx_info['fee'] + tx_info['networkFee']
         if fees > self._tx_fees[currency]:
