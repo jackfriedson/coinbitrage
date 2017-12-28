@@ -18,10 +18,10 @@ class BaseExchangeClient(object):
         return getattr(self.api, name)
 
     def bid(self, currency: str):
-        return self.bid_ask(currency)['bid']
+        return self.bid_ask(currency).get('bid')
 
     def ask(self, currency: str):
-        return self.bid_ask(currency)['ask']
+        return self.bid_ask(currency).get('ask')
 
     def get_funds_from(self, from_exchange, currency: str, amount: float) -> bool:
         address = self.api.deposit_address(currency)
