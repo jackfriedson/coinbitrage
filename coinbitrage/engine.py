@@ -72,6 +72,7 @@ class ArbitrageEngine(object):
     def _find_best_arbitrage_opportunity(self, base_currency: str):
         best_opportunity = None
 
+        # TODO: Prefer exchanges with higher quote currency balances (to increase liquidity)
         for buy_exchange, sell_exchange in product(self._exchanges.valid_buys(base_currency), self._exchanges.valid_sells(base_currency)):
             if buy_exchange.name == sell_exchange.name:
                 continue

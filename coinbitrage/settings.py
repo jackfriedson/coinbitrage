@@ -12,6 +12,7 @@ DEFAULT_QUOTE_CURRENCY = 'USD'
 ORDER_PRECISION = 0.0005
 
 REQUESTS_TIMEOUT = 10
+WAIT_FOR_FILL_TIMEOUT = 90
 
 
 EXCHANGES = ['bittrex', 'hitbtc', 'kraken', 'poloniex']

@@ -8,7 +8,7 @@ from requests.exceptions import HTTPError, ConnectTimeout, RequestException, Rea
 from coinbitrage import bitlogging
 from coinbitrage.exchanges.base import BaseExchangeAPI
 from coinbitrage.exchanges.errors import ClientError, ServerError
-from coinbitrage.settings import CURRENCIES, DEFAULT_QUOTE_CURRENCY, REQUESTS_TIMEOUT
+from coinbitrage.settings import CURRENCIES, DEFAULT_QUOTE_CURRENCY, REQUESTS_TIMEOUT, WAIT_FOR_FILL_TIMEOUT
 from coinbitrage.utils import retry_on_exception
 
 from .formatter import BitExFormatter
@@ -104,7 +104,8 @@ class BitExAPIAdapter(BaseExchangeAPI):
                         event_name='exchange_api.withdraw.failure')
         return result
 
-    async def wait_for_fill(self, order_id: str, sleep: int = 3, timeout: int = 60, do_async: bool = False) -> Optional[dict]:
+    async def wait_for_fill(self, order_id: str, sleep: int = 3, timeout: int = WAIT_FOR_FILL_TIMEOUT,
+                            do_async: bool = False) -> Optional[dict]:
         if not order_id:
             return None
 
