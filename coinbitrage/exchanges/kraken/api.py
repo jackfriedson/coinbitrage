@@ -61,8 +61,9 @@ class KrakenAPIAdapter(BitExAPIAdapter):
                 log.warning('Kraken API returned an error -- {}'.format(error),
                             event_data={'category': category, 'message': error_msg, 'extra': error_extra},
                             event_name='kraken_api.error')
-                error_cls = self._error_cls_map[category]
-                raise error_cls(error_msg)
+                if error_msg != 'Internal error':
+                    error_cls = self._error_cls_map[category]
+                    raise error_cls(error_msg)
 
     @retry_on_exception(ServerError, Timeout)
     def order(self, order_id: str) -> Optional[dict]:
