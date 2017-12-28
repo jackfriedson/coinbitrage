@@ -184,6 +184,7 @@ class ArbitrageEngine(object):
             self._exchanges.add_order('buy', buy_exchange.name)
             self._exchanges.add_order('sell', sell_exchange.name)
             self._exchanges.tx_credits += total_tx_fee
+            self._exchanges.update_trading_balances()
 
     def _arbitrage_profit_loss(self, buy_exchange, sell_exchange, base_currency) -> Optional[float]:
         """Calculates the profit/loss of buying at one exchange and selling at another.
