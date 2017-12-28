@@ -80,7 +80,7 @@ class ArbitrageEngine(object):
             buy_price = buy_exchange.ask(base_currency) * (1 + ORDER_PRECISION)
             sell_price = sell_exchange.bid(base_currency) * (1 - ORDER_PRECISION)
 
-            if base_currency == 'LTC':
+            if base_currency in ['ETH', 'LTC']:
                 if buy_exchange.name == 'kraken':
                     buy_price = float(format_float(buy_price, 2))
                 elif sell_exchange.name == 'kraken':
@@ -94,14 +94,19 @@ class ArbitrageEngine(object):
             max_sell = self._exchanges.balances()[sell_exchange.name][base_currency]
             order_size = min(max_buy, max_sell)
 
+            buy_fee = order_size * buy_price * buy_exchange.fee(base_currency, self.quote_currency)
+            sell_fee = order_size * sell_price * sell_exchange.fee(base_currency, self.quote_currency)
+
+            if max_buy < max_sell:
+                order_size -= buy_fee / buy_price
+            else:
+                order_size -= sell_fee / sell_price
+
             if order_size < CURRENCIES[base_currency]['order_size']:
                 continue
 
             gross_percent_profit = (sell_price / buy_price) - 1
             gross_profit = gross_percent_profit * buy_price * order_size
-
-            buy_fee = order_size * buy_price * buy_exchange.fee(base_currency, self.quote_currency)
-            sell_fee = order_size * sell_price * sell_exchange.fee(base_currency, self.quote_currency)
 
             buy_tx_fee = buy_exchange.tx_fee(base_currency) * buy_price
             # sell_tx_fee = sell_exchange.tx_fee(self.quote_currency)
