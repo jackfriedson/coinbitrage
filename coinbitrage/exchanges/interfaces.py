@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod, abstractstaticmethod, abstractproperty
 from typing import Dict, List, Optional, Tuple, Union
 
 from coinbitrage.exchanges.types import OHLC, Order, OrderBook, Timestamp, Trade
-from coinbitrage.settings import DEFAULT_QUOTE_CURRENCY
+from coinbitrage.settings import Defaults
 
 
 class ExchangeBase(object):
@@ -39,7 +39,7 @@ class PublicMarketAPI(ExchangeBase):
 
     def ohlc(self,
              base_currency: str,
-             quote_currency: str = DEFAULT_QUOTE_CURRENCY,
+             quote_currency: str = Defaults.QUOTE_CURRENCY,
              interval: int = 1,
              start: Optional[Timestamp] = None,
              end: Optional[Timestamp] = None) -> List[OHLC]:
@@ -56,7 +56,7 @@ class PublicMarketAPI(ExchangeBase):
 
     def trades(self,
                base_currency: str,
-               quote_currency: str = DEFAULT_QUOTE_CURRENCY,
+               quote_currency: str = Defaults.QUOTE_CURRENCY,
                since: Optional[Timestamp] = None) -> List[Trade]:
         """Gets the most recent trades.
 
@@ -70,7 +70,7 @@ class PublicMarketAPI(ExchangeBase):
 
     def order_book(self,
                    base_currency: str,
-                   quote_currency: str = DEFAULT_QUOTE_CURRENCY) -> OrderBook:
+                   quote_currency: str = Defaults.QUOTE_CURRENCY) -> OrderBook:
         """Gets the current order book.
 
         :param base_currency:
@@ -88,7 +88,7 @@ class PrivateExchangeAPI(ExchangeBase):
 
     def fee(self,
             base_currency: str,
-            quote_currency: str = DEFAULT_QUOTE_CURRENCY) -> float:
+            quote_currency: str = Defaults.QUOTE_CURRENCY) -> float:
         """Gets the fee charged for buys and sells of the given currency pair. Fees should be
         cached in some manner, in order to avoid wasting lots of time requesting data that
         doesn't change very frequently.
@@ -105,7 +105,7 @@ class PrivateExchangeAPI(ExchangeBase):
                     side: str,
                     price: float,
                     volume: float,
-                    quote_currency: str = DEFAULT_QUOTE_CURRENCY,
+                    quote_currency: str = Defaults.QUOTE_CURRENCY,
                     wait_for_fill: bool = False) -> Optional[Order]:
         """Places a limit order at the specified price.
 
@@ -181,7 +181,7 @@ class WebsocketInterface(object):
     def subscribe(self,
                   base_currency: str,
                   channel: str = 'ticker',
-                  quote_currency: str = DEFAULT_QUOTE_CURRENCY):
+                  quote_currency: str = Defaults.QUOTE_CURRENCY):
         """Opens a connection to the websocket and subscribes to ticker updates for the
         given currency.
 

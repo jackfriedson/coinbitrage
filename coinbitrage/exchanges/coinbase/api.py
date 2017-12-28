@@ -6,7 +6,6 @@ from coinbase.wallet.client import Client
 from coinbitrage import bitlogging, utils
 from coinbitrage.exchanges.bitex import BitExAPIAdapter
 from coinbitrage.exchanges.mixins import SeparateTradingAccountMixin
-from coinbitrage.settings import DEFAULT_QUOTE_CURRENCY
 
 from .formatter import CoinbaseFormatter
 

@@ -8,7 +8,7 @@ from coinbitrage import bitlogging
 from coinbitrage.exchanges.bitex import BitExAPIAdapter
 from coinbitrage.exchanges.errors import ClientError, ExchangeError, ServerError
 from coinbitrage.exchanges.mixins import ProxyCurrencyWrapper
-from coinbitrage.settings import ACCEPTABLE_USDT_ASK, ACCEPTABLE_USDT_BID
+from coinbitrage.settings import Defaults
 from coinbitrage.utils import retry_on_exception
 
 from .formatter import KrakenFormatter
@@ -79,5 +79,5 @@ class KrakenTetherAdapter(ProxyCurrencyWrapper):
         super(KrakenTetherAdapter, self).__init__(api,
                                                   proxy_currency='USDT',
                                                   quote_currency='USD',
-                                                  acceptable_bid=ACCEPTABLE_USDT_BID,
-                                                  acceptable_ask=ACCEPTABLE_USDT_ASK)
+                                                  acceptable_bid=Defaults.USDT_BID,
+                                                  acceptable_ask=Defaults.USDT_ASK)

@@ -10,7 +10,7 @@ from coinbitrage import bitlogging
 from coinbitrage.exchanges import get_exchange
 from coinbitrage.exchanges.errors import ServerError
 from coinbitrage.exchanges.mixins import ProxyCurrencyWrapper, SeparateTradingAccountMixin
-from coinbitrage.settings import CURRENCIES, ORDER_PRECISION
+from coinbitrage.settings import CURRENCIES
 
 
 log = bitlogging.getLogger(__name__)
@@ -190,6 +190,9 @@ class ExchangeManager(object):
 
         if best_price.get_funds_from(highest_balance, currency, transfer_amt):
             self.tx_credits -= tx_fee
+
+    # TODO: implement redistribution of quote currency only when there is a
+    # severe imbalance (and it is possible to rebalance)
 
     # def _redistribute_quote(self):
     #     if not self._total_balances.get(self.quote_currency, 0.):

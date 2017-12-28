@@ -9,7 +9,7 @@ from coinbitrage import bitlogging
 from coinbitrage.exchanges.base import BaseExchangeClient
 from coinbitrage.exchanges.bitex import BitExAPIAdapter, BitExWSSAdapter
 from coinbitrage.exchanges.mixins import WebsocketMixin
-from coinbitrage.settings import DEFAULT_QUOTE_CURRENCY
+from coinbitrage.settings import Defaults
 
 
 class BitstampAPIAdapter(BitExAPIAdapter):
@@ -21,7 +21,7 @@ class BitstampAPIAdapter(BitExAPIAdapter):
 
     def fee(self,
             base_currency: str,
-            quote_currency: str = DEFAULT_QUOTE_CURRENCY) -> float:
+            quote_currency: str = Defaults.QUOTE_CURRENCY) -> float:
         if not self._fees:
             data = self._api.balance().json()
             self._fees = {
@@ -64,7 +64,7 @@ class BitstampClient(BaseExchangeClient, WebsocketMixin):
 
     def start_live_updates(self,
                            base_currency: str,
-                           quote_currency: str = DEFAULT_QUOTE_CURRENCY):
+                           quote_currency: str = Defaults.QUOTE_CURRENCY):
         channel = 'order_book'
         pair = self.pair(base_currency, quote_currency)
 

@@ -7,7 +7,6 @@ from coinbitrage import bitlogging
 from coinbitrage.exchanges.bitex import BitExAPIAdapter
 from coinbitrage.exchanges.errors import ClientError, ServerError
 from coinbitrage.exchanges.mixins import SeparateTradingAccountMixin
-from coinbitrage.settings import DEFAULT_QUOTE_CURRENCY
 from coinbitrage.utils import retry_on_exception
 
 from .formatter import HitBtcFormatter

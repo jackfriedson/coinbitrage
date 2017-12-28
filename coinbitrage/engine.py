@@ -13,7 +13,7 @@ from coinbitrage import bitlogging
 from coinbitrage.exchanges.errors import ServerError
 from coinbitrage.exchanges.manager import ExchangeManager
 from coinbitrage.exchanges.mixins import SeparateTradingAccountMixin
-from coinbitrage.settings import CURRENCIES, ORDER_PRECISION
+from coinbitrage.settings import CURRENCIES, Defaults
 from coinbitrage.utils import RunEvery, format_float
 
 
@@ -77,8 +77,8 @@ class ArbitrageEngine(object):
             if buy_exchange.name == sell_exchange.name:
                 continue
 
-            buy_price = buy_exchange.ask(base_currency) * (1 + ORDER_PRECISION)
-            sell_price = sell_exchange.bid(base_currency) * (1 - ORDER_PRECISION)
+            buy_price = buy_exchange.ask(base_currency) * (1 + Defaults.ORDER_PRECISION)
+            sell_price = sell_exchange.bid(base_currency) * (1 - Defaults.ORDER_PRECISION)
 
             if base_currency in ['ETH', 'LTC']:
                 if buy_exchange.name == 'kraken':
@@ -198,7 +198,7 @@ class ArbitrageEngine(object):
         if buy_exchange.name == sell_exchange.name or not (buy_ask and sell_bid):
             return None
 
-        return (sell_bid / buy_ask) - (1 + 2*ORDER_PRECISION)
+        return (sell_bid / buy_ask) - (1 + 2*Defaults.ORDER_PRECISION)
 
     def _place_orders(self,
                       base_currency: str,

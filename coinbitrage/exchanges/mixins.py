@@ -8,7 +8,7 @@ from typing import Dict, List, Optional, Union
 from requests.exceptions import RequestException
 
 from coinbitrage import bitlogging
-from coinbitrage.settings import DEFAULT_QUOTE_CURRENCY, ORDER_PRECISION
+from coinbitrage.settings import Defaults
 from coinbitrage.utils import thread_running
 
 
@@ -21,7 +21,7 @@ def format_bid_ask(bid_ask: Dict[str, float]) -> Dict[str, str]:
 
 class LiveUpdateMixin(ABC):
 
-    def start_live_updates(self, base_currency: Union[str, List[str]], quote_currency: str = DEFAULT_QUOTE_CURRENCY):
+    def start_live_updates(self, base_currency: Union[str, List[str]], quote_currency: str = Defaults.QUOTE_CURRENCY):
         pass
 
     def stop_live_updates(self):
@@ -36,7 +36,7 @@ class WebsocketMixin(LiveUpdateMixin):
         self._bid_ask = {'bid': None, 'ask': None, 'time': None}
         super(WebsocketMixin, self).__init__(*args, **kwargs)
 
-    def start_live_updates(self, base_currency: str, quote_currency: str = DEFAULT_QUOTE_CURRENCY):
+    def start_live_updates(self, base_currency: str, quote_currency: str = Defaults.QUOTE_CURRENCY):
         self._websocket.subscribe(self.pair(base_currency, quote_currency))
 
     def stop_live_updates(self):
@@ -55,7 +55,7 @@ class WebsocketMixin(LiveUpdateMixin):
 
     def bid_ask(self,
                 base_currency: str,
-                quote_currency: str = DEFAULT_QUOTE_CURRENCY):
+                quote_currency: str = Defaults.QUOTE_CURRENCY):
         self._update()
         return self._bid_ask
 
@@ -70,7 +70,7 @@ class PeriodicRefreshMixin(LiveUpdateMixin):
         self._bid_ask = {'bid': None, 'ask': None, 'time': None}
         super(PeriodicRefreshMixin, self).__init__(*args, **kwargs)
 
-    def start_live_updates(self, base_currency: Union[str, List[str]], quote_currency: str = DEFAULT_QUOTE_CURRENCY):
+    def start_live_updates(self, base_currency: Union[str, List[str]], quote_currency: str = Defaults.QUOTE_CURRENCY):
         if isinstance(base_currency, str):
             base_currency = [base_currency]
         for currency in base_currency:
@@ -204,7 +204,7 @@ class ProxyCurrencyWrapper(object):
 
         if amount is None:
             amount = self.balance(show_quote=True).get(self.proxy_currency, 0.)
-        price = '{:.{prec}f}'.format(proxy_bid * (1 - ORDER_PRECISION), prec=self.float_precision)
+        price = '{:.{prec}f}'.format(proxy_bid * (1 - Defaults.ORDER_PRECISION), prec=self.float_precision)
 
         if amount > 0:
             order_id = self._api.limit_order(self.proxy_currency, 'sell', price, amount,
@@ -223,7 +223,7 @@ class ProxyCurrencyWrapper(object):
                                   'acceptable_ask': self.acceptable_ask})
             raise ExchangeError('Unable to exchange quote currency for proxy currency')
 
-        price = '{:.{prec}f}'.format(proxy_ask * (1 + ORDER_PRECISION), prec=self.float_precision)
+        price = '{:.{prec}f}'.format(proxy_ask * (1 + Defaults.ORDER_PRECISION), prec=self.float_precision)
         if amount is None:
             amount = self.balance(show_quote=True).get(self.quote_currency, 0.) / price
 

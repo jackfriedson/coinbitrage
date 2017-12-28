@@ -6,7 +6,7 @@ from requests.exceptions import Timeout
 from coinbitrage import bitlogging
 from coinbitrage.exchanges.bitex import BitExAPIAdapter
 from coinbitrage.exchanges.errors import ClientError, ServerError
-from coinbitrage.settings import DEFAULT_QUOTE_CURRENCY
+from coinbitrage.settings import Defaults
 from coinbitrage.utils import retry_on_exception
 
 from .formatter import PoloniexFormatter
@@ -25,7 +25,7 @@ class PoloniexAPIAdapter(BitExAPIAdapter):
 
     def fee(self,
             base_currency: str,
-            quote_currency: str = DEFAULT_QUOTE_CURRENCY) -> float:
+            quote_currency: str = Defaults.QUOTE_CURRENCY) -> float:
         if not self._fee:
             self._fee = float(self._api.fees().json()['takerFee'])
         return self._fee

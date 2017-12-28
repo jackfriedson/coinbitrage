@@ -2,7 +2,7 @@ from typing import Callable, Dict
 from queue import Queue
 
 from coinbitrage.exchanges.interfaces import WebsocketInterface
-from coinbitrage.settings import DEFAULT_QUOTE_CURRENCY
+from coinbitrage.settings import Defaults
 
 
 class BitExWSSAdapter(WebsocketInterface):
@@ -42,7 +42,7 @@ class BitExWSSAdapter(WebsocketInterface):
     def subscribe(self,
                   base_currency: str,
                   channel: str = 'ticker',
-                  quote_currency: str = DEFAULT_QUOTE_CURRENCY):
+                  quote_currency: str = Defaults.QUOTE_CURRENCY):
         if not self._websocket.running:
             self._websocket.start()
 

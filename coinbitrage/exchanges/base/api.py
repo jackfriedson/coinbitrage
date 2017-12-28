@@ -5,7 +5,7 @@ from requests.exceptions import HTTPError, RequestException
 
 from coinbitrage import bitlogging
 from coinbitrage.exchanges.errors import ClientError, ServerError
-from coinbitrage.settings import DEFAULT_ORDER_FEE, DEFAULT_QUOTE_CURRENCY
+from coinbitrage.settings import Defaults
 from coinbitrage.utils import format_float
 
 from .formatter import BaseFormatter
@@ -77,7 +77,7 @@ class BaseExchangeAPI(object):
                     side: str,
                     price: float,
                     volume: float,
-                    quote_currency: str = DEFAULT_QUOTE_CURRENCY,
+                    quote_currency: str = Defaults.QUOTE_CURRENCY,
                     **kwargs) -> Optional[str]:
         raise NotImplementedError
 

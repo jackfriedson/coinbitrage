@@ -8,7 +8,7 @@ from requests.exceptions import HTTPError, ConnectTimeout, RequestException, Rea
 from coinbitrage import bitlogging
 from coinbitrage.exchanges.base import BaseExchangeAPI
 from coinbitrage.exchanges.errors import ClientError, ServerError
-from coinbitrage.settings import CURRENCIES, DEFAULT_QUOTE_CURRENCY, REQUESTS_TIMEOUT, WAIT_FOR_FILL_TIMEOUT
+from coinbitrage.settings import CURRENCIES, Defaults
 from coinbitrage.utils import retry_on_exception
 
 from .formatter import BitExFormatter
@@ -22,7 +22,7 @@ class BitExAPIAdapter(BaseExchangeAPI):
     _api_class = None
     formatter = BitExFormatter()
 
-    def __init__(self, name: str, key_file: str, timeout: int = REQUESTS_TIMEOUT):
+    def __init__(self, name: str, key_file: str, timeout: int = Defaults.HTTP_TIMEOUT):
         super(BitExAPIAdapter, self).__init__(name)
         self._api = self._api_class(key_file=key_file, timeout=timeout)
 
@@ -56,7 +56,7 @@ class BitExAPIAdapter(BaseExchangeAPI):
                     side: str,
                     price: float,
                     volume: float,
-                    quote_currency: str = DEFAULT_QUOTE_CURRENCY,
+                    quote_currency: str = Defaults.QUOTE_CURRENCY,
                     **kwargs) -> Optional[str]:
         event_data = {'exchange': self.name, 'side': side, 'volume': volume, 'price': price,
                       'base': base_currency, 'quote': quote_currency}
@@ -75,7 +75,7 @@ class BitExAPIAdapter(BaseExchangeAPI):
         return result
 
     @retry_on_exception(ServerError, Timeout)
-    def ticker(self, base_currency: str, quote_currency: str = DEFAULT_QUOTE_CURRENCY):
+    def ticker(self, base_currency: str, quote_currency: str = Defaults.QUOTE_CURRENCY):
         return self._wrapped_bitex_method('ticker')(base_currency, quote_currency=quote_currency)
 
     @retry_on_exception(ServerError, Timeout)
@@ -104,7 +104,7 @@ class BitExAPIAdapter(BaseExchangeAPI):
                         event_name='exchange_api.withdraw.failure')
         return result
 
-    async def wait_for_fill(self, order_id: str, sleep: int = 3, timeout: int = WAIT_FOR_FILL_TIMEOUT,
+    async def wait_for_fill(self, order_id: str, sleep: int = 3, timeout: int = Defaults.ORDER_TIMEOUT,
                             do_async: bool = False) -> Optional[dict]:
         if not order_id:
             return None
