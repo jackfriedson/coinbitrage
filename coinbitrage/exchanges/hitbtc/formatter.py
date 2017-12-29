@@ -36,3 +36,6 @@ class HitBtcFormatter(BitExFormatter):
             'side': data['side'],
             'volume': float(data['quantity']),
         }
+
+    def order_history(self, data):
+        return [self.order(order_data) for order_data in data]

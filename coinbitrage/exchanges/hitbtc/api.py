@@ -43,9 +43,11 @@ class HitBtcAPIAdapter(BitExAPIAdapter, SeparateTradingAccountMixin):
             error_cls = ServerError if int(error['code']) in [500, 503, 504] else ClientError
             raise error_cls(error['message'])
 
-    @retry_on_exception(ClientError, Timeout)
+    @retry_on_exception(ServerError, Timeout)
     def order(self, order_id: str) -> Optional[dict]:
-        return self._wrapped_bitex_method('order')(order_id)
+        orders = self._wrapped_bitex_method('order_history')()
+        target_order = list(filter(lambda x: x['id'] == order_id, orders))
+        return target_order[0] if target_order else None
 
     def withdraw(self, currency: str, address: str, amount: float, **kwargs) -> bool:
         if self.trading_to_bank(currency, amount):
