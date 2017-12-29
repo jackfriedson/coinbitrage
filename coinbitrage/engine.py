@@ -115,7 +115,7 @@ class ArbitrageEngine(object):
 
             total_fees = buy_fee + sell_fee + total_tx_fee
             net_profit = gross_profit - total_fees
-            net_pct_profit = net_profit / buy_price
+            net_pct_profit = net_profit / (buy_price * order_size)
 
             if best_opportunity is None or net_profit > best_opportunity['net_profit']:
                 # Mostly for logging/debugging
