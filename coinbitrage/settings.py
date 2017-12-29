@@ -25,15 +25,19 @@ CURRENCIES = {
     'USD': {
         'order_size': 10,
     },
+    'XRP': {
+        'order_size': 5,
+    }
 }
 
 
 class Defaults(object):
-    BASE_CURRENCIES = ['BCH', 'ETH', 'LTC']
+    BASE_CURRENCIES = ['ETH', 'LTC', 'XRP']
     HTTP_TIMEOUT = 10
     ORDER_FEE = 0.0025
     ORDER_PRECISION = 0.0005
     ORDER_TIMEOUT = 90
     QUOTE_CURRENCY = 'USD'
+    REBALANCE_QUOTE_THRESHOLD = 0.9
     USDT_ASK = 1.01
     USDT_BID = 0.99

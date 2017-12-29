@@ -10,7 +10,7 @@ from coinbitrage import bitlogging
 from coinbitrage.exchanges import get_exchange
 from coinbitrage.exchanges.errors import ServerError
 from coinbitrage.exchanges.mixins import ProxyCurrencyWrapper, SeparateTradingAccountMixin
-from coinbitrage.settings import CURRENCIES
+from coinbitrage.settings import CURRENCIES, Defaults
 
 
 log = bitlogging.getLogger(__name__)
@@ -82,8 +82,9 @@ class ExchangeManager(object):
     def manage_balances(self):
         self._pre_distribute_step()
         self.update_trading_balances()
-        for base in self.base_currencies:
-            self._redistribute_base(base)
+        for currency in self.base_currencies:
+            self._redistribute_base(currency)
+        # self._redistribute_quote()
         self.update_trading_balances()
         self._pre_trading_step()
         log.info('Total balances: {totals}', event_name='update.total_balances',
@@ -194,28 +195,52 @@ class ExchangeManager(object):
     # TODO: implement redistribution of quote currency only when there is a
     # severe imbalance (and it is possible to rebalance)
 
-    # def _redistribute_quote(self):
-    #     if not self._total_balances.get(self.quote_currency, 0.):
-    #         return
+    def _redistribute_quote(self):
+        total_bal = self.totals().get(self.quote_currency)
+        if not total_bal:
+            return
 
-    #     if not all([x.ask() for x in self._clients.values()]):
-    #         return
+        max_balance = Defaults.REBALANCE_QUOTE_THRESHOLD * total_bal
+        excess_balances = list(filter(lambda x: x[1][self.quote_currency] > max_balance,
+                                      self.balances().items()))
+        if not excess_balances:
+            return
 
-    #     best_price = min(self._clients.values(), key=lambda x: x.ask())
-    #     # TODO: Use best history once we have enough data
+        excess_name, excess_bal = excess_balances[0]
+        transfer_from_exchg = self.get(excess_name)
 
-    #     hi_bal_name, hi_bal = max(self._balances.items(), key=lambda x: x[1][self.quote_currency])
-    #     highest_balance = self.get(hi_bal_name)
+        tx_fee = transfer_from_exchg.tx_fee(self.quote_currency)
 
-    #     if best_price.name == highest_balance.name:
-    #         return
+        min_transfer_amount = tx_fee * (1 / Defaults.MAX_QUOTE_TRANSFER_PCT)
+        if excess_bal < min_transfer_amount:
+            return
 
-    #     tx_fee = highest_balance.tx_fee(self.quote_currency)
-    #     if tx_fee > self.tx_credits:
-    #         return
+        best_price_counts = defaultdict(int)
+        for base in self.base_currencies:
+            best_exchg = min(self._clients.values(), key=lambda x: x.ask(base))
+            best_price_counts[best_exchg.name] += 1
 
-    #     if best_price.get_funds_from(highest_balance, self.quote_currency, hi_bal[self.quote_currency]):
-    #         self.tx_credits -= tx_fee
+        best_exchg_name, _ = max(best_price_counts.items(), key=lambda x: x[1])
+        transfer_to_exchg = self.get(best_exchg_name)
+
+        # if not all([x.ask() for x in self._clients.values()]):
+        #     return
+
+        # best_price = min(self._clients.values(), key=lambda x: x.ask())
+        # # TODO: Use best history once we have enough data
+
+        # hi_bal_name, hi_bal = max(self._balances.items(), key=lambda x: x[1][self.quote_currency])
+        # highest_balance = self.get(hi_bal_name)
+
+        # if best_price.name == highest_balance.name:
+        #     return
+
+        # tx_fee = highest_balance.tx_fee(self.quote_currency)
+        # if tx_fee > self.tx_credits:
+        #     return
+
+        # if best_price.get_funds_from(highest_balance, self.quote_currency, hi_bal[self.quote_currency]):
+        #     self.tx_credits -= tx_fee
 
     def update_trading_balances(self):
         async def get_balance(exchange):

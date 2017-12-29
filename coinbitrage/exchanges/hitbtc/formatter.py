@@ -3,6 +3,11 @@ from coinbitrage.exchanges.bitex import BitExFormatter
 
 class HitBtcFormatter(BitExFormatter):
 
+    def pair(self, base_currency: str, quote_currency: str) -> str:
+        if base_currency == 'XRP' and quote_currency == 'USD':
+            return 'XRPUSDT'
+        return super(HitBtcFormatter, self).pair(base_currency, quote_currency)
+
     def balance(self, data):
         def inv_map(cur):
             if cur == 'USDT':

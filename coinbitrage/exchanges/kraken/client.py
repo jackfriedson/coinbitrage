@@ -16,6 +16,7 @@ class KrakenClient(BaseExchangeClient, PeriodicRefreshMixin):
         'ETH': 0.005,
         'LTC': 0.001,
         'USDT': 5.,
+        'XRP': 0.02,
     }
 
     def __init__(self, key_file: str):

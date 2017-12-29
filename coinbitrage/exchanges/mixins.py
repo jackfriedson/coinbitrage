@@ -109,11 +109,13 @@ class PeriodicRefreshMixin(LiveUpdateMixin):
                                           'bid_ask': format_bid_ask(bid_ask)})
             time.sleep(self._interval)
 
-    def bid_ask(self, currency: str):
+    def bid_ask(self, currency: Optional[str] = None):
         with self._lock:
             # TODO: do we actually need to acquire the lock here?
             # should we be creating a copy of the dict instead of passing a reference?
-            return self._bid_ask.get(currency, {})
+            if currency:
+                return self._bid_ask.get(currency, {})
+            return self._bid_ask
 
 
 class SeparateTradingAccountMixin(object):

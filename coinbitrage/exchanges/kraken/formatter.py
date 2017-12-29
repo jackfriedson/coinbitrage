@@ -7,6 +7,7 @@ class KrakenFormatter(BitExFormatter):
         'ETH': 'XETH',
         'LTC': 'XLTC',
         'USD': 'ZUSD',
+        'XRP': 'XXRP',
     }
 
     def pair(self, base_currency: str, quote_currency: str) -> str:
