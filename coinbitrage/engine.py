@@ -80,11 +80,17 @@ class ArbitrageEngine(object):
             buy_price = buy_exchange.ask(base_currency) * (1 + Defaults.ORDER_PRECISION)
             sell_price = sell_exchange.bid(base_currency) * (1 - Defaults.ORDER_PRECISION)
 
+            # TODO: move this somewhere better
             if base_currency in ['ETH', 'LTC']:
                 if buy_exchange.name == 'kraken':
                     buy_price = float(format_float(buy_price, 2))
                 elif sell_exchange.name == 'kraken':
                     sell_price = float(format_float(sell_price, 2))
+            elif base_currency == 'XRP':
+                if buy_exchange.name == 'kraken':
+                    buy_price = float(format_float(buy_price, 5))
+                elif sell_exchange.name == 'kraken':
+                    sell_price = float(format_float(sell_price, 5))
 
             if sell_price < buy_price:
                 continue
