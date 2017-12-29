@@ -39,4 +39,6 @@ def pdb():
     kraken = get_exchange('kraken')
     hitbtc = get_exchange('hitbtc')
     coinbase = get_exchange('coinbase')
+    bittrex = get_exchange('bittrex')
+    poloniex = get_exchange('poloniex')
     import ipdb; ipdb.set_trace()

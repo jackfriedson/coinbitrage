@@ -27,7 +27,8 @@ class KrakenAPIAdapter(BitExAPIAdapter):
         'BCH': 'Bitcoin Cash',
         'ETH': 'Ether (Hex)',
         'LTC': 'Litecoin',
-        'USDT': 'Tether USD'
+        'USDT': 'Tether USD',
+        'XRP': 'Ripple XRP',
     }
     _error_cls_map = defaultdict(lambda: ClientError)
     _error_cls_map.update({
