@@ -239,9 +239,12 @@ class ArbitrageEngine(object):
             place_order(buy_exchange, base_currency, 'buy', buy_price, order_volume, quote_currency=quote_currency),
             place_order(sell_exchange, base_currency, 'sell', sell_price, order_volume, quote_currency=quote_currency)
         ]
-        order_ids = self._loop.run_until_complete(asyncio.gather(*place_order_futures))
+        buy_id, sell_id = tuple(self._loop.run_until_complete(asyncio.gather(*place_order_futures)))
 
-        wait_for_fill_futures = [wait_for_order_fill(order_id) for order_id in order_ids]
+        wait_for_fill_futures = [
+            wait_for_order_fill(buy_exchange, buy_id),
+            wait_for_order_fill(sell_exchange, sell_id)
+        ]
         buy_resp, sell_resp = tuple(self._loop.run_until_complete(asyncio.gather(*wait_for_fill_futures)))
 
         if buy_resp and sell_resp:
