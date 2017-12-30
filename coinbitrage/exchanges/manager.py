@@ -32,18 +32,16 @@ class ExchangeManager(object):
                  initial_tx_credit: float = 0.):
         self.base_currencies = base_currency if isinstance(base_currency, list) else [base_currency]
         self.quote_currency = quote_currency
+        self.tx_credits = initial_tx_credit  # In quote currency
         self.all_currencies = self.base_currencies + [quote_currency]
         self._loop = loop or asyncio.get_event_loop()
-        self._buy_active = self._sell_active = set()
         self._balances = {}
         self._clients = {}
         self._order_history = defaultdict(list)
-        self.tx_credits = initial_tx_credit  # In quote currency
-
         self._init_clients([get_exchange(name) for name in exchanges])
         self.update_trading_balances()
 
-    # TODO: implement withdraw-all function to transfer funds from all exchanges (of a single currency)
+    # TODO: implement withdraw-all function to transfer funds (of a particular currency) from all exchanges
     # to a single address
 
     def _init_clients(self, all_clients: list):

@@ -62,6 +62,7 @@ class BitExAPIAdapter(BaseExchangeAPI):
                       'base': base_currency, 'quote': quote_currency}
 
         order_fn = self._wrapped_bitex_method('bid' if side == 'buy' else 'ask')
+        kwargs.setdefault('timeout', Defaults.PLACE_ORDER_TIMEOUT)
         result = order_fn(base_currency, price, volume, quote_currency=quote_currency, **kwargs)
 
         if result:
@@ -92,7 +93,6 @@ class BitExAPIAdapter(BaseExchangeAPI):
 
     @retry_on_exception(ServerError, ConnectTimeout)
     def withdraw(self, currency: str, address: str, amount: float, **kwargs) -> bool:
-        # assert amount >= CURRENCIES[currency]['min_transfer_size']
         event_data = {'exchange': self.name, 'amount': amount, 'currency': currency}
         result = self._wrapped_bitex_method('withdraw')(amount, address, currency=currency, **kwargs)
         if result:
@@ -104,7 +104,7 @@ class BitExAPIAdapter(BaseExchangeAPI):
                         event_name='exchange_api.withdraw.failure')
         return result
 
-    def wait_for_fill(self, order_id: str, sleep: int = 3, timeout: int = Defaults.ORDER_TIMEOUT) -> Optional[dict]:
+    def wait_for_fill(self, order_id: str, sleep: int = 3, timeout: int = Defaults.FILL_ORDER_TIMEOUT) -> Optional[dict]:
         if not order_id:
             return None
 
