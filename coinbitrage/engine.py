@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import time
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from functools import partial
 from itertools import product
@@ -221,31 +222,22 @@ class ArbitrageEngine(object):
         :param expected_profit: The percent profit that can be expected
         """
 
-        async def place_order(exchange, *args, **kwargs):
+        def place_order(exchange, *args, **kwargs):
             try:
-                return exchange.limit_order(*args, **kwargs)
+                return exchange.wait_for_fill(exchange.limit_order(*args, **kwargs))
             except RequestException as e:
                 log.error(e, event_name='place_order.error')
                 return None
 
-        async def wait_for_order_fill(exchange, order_id):
-            try:
-                return await exchange.wait_for_fill(order_id, do_async=True)
-            except RequestException as e:
-                log.error(e, event_name='order_fill.error')
-                return None
+        buy_order = partial(place_order, buy_exchange, base_currency, 'buy', buy_price, order_volume, quote_currency=quote_currency)
+        sell_order = partial(place_order, sell_exchange, base_currency, 'sell', sell_price, order_volume, quote_currency=quote_currency)
 
-        place_order_futures = [
-            place_order(buy_exchange, base_currency, 'buy', buy_price, order_volume, quote_currency=quote_currency),
-            place_order(sell_exchange, base_currency, 'sell', sell_price, order_volume, quote_currency=quote_currency)
-        ]
-        buy_id, sell_id = tuple(self._loop.run_until_complete(asyncio.gather(*place_order_futures)))
-
-        wait_for_fill_futures = [
-            wait_for_order_fill(buy_exchange, buy_id),
-            wait_for_order_fill(sell_exchange, sell_id)
-        ]
-        buy_resp, sell_resp = tuple(self._loop.run_until_complete(asyncio.gather(*wait_for_fill_futures)))
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            futures = [
+                self._loop.run_in_executor(executor, buy_order),
+                self._loop.run_in_executor(executor, sell_order)
+            ]
+            buy_resp, sell_resp = tuple(self._loop.run_until_complete(asyncio.gather(*futures)))
 
         if buy_resp and sell_resp:
             log.info('Both orders placed successfully', event_name='arbitrage.place_order.success',
