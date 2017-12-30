@@ -1,5 +1,6 @@
 import time
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from typing import Dict, List, Union
 
@@ -46,11 +47,9 @@ class ExchangeManager(object):
     # to a single address
 
     def _init_clients(self, all_clients: list):
-        async def init(exchg):
-            exchg.init()
-
-        futures = [init(exchg) for exchg in all_clients]
-        self._loop.run_until_complete(asyncio.gather(*futures))
+        with ThreadPoolExecutor(max_workers=len(all_clients)) as executor:
+            futures = [self._loop.run_in_executor(executor, exchg.init) for exchg in all_clients]
+            self._loop.run_until_complete(asyncio.gather(*futures))
 
         self._clients = {
             exchg.name: exchg for exchg in all_clients
@@ -141,26 +140,28 @@ class ExchangeManager(object):
         self._exchange_proxy_currencies()
 
     def _transfer_to_trading_accounts(self):
-        filtered_exchanges = filter(lambda x: isinstance(x.api, SeparateTradingAccountMixin),
-                                    self._clients.values())
+        filtered_exchanges = list(filter(lambda x: isinstance(x.api, SeparateTradingAccountMixin),
+                                         self._clients.values()))
 
-        async def bank_to_trading(exchange):
+        def bank_to_trading(exchange):
             for currency in self.all_currencies:
                 bank_balance = exchange.bank_balance().get(currency, 0.)
                 if bank_balance > 0:
                     exchange.bank_to_trading(currency, bank_balance)
 
-        futures = [bank_to_trading(exchg) for exchg in filtered_exchanges]
+        futures = [
+            self._loop.run_in_executor(None, bank_to_trading, exchg)
+            for exchg in filtered_exchanges
+        ]
         self._loop.run_until_complete(asyncio.gather(*futures))
 
     def _exchange_proxy_currencies(self):
-        filtered_exchanges = filter(lambda x: isinstance(x.api, ProxyCurrencyWrapper),
-                                    self._clients.values())
+        filtered_exchanges = list(filter(lambda x: isinstance(x.api, ProxyCurrencyWrapper),
+                                         self._clients.values()))
 
-        async def proxy_to_quote(exchange):
-            exchange.proxy_to_quote()
-
-        futures = [proxy_to_quote(exchg) for exchg in filtered_exchanges]
+        futures = [
+            self._loop.run_in_executor(None, exchg.proxy_to_quote) for exchg in filtered_exchanges
+        ]
         self._loop.run_until_complete(asyncio.gather(*futures))
 
     def _redistribute_base(self, currency: str):
@@ -243,11 +244,15 @@ class ExchangeManager(object):
         #     self.tx_credits -= tx_fee
 
     def update_trading_balances(self):
-        async def get_balance(exchange):
+        def get_balance(exchange):
             return exchange.name, exchange.balance()
 
-        futures = [get_balance(exchg) for exchg in self._clients.values()]
-        results = self._loop.run_until_complete(asyncio.gather(*futures))
+        with ThreadPoolExecutor(max_workers=len(self._clients)) as executor:
+            futures = [
+                self._loop.run_in_executor(executor, get_balance, exchg)
+                for exchg in self._clients.values()
+            ]
+            results = self._loop.run_until_complete(asyncio.gather(*futures))
 
         self._balances = {
             name: {

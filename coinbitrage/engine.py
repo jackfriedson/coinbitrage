@@ -243,7 +243,7 @@ class ArbitrageEngine(object):
             log.info('Both orders placed successfully', event_name='arbitrage.place_order.success',
                      event_data={'buy_order': buy_resp, 'sell_order': sell_resp})
             return True
-        elif any([buy_resp, sell_resp]):
+        elif buy_resp or sell_resp:
             log.warning('One order failed', event_name='arbitrage.place_order.partial_failure',
                         event_data={'buy_order': buy_resp, 'sell_order': sell_resp})
             raise Exception
