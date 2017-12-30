@@ -223,16 +223,26 @@ class ArbitrageEngine(object):
 
         async def place_order(exchange, *args, **kwargs):
             try:
-                return await exchange.wait_for_fill(exchange.limit_order(*args, **kwargs), do_async=True)
+                return exchange.limit_order(*args, **kwargs)
             except RequestException as e:
                 log.error(e, event_name='place_order.error')
                 return None
 
-        futures = [
+        async def wait_for_order_fill(exchange, order_id):
+            try:
+                return await exchange.wait_for_fill(order_id, do_async=True)
+            except RequestException as e:
+                log.error(e, event_name='order_fill.error')
+                return None
+
+        place_order_futures = [
             place_order(buy_exchange, base_currency, 'buy', buy_price, order_volume, quote_currency=quote_currency),
             place_order(sell_exchange, base_currency, 'sell', sell_price, order_volume, quote_currency=quote_currency)
         ]
-        buy_resp, sell_resp = tuple(self._loop.run_until_complete(asyncio.gather(*futures)))
+        order_ids = self._loop.run_until_complete(asyncio.gather(*place_order_futures))
+
+        wait_for_fill_futures = [wait_for_order_fill(order_id) for order_id in order_ids]
+        buy_resp, sell_resp = tuple(self._loop.run_until_complete(asyncio.gather(*wait_for_fill_futures)))
 
         if buy_resp and sell_resp:
             log.info('Both orders placed successfully', event_name='arbitrage.place_order.success',
