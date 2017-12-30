@@ -37,7 +37,7 @@ def load_key_from(path: str) -> Tuple[str, str]:
     return key, secret
 
 
-def retry_on_exception(*exc_classes, max_retries: int = 3, backoff_factor: float = 0.5):
+def retry_on_exception(*exc_classes, max_retries: int = 4, backoff_factor: float = 0.5):
     def decorator(func):
         @wraps(func)
         def retry_func(*args, **kwargs):
