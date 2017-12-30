@@ -21,6 +21,7 @@ class HitBtcClient(BaseExchangeClient, PeriodicRefreshMixin):
         'ETH': 0.01,
         'LTC': 0.003,
         'USDT': 100.,
+        'XRP': 0.05,
     }
 
     def __init__(self, key_file: str):
