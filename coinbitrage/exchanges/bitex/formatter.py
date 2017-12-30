@@ -39,5 +39,5 @@ class BitExFormatter(BaseFormatter):
     def balance(self, data) -> Dict[str, float]:
         return {
             self.format(cur, inverse=True): float(bal)
-            for cur, bal in data.items() if float(bal) != 0.
+            for cur, bal in data.items() if bal and float(bal) != 0.
         }
