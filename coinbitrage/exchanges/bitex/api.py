@@ -119,7 +119,7 @@ class BitExAPIAdapter(BaseExchangeAPI):
 
             time.sleep(sleep)
 
-        log.warning('Timed out waiting for order {order_id} to fill',
+        log.warning('Timed out waiting for order {order_id} to fill after {timeout} seconds',
                     event_name='order.fill.timeout',
                     event_data={'exchange': self.name, 'order_id': order_id, 'timeout': timeout})
         return None

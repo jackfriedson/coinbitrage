@@ -44,9 +44,9 @@ class BaseExchangeAPI(object):
             try:
                 resp.raise_for_status()
             except HTTPError as e:
-                log_msg = '{exchange} encountered an HTTP error ({status_code})'
+                log_msg = '{exchange}.{method}{log_args} encountered an HTTP error ({status_code})'
                 event_data = {'exchange': self.name, 'status_code': resp.status_code,
-                              'method': func.__name__, 'args': args, 'kwargs': kwargs}
+                              'method': func.__name__, 'log_args': log_args, 'args': args, 'kwargs': kwargs}
                 if 'application/json' in resp.headers['Content-Type']:
                     log_msg += ': {error_message}'
                     event_data['error_message'] = resp.json()

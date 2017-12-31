@@ -246,11 +246,11 @@ class ArbitrageEngine(object):
         elif buy_resp or sell_resp:
             log.warning('One order failed', event_name='arbitrage.place_order.partial_failure',
                         event_data={'buy_order': buy_resp, 'sell_order': sell_resp})
-            raise Exception
+            raise RuntimeError('Place order failure')
             # TODO: determine how to handle
         else:
             log.warning('Both orders failed', event_name='arbitrage.place_order.total_failure')
-            raise Exception
+            raise RuntimeError('Place order failure')
             # TODO: determine how to handle
 
     def arbitrage_table(self, base_currency: str) -> pd.DataFrame:
