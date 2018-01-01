@@ -24,11 +24,12 @@ class BaseExchangeClient(object):
         return self.bid_ask(currency).get('ask')
 
     def get_funds_from(self, from_exchange, currency: str, amount: float) -> bool:
-        address = self.api.deposit_address(currency)
-        result = from_exchange.withdraw(currency, address, amount)
+        addr_info = self.api.deposit_address(currency)
+        address = addr_info.pop('address')
+        result = from_exchange.withdraw(currency, address, amount, **addr_info)
 
         event_data = {'amount': amount, 'currency': currency, 'from_exchange': from_exchange.name,
-                      'to_exchange': self.name, 'address': address}
+                      'to_exchange': self.name, 'address': address, 'address_info': addr_info}
         if result:
             log.info('Transfered {amount} {currency} from {from_exchange} to {to_exchange}',
                      event_name='exchange_api.transfer.success', event_data=event_data)

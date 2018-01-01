@@ -51,4 +51,7 @@ class HitBtcAPIAdapter(BitExAPIAdapter, SeparateTradingAccountMixin):
 
     def withdraw(self, currency: str, address: str, amount: float, **kwargs) -> bool:
         if self.trading_to_bank(currency, amount):
-            return super(HitBtcAPIAdapter, self).withdraw(currency, address, amount)
+            try:
+                return super(HitBtcAPIAdapter, self).withdraw(currency, address, amount, **kwargs)
+            except ClientError as e:
+                return None

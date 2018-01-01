@@ -27,7 +27,7 @@ class CoinbaseAPIAdapter(BitExAPIAdapter, SeparateTradingAccountMixin):
         data = self._coinbase_client.get_accounts().data
         return {d['currency']: d['id'] for d in data}
 
-    def deposit_address(self, currency: str) -> str:
+    def deposit_address(self, currency: str) -> dict:
         account_id = self._account_ids[currency]
         new_address = self._coinbase_client.create_address(account_id).address
         return new_address

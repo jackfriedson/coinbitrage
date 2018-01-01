@@ -84,7 +84,7 @@ class BitExAPIAdapter(BaseExchangeAPI):
         return self._wrapped_bitex_method('balance')()
 
     @retry_on_exception(ServerError, Timeout)
-    def deposit_address(self, currency: str, **kwargs) -> str:
+    def deposit_address(self, currency: str, **kwargs) -> dict:
         return self._wrapped_bitex_method('deposit_address')(currency=currency, **kwargs)
 
     @retry_on_exception(ServerError, Timeout)

@@ -41,7 +41,7 @@ class HitBtcClient(BaseExchangeClient, PeriodicRefreshMixin):
         return self._tx_fees[currency]
 
     def withdraw(self, currency: str, address: str, amount: float, **kwargs) -> bool:
-        tx_id = self.api.withdraw(currency, address, amount, autoCommit=False).get('id')
+        tx_id = self.api.withdraw(currency, address, amount, autoCommit=False, **kwargs).get('id')
 
         @retry_on_exception(ClientError, max_retries=5, backoff_factor=1.)
         def wait_for_transaction(tx_id):

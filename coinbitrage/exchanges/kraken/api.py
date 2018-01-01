@@ -2,7 +2,7 @@ from collections import defaultdict
 from typing import Dict, Optional
 
 from bitex import Kraken
-from requests.exceptions import Timeout
+from requests.exceptions import ConnectTimeout, Timeout
 
 from coinbitrage import bitlogging
 from coinbitrage.exchanges.bitex import BitExAPIAdapter
@@ -40,7 +40,7 @@ class KrakenAPIAdapter(BitExAPIAdapter):
         kwargs.setdefault('timeout', KRAKEN_TIMEOUT)
         super(KrakenAPIAdapter, self).__init__(*args, **kwargs)
 
-    def deposit_address(self, currency: str) -> str:
+    def deposit_address(self, currency: str) -> dict:
         deposit_method = self._deposit_methods.get(currency)
         if not deposit_method:
             raise NotImplementedError('Deposit address not implemented for {}'.format(currency))
@@ -73,6 +73,12 @@ class KrakenAPIAdapter(BitExAPIAdapter):
             order = self._wrapped_bitex_method('orders')().get(order_id)
         return order
 
+    def withdraw(self, currency: str, address: str, amount: float, **kwargs) -> bool:
+        key = address
+        if currency == 'XRP' and 'tag' in kwargs:
+            tag = kwargs.pop('tag')
+            key += '-{}'.format(tag)
+        return super(KrakenAPIAdapter, self).withdraw(currency, key, amount, **kwargs)
 
 class KrakenTetherAdapter(ProxyCurrencyWrapper):
 

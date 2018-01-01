@@ -30,10 +30,10 @@ class PoloniexAPIAdapter(BitExAPIAdapter):
             self._fee = float(self._api.fees().json()['takerFee'])
         return self._fee
 
-    def deposit_address(self, currency: str) -> str:
+    def deposit_address(self, currency: str) -> dict:
         all_addresses = super(PoloniexAPIAdapter, self).deposit_address(currency)
         if currency in all_addresses:
-            return all_addresses[currency]
+            return {'address': all_addresses[currency]}
         return self._generate_new_address(currency)
 
     @retry_on_exception(ServerError, Timeout)
@@ -42,7 +42,12 @@ class PoloniexAPIAdapter(BitExAPIAdapter):
         resp = self._api.private_query('tradingApi', params=params)
         resp.raise_for_status()
         self.raise_for_exchange_error(resp.json())
-        return resp.json()['response']
+        return {'address': resp.json()['response']}
+
+    def withdraw(self, *args, **kwargs) -> bool:
+        if 'tag' in kwargs:
+            kwargs.update({'paymentId': kwargs.pop('tag')})
+        return super(PoloniexAPIAdapter, self).withdraw(*args, **kwargs)
 
     def raise_for_exchange_error(self, response_data: dict):
         if isinstance(response_data, dict):

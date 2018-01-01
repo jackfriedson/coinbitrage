@@ -63,7 +63,7 @@ class BaseExchangeAPI(object):
             return formatter(resp.formatted) if resp.formatted else formatter(resp_data)
         return wrapped
 
-    def deposit_address(self, currency: str) -> str:
+    def deposit_address(self, currency: str) -> dict:
         raise NotImplementedError
 
     def balance(self):

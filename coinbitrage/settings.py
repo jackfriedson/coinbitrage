@@ -26,7 +26,7 @@ CURRENCIES = {
         'order_size': 10,
     },
     'XRP': {
-        'order_size': 5,
+        'order_size': 25,
     }
 }
 

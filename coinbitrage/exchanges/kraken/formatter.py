@@ -40,4 +40,6 @@ class KrakenFormatter(BitExFormatter):
         return data['result']
 
     def deposit_address(self, data):
-        return data['result'][0]['address']
+        addr_info = data['result'][0]
+        addr_info.pop('expiretm', None)
+        return addr_info

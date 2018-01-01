@@ -33,6 +33,9 @@ class BittrexFormatter(BitExFormatter):
             'volume': float(d['Quantity']),
         }
 
+    def deposit_address(self, data):
+        return {'address': data}
+
     def pairs(self, data):
         return set([x['MarketName'] for x in data['result'] if x['IsActive']])
 
