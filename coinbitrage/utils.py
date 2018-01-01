@@ -74,10 +74,10 @@ class RunEvery(object):
     and others only at certain intervals.
     """
 
-    def __init__(self, func: Callable, delay: int):
+    def __init__(self, func: Callable, delay: int, first_delay: bool = False):
         self._func = func
         self._delay = delay
-        self._next_scheduled = 0
+        self._next_scheduled = time.time() if first_delay else 0
 
     def __call__(self, *args, **kwargs):
         if self._next_scheduled > time.time():

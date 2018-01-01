@@ -114,7 +114,7 @@ class PeriodicRefreshMixin(LiveUpdateMixin):
             # TODO: do we actually need to acquire the lock here?
             # should we be creating a copy of the dict instead of passing a reference?
             if currency:
-                return self._bid_ask.get(currency, {})
+                return self._bid_ask.get(currency, {'bid': None, 'ask': None, 'time': None})
             return self._bid_ask
 
 
