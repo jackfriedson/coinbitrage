@@ -17,7 +17,7 @@ from .formatter import KrakenFormatter
 log = bitlogging.getLogger(__name__)
 
 
-KRAKEN_TIMEOUT = 30
+KRAKEN_TIMEOUT = 60
 
 
 class KrakenAPIAdapter(BitExAPIAdapter):
