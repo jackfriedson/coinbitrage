@@ -66,6 +66,31 @@ class KrakenAPIAdapter(BitExAPIAdapter):
                     error_cls = self._error_cls_map[category]
                     raise error_cls(error_msg)
 
+    @retry_on_exception(ConnectTimeout)
+    def limit_order(self,
+                    base_currency: str,
+                    side: str,
+                    price: float,
+                    volume: float,
+                    quote_currency: str = Defaults.QUOTE_CURRENCY,
+                    **kwargs) -> Optional[str]:
+        event_data = {'exchange': self.name, 'side': side, 'volume': volume, 'price': price,
+                      'base': base_currency, 'quote': quote_currency}
+
+        order_fn = self._wrapped_bitex_method('bid' if side == 'buy' else 'ask')
+        kwargs.setdefault('timeout', Defaults.PLACE_ORDER_TIMEOUT)
+        result = order_fn(base_currency, price, volume, quote_currency=quote_currency, **kwargs)
+
+        if result:
+            event_data.update({'order_id': result})
+            log.info('Placed {side} order with {exchange} for {volume} {base} @ {price} {quote}',
+                     event_data=event_data,
+                     event_name='order.placed.success')
+        else:
+            log.info('Unable to place {side} order with {exchange} for {volume} {base} @ {price} {quote}',
+                     event_name='order.placed.failure', event_data=event_data)
+        return result
+
     @retry_on_exception(ServerError, Timeout)
     def order(self, order_id: str) -> Optional[dict]:
         order = self._wrapped_bitex_method('closed_orders')().get(order_id)

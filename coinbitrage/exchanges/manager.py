@@ -89,21 +89,23 @@ class ExchangeManager(object):
 
     def valid_buys(self, base_currency: str):
         def buy_exchange_filter(exchange):
+            supports_pair = exchange.supports_pair(base_currency, self.quote_currency)
             bid_ask = exchange.bid_ask(base_currency)
             min_balance = self._balances[exchange.name].get(self.quote_currency, 0.) >= CURRENCIES[self.quote_currency]['order_size']
             has_price = bid_ask['ask'] is not None
             updated_recently = bid_ask['time'] and bid_ask['time'] > time.time() - MAX_REFRESH_DELAY
-            return all([min_balance, has_price, updated_recently])
+            return all([supports_pair, min_balance, has_price, updated_recently])
 
         return filter(buy_exchange_filter, self._clients.values())
 
     def valid_sells(self, base_currency: str):
         def sell_exchange_filter(exchange):
+            supports_pair = exchange.supports_pair(base_currency, self.quote_currency)
             bid_ask = exchange.bid_ask(base_currency)
             min_balance = self._balances[exchange.name].get(base_currency, 0.) >= CURRENCIES[base_currency]['order_size']
             has_price = bid_ask['bid'] is not None
             updated_recently = bid_ask['time'] and bid_ask['time'] > time.time() - MAX_REFRESH_DELAY
-            return all([min_balance, has_price, updated_recently])
+            return all([supports_pair, min_balance, has_price, updated_recently])
 
         return filter(sell_exchange_filter, self._clients.values())
 

@@ -260,7 +260,8 @@ class ArbitrageEngine(object):
             self._exchanges.update_trading_balances()
             current_totals = self._exchanges.totals()
             base_cur_difference = abs(current_totals[base_currency] - last_totals[base_currency])
-            if base_cur_difference < order_size / 2:
+            # TODO: is 5% reasonable here? should it be lower?
+            if base_cur_difference < order_volume * 0.05:
                 log.info('One order seemed to have failed but eventually went through',
                          event_name='arbitrage.place_order.delayed_success',
                          event_data={'buy_order': buy_resp, 'sell_order': sell_resp})
@@ -269,6 +270,7 @@ class ArbitrageEngine(object):
                 log.warning('One order failed', event_name='arbitrage.place_order.partial_failure',
                             event_data={'buy_order': buy_resp, 'sell_order': sell_resp})
                 raise RuntimeError('Place order failure')
+                # TODO: Handle this better
         else:
             log.warning('Both orders failed', event_name='arbitrage.place_order.total_failure')
             return False
