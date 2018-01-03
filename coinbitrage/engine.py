@@ -160,10 +160,20 @@ class ArbitrageEngine(object):
             if not opportunity:
                 return
 
-            if opportunity['net_pct_profit'] > self._min_profit_threshold:
+            if self._should_execute(**opportunity):
                 self._execute_arbitrage(**opportunity)
 
             # log.debug('', event_name='arbitrage.debug', event_data=opportunity)
+
+    def _should_execute(self,
+                        buy_exchange: str,
+                        sell_exchange: str,
+                        net_pct_profit: float,
+                        **kwargs) -> bool:
+        if buy_exchange == 'kraken':
+            return net_pct_profit > 0.
+
+        return net_pct_profit >= self._min_profit_threshold
 
     def _execute_arbitrage(self,
                            base_currency: str,
