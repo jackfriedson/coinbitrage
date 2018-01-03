@@ -1,4 +1,5 @@
 import asyncio
+import copy
 import logging
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -244,14 +245,23 @@ class ArbitrageEngine(object):
                      event_data={'buy_order': buy_resp, 'sell_order': sell_resp})
             return True
         elif buy_resp or sell_resp:
-            log.warning('One order failed', event_name='arbitrage.place_order.partial_failure',
-                        event_data={'buy_order': buy_resp, 'sell_order': sell_resp})
-            raise RuntimeError('Place order failure')
-            # TODO: determine how to handle
+            # Check if order went through despite returning an error
+            last_totals = copy.deepcopy(self._exchanges.totals())
+            self._exchanges.update_trading_balances()
+            current_totals = self._exchanges.totals()
+            base_cur_difference = abs(current_totals[base_currency] - last_totals[base_currency])
+            if base_cur_difference < order_size / 2:
+                log.info('One order seemed to have failed but eventually went through',
+                         event_name='arbitrage.place_order.delayed_success',
+                         event_data={'buy_order': buy_resp, 'sell_order': sell_resp})
+                return True
+            else:
+                log.warning('One order failed', event_name='arbitrage.place_order.partial_failure',
+                            event_data={'buy_order': buy_resp, 'sell_order': sell_resp})
+                raise RuntimeError('Place order failure')
         else:
             log.warning('Both orders failed', event_name='arbitrage.place_order.total_failure')
-            raise RuntimeError('Place order failure')
-            # TODO: determine how to handle
+            return False
 
     def arbitrage_table(self, base_currency: str) -> pd.DataFrame:
         """Creates a table where rows represent to the exchange to buy from, and columns
