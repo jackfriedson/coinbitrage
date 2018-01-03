@@ -32,7 +32,7 @@ CURRENCIES = {
 
 
 class Defaults(object):
-    BASE_CURRENCIES = ['XRP', 'LTC', 'ETH']
+    BASE_CURRENCIES = ['XRP', 'LTC']
     FILL_ORDER_TIMEOUT = 120
     HTTP_TIMEOUT = 10
     ORDER_FEE = 0.0025
