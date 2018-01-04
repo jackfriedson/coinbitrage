@@ -9,7 +9,7 @@ from requests.exceptions import RequestException, Timeout
 
 from coinbitrage import bitlogging
 from coinbitrage.exchanges import get_exchange
-from coinbitrage.exchanges.errors import ServerError
+from coinbitrage.exchanges.errors import ClientError, ServerError
 from coinbitrage.exchanges.mixins import ProxyCurrencyWrapper, SeparateTradingAccountMixin
 from coinbitrage.settings import CURRENCIES, Defaults
 
@@ -190,8 +190,14 @@ class ExchangeManager(object):
         if tx_fee > self.tx_credits:
             return
 
-        if best_price.get_funds_from(highest_balance, currency, transfer_amt):
-            self.tx_credits -= tx_fee
+        try:
+            if best_price.get_funds_from(highest_balance, currency, transfer_amt):
+                self.tx_credits -= tx_fee
+        except (ClientError, ServerError, RequestException, Timeout) as e:
+            log.info('Encountered error while trying to rebalance funds',
+                     event_name='rebalance_base.failure',
+                     event_data={'error': e})
+            return
 
     # TODO: implement redistribution of quote currency only when there is a
     # severe imbalance (and it is possible to rebalance)
