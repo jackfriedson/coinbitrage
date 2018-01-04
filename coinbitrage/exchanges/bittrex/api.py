@@ -44,4 +44,4 @@ class BittrexAPIAdapter(BitExAPIAdapter):
     def withdraw(self, *args, **kwargs) -> bool:
         if 'tag' in kwargs:
             kwargs.update({'paymentId': kwargs.pop('tag')})
-        return super(PoloniexAPIAdapter, self).withdraw(*args, **kwargs)
+        return super(BittrexAPIAdapter, self).withdraw(*args, **kwargs)
