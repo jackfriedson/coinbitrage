@@ -21,11 +21,10 @@ class HitBtcAPIAdapter(BitExAPIAdapter, SeparateTradingAccountMixin):
 
     @retry_on_exception(Timeout, ServerError)
     def bank_balance(self) -> Dict[str, float]:
-        resp = self._api.private_query('account/balance', method_verb='GET')
-        resp.raise_for_status()
+        resp = self._wrap(self._api.private_query)('account/balance', method_verb='GET')
         return {
             self.formatter.format(val['currency'], inverse=True): float(val['available'])
-            for val in resp.json()
+            for val in resp
         }
 
     @retry_on_exception(Timeout, ServerError)

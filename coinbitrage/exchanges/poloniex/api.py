@@ -23,11 +23,12 @@ class PoloniexAPIAdapter(BitExAPIAdapter):
         super(PoloniexAPIAdapter, self).__init__(name, key_file)
         self._fee = None
 
+    @retry_on_exception(ServerError, Timeout)
     def fee(self,
             base_currency: str,
             quote_currency: str = Defaults.QUOTE_CURRENCY) -> float:
         if not self._fee:
-            self._fee = float(self._api.fees().json()['takerFee'])
+            self._fee = float(self._wrap(self._api.fees)()['takerFee'])
         return self._fee
 
     def deposit_address(self, currency: str) -> dict:
@@ -39,10 +40,8 @@ class PoloniexAPIAdapter(BitExAPIAdapter):
     @retry_on_exception(ServerError, Timeout)
     def _generate_new_address(self, currency: str) -> str:
         params = {'currency': currency, 'command': 'generateNewAddress'}
-        resp = self._api.private_query('tradingApi', params=params)
-        resp.raise_for_status()
-        self.raise_for_exchange_error(resp.json())
-        return {'address': resp.json()['response']}
+        resp = self._wrap(self._api.private_query)('tradingApi', params=params)
+        return {'address': resp['response']}
 
     def withdraw(self, *args, **kwargs) -> bool:
         if 'tag' in kwargs:
@@ -59,8 +58,8 @@ class PoloniexAPIAdapter(BitExAPIAdapter):
 
     @retry_on_exception(ServerError, Timeout)
     def pairs(self):
-        resp = self._api.ticker(None)
-        return resp.json().keys()
+        resp = self._wrap(self._api.ticker, format_resp=False)(None)
+        return resp.keys()
 
     @retry_on_exception(ServerError, Timeout)
     def order(self, order_id: str) -> Optional[dict]:

@@ -24,7 +24,7 @@ class BaseExchangeAPI(object):
     def __init__(self, name: str):
         self.name = name
 
-    def _wrap(self, func):
+    def _wrap(self, func, format_resp: bool = True):
         @wraps(func)
         def wrapped(*args, **kwargs):
             args = tuple([format_float(a, self.float_precision) for a in args])
@@ -59,8 +59,11 @@ class BaseExchangeAPI(object):
 
             resp_data = resp.json()
             self.raise_for_exchange_error(resp_data)
-            formatter = getattr(self.formatter, func.__name__)
-            return formatter(resp.formatted) if resp.formatted else formatter(resp_data)
+            if format_resp:
+                formatter = getattr(self.formatter, func.__name__)
+                return formatter(resp.formatted) if resp.formatted else formatter(resp_data)
+            else:
+                return resp_data
         return wrapped
 
     def deposit_address(self, currency: str) -> dict:
