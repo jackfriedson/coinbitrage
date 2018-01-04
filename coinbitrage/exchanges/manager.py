@@ -79,8 +79,8 @@ class ExchangeManager(object):
     def manage_balances(self):
         self._pre_distribute_step()
         self.update_trading_balances()
-        for currency in self.base_currencies:
-            self._redistribute_base(currency)
+        # for currency in self.base_currencies:
+        #     self._redistribute_base(currency)
         # self._redistribute_quote()
         self.update_trading_balances()
         self._pre_trading_step()

@@ -30,7 +30,8 @@ def run(**kwargs):
 @click.option('--base-currency', type=list, default=Defaults.BASE_CURRENCIES)
 @click.option('--quote-currency', type=click.Choice(CURRENCIES.keys()), default=Defaults.QUOTE_CURRENCY)
 def shell(base_currency, quote_currency):
-    coin_shell = CoinbitrageShell(EXCHANGES, base_currency, quote_currency)
+    exchgs = EXCHANGES + ['kraken']
+    coin_shell = CoinbitrageShell(exchgs, base_currency, quote_currency)
     coin_shell.cmdloop()
 
 
