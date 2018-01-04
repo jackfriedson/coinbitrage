@@ -171,7 +171,7 @@ class ArbitrageEngine(object):
                         net_pct_profit: float,
                         **kwargs) -> bool:
         if buy_exchange == 'kraken':
-            return net_pct_profit > 0.
+            return net_pct_profit > 0.0005
 
         return net_pct_profit >= self._min_profit_threshold
 

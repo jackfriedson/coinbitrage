@@ -4,7 +4,7 @@ from pathlib import Path
 API_KEY_DIR = Path.home()/'.api_keys'
 
 
-EXCHANGES = ['bittrex', 'hitbtc', 'kraken', 'poloniex']
+EXCHANGES = ['bittrex', 'hitbtc', 'poloniex']
 
 CURRENCIES = {
     'BTC': {
@@ -34,7 +34,7 @@ CURRENCIES = {
 class Defaults(object):
     BASE_CURRENCIES = ['XRP', 'LTC', 'ETH']
     FILL_ORDER_TIMEOUT = 120
-    HTTP_TIMEOUT = 10
+    HTTP_TIMEOUT = 15
     ORDER_FEE = 0.0025
     ORDER_PRECISION = 0.003
     PLACE_ORDER_TIMEOUT = 60

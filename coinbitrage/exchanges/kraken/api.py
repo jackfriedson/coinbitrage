@@ -66,7 +66,7 @@ class KrakenAPIAdapter(BitExAPIAdapter):
                     error_cls = self._error_cls_map[category]
                     raise error_cls(error_msg)
 
-    @retry_on_exception(ConnectTimeout)
+    @retry_on_exception(ServerError, ConnectTimeout)
     def limit_order(self,
                     base_currency: str,
                     side: str,
