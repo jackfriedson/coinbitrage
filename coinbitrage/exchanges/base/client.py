@@ -11,17 +11,12 @@ class BaseExchangeClient(object):
 
     def __init__(self, key_file: str, **kwargs):
         self.api = self._api_class(self.name, key_file, **kwargs)
+        self.breaker_tripped = None
         self.supported_pairs = []
         self.currency_info = {}
 
     def __getattr__(self, name):
         return getattr(self.api, name)
-
-    def bid(self, currency: str):
-        return self.bid_ask(currency).get('bid')
-
-    def ask(self, currency: str):
-        return self.bid_ask(currency).get('ask')
 
     def get_funds_from(self, from_exchange, currency: str, amount: float) -> bool:
         addr_info = self.api.deposit_address(currency)
@@ -38,6 +33,9 @@ class BaseExchangeClient(object):
                         event_name='exchange_api.transfer.failure', event_data=event_data)
 
         return result
+
+    def trip_circuit_breaker(self):
+        self.breaker_tripped = time.time()
 
     def supports_pair(self, base_currency: str, quote_currency: str) -> bool:
         pair = self.api.formatter.pair(base_currency, quote_currency)

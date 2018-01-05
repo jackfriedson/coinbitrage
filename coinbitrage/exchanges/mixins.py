@@ -19,13 +19,26 @@ def format_bid_ask(bid_ask: Dict[str, float]) -> Dict[str, str]:
     return {k: '{:.6f}'.format(v) for k, v in bid_ask.items()}
 
 
-class LiveUpdateMixin(ABC):
+class LiveUpdateMixin(object):
 
-    def start_live_updates(self, base_currency: Union[str, List[str]], quote_currency: str = Defaults.QUOTE_CURRENCY):
-        pass
+    def start_live_updates(self,
+                           base_currency: Union[str, List[str]],
+                           quote_currency: str = Defaults.QUOTE_CURRENCY):
+        raise NotImplementedError
 
     def stop_live_updates(self):
-        pass
+        raise NotImplementedError
+
+    def bid_ask(self,
+                base_currency: str,
+                quote_currency: str = Defaults.QUOTE_CURRENCY):
+        raise NotImplementedError
+
+    def bid(self, currency: str):
+        return self.bid_ask(currency).get('bid')
+
+    def ask(self, currency: str):
+        return self.bid_ask(currency).get('ask')
 
 
 class WebsocketMixin(LiveUpdateMixin):

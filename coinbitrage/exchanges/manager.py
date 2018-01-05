@@ -76,6 +76,10 @@ class ExchangeManager(object):
     def names(self):
         return self._clients.keys()
 
+    @property
+    def exchanges(self):
+        return list(filter(lambda x: not x.breaker_tripped, self._clients.values()))
+
     def manage_balances(self):
         self._pre_distribute_step()
         self.update_trading_balances()
@@ -96,7 +100,7 @@ class ExchangeManager(object):
             updated_recently = bid_ask['time'] and bid_ask['time'] > time.time() - MAX_REFRESH_DELAY
             return all([supports_pair, min_balance, has_price, updated_recently])
 
-        return filter(buy_exchange_filter, self._clients.values())
+        return filter(buy_exchange_filter, self.exchanges)
 
     def valid_sells(self, base_currency: str):
         def sell_exchange_filter(exchange):
@@ -107,7 +111,7 @@ class ExchangeManager(object):
             updated_recently = bid_ask['time'] and bid_ask['time'] > time.time() - MAX_REFRESH_DELAY
             return all([supports_pair, min_balance, has_price, updated_recently])
 
-        return filter(sell_exchange_filter, self._clients.values())
+        return filter(sell_exchange_filter, self.exchanges)
 
     def add_order(self, side: str, exchange_name: str):
         self._order_history[side].append({'exchange': exchange_name, 'time': time.time()})
@@ -126,11 +130,11 @@ class ExchangeManager(object):
         """A context manager for opening and closing resources associated with
         exchanges."""
         try:
-            for exchange in self._clients.values():
+            for exchange in self.exchanges:
                 exchange.start_live_updates(self.base_currencies, self.quote_currency)
             yield
         finally:
-            for exchange in self._clients.values():
+            for exchange in self.exchanges:
                 exchange.stop_live_updates()
 
     def _pre_distribute_step(self):
@@ -141,7 +145,7 @@ class ExchangeManager(object):
 
     def _transfer_to_trading_accounts(self):
         filtered_exchanges = list(filter(lambda x: isinstance(x.api, SeparateTradingAccountMixin),
-                                         self._clients.values()))
+                                         self.exchanges))
 
         def bank_to_trading(exchange):
             for currency in self.all_currencies:
@@ -157,7 +161,7 @@ class ExchangeManager(object):
 
     def _exchange_proxy_currencies(self):
         filtered_exchanges = list(filter(lambda x: isinstance(x.api, ProxyCurrencyWrapper),
-                                         self._clients.values()))
+                                         self.exchanges))
 
         futures = [
             self._loop.run_in_executor(None, exchg.proxy_to_quote) for exchg in filtered_exchanges
@@ -170,10 +174,10 @@ class ExchangeManager(object):
             return
         target_bal = total_bal / len(self._clients)
 
-        if not all(x.bid(currency) for x in self._clients.values()):
+        if not all(x.bid(currency) for x in self.exchanges):
             return
 
-        best_price = max(self._clients.values(), key=lambda x: x.bid(currency))
+        best_price = max(self.exchanges, key=lambda x: x.bid(currency))
         lo_bal = self._balances[best_price.name].get(currency, 0.)
         # TODO: Use best history once we have enough data
 
@@ -224,16 +228,16 @@ class ExchangeManager(object):
 
         best_price_counts = defaultdict(int)
         for base in self.base_currencies:
-            best_exchg = min(self._clients.values(), key=lambda x: x.ask(base))
+            best_exchg = min(self.exchanges, key=lambda x: x.ask(base))
             best_price_counts[best_exchg.name] += 1
 
         best_exchg_name, _ = max(best_price_counts.items(), key=lambda x: x[1])
         transfer_to_exchg = self.get(best_exchg_name)
 
-        # if not all([x.ask() for x in self._clients.values()]):
+        # if not all([x.ask() for x in self.exchanges]):
         #     return
 
-        # best_price = min(self._clients.values(), key=lambda x: x.ask())
+        # best_price = min(self.exchanges, key=lambda x: x.ask())
         # # TODO: Use best history once we have enough data
 
         # hi_bal_name, hi_bal = max(self._balances.items(), key=lambda x: x[1][self.quote_currency])
@@ -256,7 +260,7 @@ class ExchangeManager(object):
         with ThreadPoolExecutor(max_workers=len(self._clients)) as executor:
             futures = [
                 self._loop.run_in_executor(executor, get_balance, exchg)
-                for exchg in self._clients.values()
+                for exchg in self.exchanges
             ]
             results = self._loop.run_until_complete(asyncio.gather(*futures))
 
