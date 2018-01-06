@@ -41,7 +41,9 @@ class ArbitrageEngine(object):
         self._min_profit_threshold = min_profit
 
     def run(self):
-        """Runs the program."""
+        """Runs the arbitrage strategy in a loop, checking at each iteration whether there is an
+         opportunity to profit. Every few minutes it will perform other tasks such as rebalancing
+         funds between exchanges or printing the current arbitrage table to stdout."""
         manage_balances = RunEvery(self._exchanges.manage_balances, delay=REBALANCE_FUNDS_EVERY)
         print_table = RunEvery(self._print_arbitrage_table, delay=PRINT_TABLE_EVERY)
 
@@ -59,6 +61,8 @@ class ArbitrageEngine(object):
                 self._loop.close()
 
     def _print_arbitrage_table(self):
+        """Print the current arbitrage table to stdout."""
+
         # TODO: keep track of actual arbitrage values and just print those, instead of
         # doing a separate computation here
 
@@ -71,6 +75,20 @@ class ArbitrageEngine(object):
                 print(table)
                 print()
 
+    def _attempt_arbitrage(self):
+        """Finds the best arbitrage opportunity given the current prices and exchange fees, and
+        executes the necessary trades if the expected profit exceeds the mininmum required value.
+        """
+        for currency in self.base_currencies:
+            opportunity = self._find_best_arbitrage_opportunity(currency)
+            if not opportunity:
+                return
+
+            if self._should_execute(**opportunity):
+                self._execute_arbitrage(**opportunity)
+
+            # log.debug('', event_name='arbitrage.debug', event_data=opportunity)
+
     def _find_best_arbitrage_opportunity(self, base_currency: str):
         best_opportunity = None
 
@@ -82,7 +100,7 @@ class ArbitrageEngine(object):
             buy_price = buy_exchange.ask(base_currency) * (1 + Defaults.ORDER_PRECISION)
             sell_price = sell_exchange.bid(base_currency) * (1 - Defaults.ORDER_PRECISION)
 
-            # TODO: move this somewhere better
+            # TODO: move this somewhere that makes more sense
             if base_currency in ['ETH', 'LTC']:
                 if buy_exchange.name == 'kraken':
                     buy_price = float(format_float(buy_price, 2))
@@ -117,7 +135,6 @@ class ArbitrageEngine(object):
             gross_profit = gross_percent_profit * buy_price * order_size
 
             buy_tx_fee = buy_exchange.tx_fee(base_currency) * buy_price
-            # sell_tx_fee = sell_exchange.tx_fee(self.quote_currency)
             sell_tx_fee = 0.
             total_tx_fee = buy_tx_fee + sell_tx_fee
 
@@ -126,7 +143,7 @@ class ArbitrageEngine(object):
             net_pct_profit = net_profit / (buy_price * order_size)
 
             if best_opportunity is None or net_profit > best_opportunity['net_profit']:
-                # Mostly for logging/debugging
+                # A lot of this info is for logging/debugging
                 best_opportunity = {
                     'base_currency': base_currency,
                     'quote_currency': self.quote_currency,
@@ -150,20 +167,6 @@ class ArbitrageEngine(object):
                 }
 
         return best_opportunity
-
-    def _attempt_arbitrage(self):
-        """Checks the arbitrage table to determine if there is an opportunity to profit,
-        and if so executes the corresponding trades.
-        """
-        for currency in self.base_currencies:
-            opportunity = self._find_best_arbitrage_opportunity(currency)
-            if not opportunity:
-                return
-
-            if self._should_execute(**opportunity):
-                self._execute_arbitrage(**opportunity)
-
-            # log.debug('', event_name='arbitrage.debug', event_data=opportunity)
 
     def _should_execute(self,
                         buy_exchange: str,
@@ -204,11 +207,12 @@ class ArbitrageEngine(object):
             self._exchanges.tx_credits += total_tx_fee
             self._exchanges.update_trading_balances()
 
-    def _arbitrage_profit_loss(self, buy_exchange, sell_exchange, base_currency) -> Optional[float]:
+    def _arbitrage_profit_loss(self, buy_exchange, sell_exchange, base_currency: str) -> Optional[float]:
         """Calculates the profit/loss of buying at one exchange and selling at another.
 
         :param buy_exchange: the exchange to buy from
         :param sell_exchange: the exchange to sell to
+        :param base_currency: the currency to buy/sell
         """
         buy_ask = buy_exchange.ask(base_currency)
         sell_bid = sell_exchange.bid(base_currency)
@@ -226,11 +230,15 @@ class ArbitrageEngine(object):
                       buy_price: float,
                       sell_price: float,
                       order_volume: float) -> bool:
-        """Places buy and sell orders at the corresponding exchanges.
+        """Places the buy and sell orders at the corresponding exchanges.
 
-        :param buy_exchange: The name of the exchange to buy from
-        :param sell_exchange: The name of the excahnge to sell at
-        :param expected_profit: The percent profit that can be expected
+        :param base_currency: the currency to buy/sell
+        :param quote_currency: the currency that the price is denominated in
+        :param buy_exchange: the exchange to buy from
+        :param sell_exchange: the exchange to sell at
+        :param buy_price: the price of the limit buy order
+        :param sell_price: the price of the limit sell order
+        :param order_volume: the size (in units of base currency) of both orders
         """
 
         def place_order(exchange, *args, **kwargs):
@@ -243,6 +251,7 @@ class ArbitrageEngine(object):
         buy_order = partial(place_order, buy_exchange, base_currency, 'buy', buy_price, order_volume, quote_currency=quote_currency)
         sell_order = partial(place_order, sell_exchange, base_currency, 'sell', sell_price, order_volume, quote_currency=quote_currency)
 
+        # place orders asynchronously to avoid missing the target price
         with ThreadPoolExecutor(max_workers=2) as executor:
             futures = [
                 self._loop.run_in_executor(executor, buy_order),
@@ -255,7 +264,7 @@ class ArbitrageEngine(object):
                      event_data={'buy_order': buy_resp, 'sell_order': sell_resp})
             return True
         elif buy_resp or sell_resp:
-            # Check if order went through despite returning an error
+            # Check if order went through despite exchange returning an error
             last_totals = copy.deepcopy(self._exchanges.totals())
             self._exchanges.update_trading_balances()
             current_totals = self._exchanges.totals()
