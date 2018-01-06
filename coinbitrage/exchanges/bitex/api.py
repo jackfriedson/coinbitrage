@@ -1,6 +1,6 @@
 import time
 from functools import wraps
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import asyncio
 from requests.exceptions import HTTPError, ConnectTimeout, RequestException, ReadTimeout, Timeout
@@ -30,14 +30,12 @@ class BitExAPIAdapter(BaseExchangeAPI):
         attr = getattr(self._api, name)
         if not callable(attr):
             return attr
-        return retry_on_exception(ServerError, ConnectTimeout)(self._wrapped_bitex_method(name))
+        return retry_on_exception(ServerError, ConnectTimeout)(self._wrap(attr))
 
-    # TODO: move most of this logic to BaseExchangeAPI
-    def _wrapped_bitex_method(self, method_name: str):
-        method = getattr(self._api, method_name)
-
-        @wraps(method)
+    def _wrap(self, func: Callable[[Any], Any], format_resp: bool = True) -> Any:
+        @wraps(func)
         def wrapper(*args, **kwargs):
+            # Format args as expected by Bitex
             if 'quote_currency' in kwargs and args:
                 base = args[0]
                 quote = kwargs.pop('quote_currency')
@@ -46,8 +44,7 @@ class BitExAPIAdapter(BaseExchangeAPI):
             elif 'currency' in kwargs:
                 currency = kwargs.pop('currency')
                 kwargs['currency'] = self.formatter.format(currency)
-
-            return self._wrap(method)(*args, **kwargs)
+            return super(BitExAPIAdapter, self)._wrap(func, format_resp=format_resp)(*args, **kwargs)
         return wrapper
 
     @retry_on_exception(ServerError, ConnectTimeout)
@@ -61,7 +58,7 @@ class BitExAPIAdapter(BaseExchangeAPI):
         event_data = {'exchange': self.name, 'side': side, 'volume': volume, 'price': price,
                       'base': base_currency, 'quote': quote_currency}
 
-        order_fn = self._wrapped_bitex_method('bid' if side == 'buy' else 'ask')
+        order_fn = self._wrap(self._api.bid if side == 'buy' else self._api.ask)
         kwargs.setdefault('timeout', Defaults.PLACE_ORDER_TIMEOUT)
         result = order_fn(base_currency, price, volume, quote_currency=quote_currency, **kwargs)
 
@@ -77,24 +74,24 @@ class BitExAPIAdapter(BaseExchangeAPI):
 
     @retry_on_exception(ServerError, Timeout)
     def ticker(self, base_currency: str, quote_currency: str = Defaults.QUOTE_CURRENCY):
-        return self._wrapped_bitex_method('ticker')(base_currency, quote_currency=quote_currency)
+        return self._wrap(self._api.ticker)(base_currency, quote_currency=quote_currency)
 
     @retry_on_exception(ServerError, Timeout)
     def balance(self):
-        return self._wrapped_bitex_method('balance')()
+        return self._wrap(self._api.balance)()
 
     @retry_on_exception(ServerError, Timeout)
     def deposit_address(self, currency: str, **kwargs) -> dict:
-        return self._wrapped_bitex_method('deposit_address')(currency=currency, **kwargs)
+        return self._wrap(self._api.deposit_address)(currency=currency, **kwargs)
 
     @retry_on_exception(ServerError, Timeout)
     def order(self, order_id: str) -> Optional[dict]:
-        return self._wrapped_bitex_method('order')(order_id)
+        return self._wrap(self._api.order)(order_id)
 
     @retry_on_exception(ServerError, ConnectTimeout)
     def withdraw(self, currency: str, address: str, amount: float, **kwargs) -> bool:
         event_data = {'exchange': self.name, 'amount': amount, 'currency': currency}
-        result = self._wrapped_bitex_method('withdraw')(amount, address, currency=currency, **kwargs)
+        result = self._wrap(self._api.withdraw)(amount, address, currency=currency, **kwargs)
         if result:
             event_data.update(result)
             log.info('Withdrew {amount} {currency} from {exchange}', event_data=event_data,
@@ -104,25 +101,3 @@ class BitExAPIAdapter(BaseExchangeAPI):
                         event_name='exchange_api.withdraw.failure')
         return result
 
-    def wait_for_fill(self, order_id: str, sleep: int = 3, timeout: int = Defaults.FILL_ORDER_TIMEOUT) -> Optional[dict]:
-        if not order_id:
-            return None
-
-        start_time = time.time()
-        while time.time() < start_time + timeout:
-            order_info = self.order(order_id)
-            if order_info and not order_info['is_open']:
-                log.info('{exchange} order {order_id} closed', event_name='order.fill.success',
-                         event_data={'exchange': self.name, 'order_id': order_id,
-                                     'order_info': order_info})
-                return order_info
-
-            time.sleep(sleep)
-
-        log.warning('Timed out waiting for order {order_id} to fill after {timeout} seconds',
-                    event_name='order.fill.timeout',
-                    event_data={'exchange': self.name, 'order_id': order_id, 'timeout': timeout})
-        return None
-
-    def raise_for_exchange_error(self, response_data: dict):
-        pass

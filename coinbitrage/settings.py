@@ -7,27 +7,13 @@ API_KEY_DIR = Path.home()/'.api_keys'
 EXCHANGES = ['bittrex', 'hitbtc', 'poloniex']
 
 CURRENCIES = {
-    'BTC': {
-        'order_size': 0.0017,
-    },
-    'ETH': {
-        'order_size': 0.05,
-    },
-    'LTC': {
-        'order_size': 0.16,
-    },
-    'BCH': {
-        'order_size': 0.019,
-    },
-    'USDT': {
-        'order_size': 10,
-    },
-    'USD': {
-        'order_size': 10,
-    },
-    'XRP': {
-        'order_size': 5,
-    }
+    'BCH': {'order_size': 0.019,},
+    'BTC': {'order_size': 0.0017,},
+    'ETH': {'order_size': 0.05,},
+    'LTC': {'order_size': 0.16,},
+    'USDT': {'order_size': 10,},
+    'USD': {'order_size': 10,},
+    'XRP': {'order_size': 5,}
 }
 
 

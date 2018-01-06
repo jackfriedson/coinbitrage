@@ -63,8 +63,8 @@ class PoloniexAPIAdapter(BitExAPIAdapter):
 
     @retry_on_exception(ServerError, Timeout)
     def order(self, order_id: str) -> Optional[dict]:
-        order = self._wrapped_bitex_method('orders')().get(order_id)
+        order = self._wrap(self._api.orders)().get(order_id)
         if order is None:
-            order = self._wrapped_bitex_method('order_trades')(order_id)
+            order = self._wrap(self._api.order_trades)(order_id)
             order['is_open'] = False
         return order

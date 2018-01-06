@@ -44,7 +44,7 @@ class HitBtcAPIAdapter(BitExAPIAdapter, SeparateTradingAccountMixin):
 
     @retry_on_exception(ServerError, Timeout)
     def order(self, order_id: str) -> Optional[dict]:
-        orders = self._wrapped_bitex_method('order_history')()
+        orders = self._wrap(self._api.order_history)()
         target_order = list(filter(lambda x: x['id'] == order_id, orders))
         return target_order[0] if target_order else None
 

@@ -1,5 +1,5 @@
 from functools import wraps
-from typing import Optional, Tuple
+from typing import Any, Callable, Optional, Tuple
 
 from requests.exceptions import HTTPError, RequestException
 
@@ -24,7 +24,12 @@ class BaseExchangeAPI(object):
     def __init__(self, name: str):
         self.name = name
 
-    def _wrap(self, func, format_resp: bool = True):
+    def _wrap(self, func: Callable[[Any], Any], format_resp: bool = True) -> Any:
+        """Wraps the given API function call in order to add logging, error handling, and formatting.
+
+        :param func: the function to wrap
+        :param format_resp: if set to false, the response is not formatted at all and just the parsed JSON is returned
+        """
         @wraps(func)
         def wrapped(*args, **kwargs):
             args = tuple([format_float(a, self.float_precision) for a in args])
@@ -59,12 +64,50 @@ class BaseExchangeAPI(object):
 
             resp_data = resp.json()
             self.raise_for_exchange_error(resp_data)
+
+            # Return formatted response
             if format_resp:
                 formatter = getattr(self.formatter, func.__name__)
                 return formatter(resp.formatted) if resp.formatted else formatter(resp_data)
-            else:
-                return resp_data
+
+            # Return parsed JSON
+            return resp_data
         return wrapped
+
+    def wait_for_fill(self, order_id: str, sleep: int = 3, timeout: int = Defaults.FILL_ORDER_TIMEOUT) -> Optional[dict]:
+        """Wait for the order with the given ID to be filled and return the complete order data, or return None
+        if it hasn't filled within `timeout` seconds.
+
+        :param order_id: the ID of the order to wait for
+        :param sleep: the number of seconds to wait between checks
+        :param timeout: the number of seconds to wait before giving up and returning None
+        """
+        if not order_id:
+            return None
+
+        start_time = time.time()
+        while time.time() < start_time + timeout:
+            order_info = self.order(order_id)
+            if order_info and not order_info['is_open']:
+                log.info('{exchange} order {order_id} closed', event_name='order.fill.success',
+                         event_data={'exchange': self.name, 'order_id': order_id,
+                                     'order_info': order_info})
+                return order_info
+
+            time.sleep(sleep)
+
+        log.warning('Timed out waiting for order {order_id} to fill after {timeout} seconds',
+                    event_name='order.fill.timeout',
+                    event_data={'exchange': self.name, 'order_id': order_id, 'timeout': timeout})
+        return None
+
+    def raise_for_exchange_error(self, resp_data: dict):
+        pass
+
+    #  Must override following methods in subclasses
+
+    def ticker(self, base_currency: str, quote_currency: str = Defaults.QUOTE_CURRENCY):
+        raise NotImplementedError
 
     def deposit_address(self, currency: str) -> dict:
         raise NotImplementedError
@@ -84,5 +127,5 @@ class BaseExchangeAPI(object):
                     **kwargs) -> Optional[str]:
         raise NotImplementedError
 
-    async def wait_for_fill(self, order_id: str, sleep: int = 1, timeout: int = 60, do_async: bool = False):
+    def order(self, order_id: str) -> Optional[dict]:
         raise NotImplementedError

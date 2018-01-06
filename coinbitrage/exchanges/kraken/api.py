@@ -77,7 +77,7 @@ class KrakenAPIAdapter(BitExAPIAdapter):
         event_data = {'exchange': self.name, 'side': side, 'volume': volume, 'price': price,
                       'base': base_currency, 'quote': quote_currency}
 
-        order_fn = self._wrapped_bitex_method('bid' if side == 'buy' else 'ask')
+        order_fn = self._wrap(self._api.bid if side == 'buy' else self._api.ask)
         kwargs.setdefault('timeout', Defaults.PLACE_ORDER_TIMEOUT)
         result = order_fn(base_currency, price, volume, quote_currency=quote_currency, **kwargs)
 
@@ -93,9 +93,9 @@ class KrakenAPIAdapter(BitExAPIAdapter):
 
     @retry_on_exception(ServerError, Timeout)
     def order(self, order_id: str) -> Optional[dict]:
-        order = self._wrapped_bitex_method('closed_orders')().get(order_id)
+        order = self._wrap(self._api.closed_orders)().get(order_id)
         if order is None:
-            order = self._wrapped_bitex_method('orders')().get(order_id)
+            order = self._wrap(self._api.orders)().get(order_id)
         return order
 
     def withdraw(self, currency: str, address: str, amount: float, **kwargs) -> bool:
