@@ -1,33 +1,19 @@
 from bitex import Bitfinex
-from bitex.api.WSS import BitfinexWSS
 
-from coinbitrage import settings
-from coinbitrage.exchanges.bitex import BitExAPIAdapter, BitExWSSAdapter
+from coinbitrage import bitlogging
+from coinbitrage.exchanges.bitex import BitExAPIAdapter
+from coinbitrage.settings import Defaults
+from coinbitrage.utils import retry_on_exception
+
+from .formatter import BitfinexFormatter
 
 
-class BitfinexAPIAdapter(BitExAPIAdapter, BitExWSSAdapter):
-    formatters = {
-        'ticker': lambda msg: {
-            'time': msg[2][1],
-            'pair': msg[1],
-            'bid': float(msg[2][0][0]),
-            'ask': float(msg[2][0][2])
-        }
-    }
+log = bitlogging.getLogger(__name__)
 
-    def __init__(self, key_file: str):
-        super(BitfinexAPIAdapter, self).__init__(api=Bitfinex(key_file=key_file), websocket=BitfinexWSS())
 
-    @staticmethod
-    def currency_pair(base_currency: str, quote_currency: str) -> str:
-        return base_currency + quote_currency
+class BitfinexAPIAdapter(BitExAPIAdapter):
+    _api_class = Bitfinex
+    formatter = BitfinexFormatter()
 
-    def subscribe(self,
-                  base_currency: str,
-                  channel: str = 'ticker',
-                  quote_currency: str = settings.DEFAULT_QUOTE_CURRENCY):
-        super(BitfinexAPIAdapter, self).subscribe(base_currency, channel, quote_currency)
-
-        pair = self.currency_pair(base_currency, quote_currency)
-        if channel == 'ticker':
-            self._websocket.ticker(pair)
+    def __init__(self, name: str, key_file: str):
+        super(BitfinexAPIAdapter, self).__init__(name, key_file)

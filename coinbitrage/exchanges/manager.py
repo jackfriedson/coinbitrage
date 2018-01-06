@@ -168,10 +168,15 @@ class ExchangeManager(object):
         filtered_exchanges = filter(lambda x: isinstance(x.api, SeparateTradingAccountMixin), self.exchanges)
 
         def bank_to_trading(exchange):
-            for currency in self.all_currencies:
-                bank_balance = exchange.bank_balance().get(currency, 0.)
-                if bank_balance > 0:
-                    exchange.bank_to_trading(currency, bank_balance)
+            try:
+                bank_balances = exchange.bank_balance()
+            except (ServerError, Timeout) as e:
+                exchange.trip_circuit_breaker((ServerError, Timeout), partial(exchange.bank_balance))
+            else:
+                for currency in self.all_currencies:
+                    bank_balance = bank_balances.get(currency, 0.)
+                    if bank_balance > 0:
+                        exchange.bank_to_trading(currency, bank_balance)
 
         futures = [
             self._loop.run_in_executor(None, bank_to_trading, exchg)
