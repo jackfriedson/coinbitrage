@@ -23,7 +23,7 @@ def balances(obj, update: bool, full: bool):
 @click.command()
 @click.pass_obj
 def manage(obj):
-    obj['exchanges'].manage_balances()
+    obj['exchanges'].manage_exchanges()
 
 
 @click.command()

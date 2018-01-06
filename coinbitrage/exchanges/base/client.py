@@ -1,3 +1,5 @@
+import functools
+
 from coinbitrage import bitlogging
 from coinbitrage.settings import Defaults
 
@@ -11,9 +13,9 @@ class BaseExchangeClient(object):
 
     def __init__(self, key_file: str, **kwargs):
         self.api = self._api_class(self.name, key_file, **kwargs)
-        self.breaker_tripped = None
         self.supported_pairs = []
         self.currency_info = {}
+        self.breaker_tripped = None
 
     def __getattr__(self, name):
         return getattr(self.api, name)
@@ -34,8 +36,15 @@ class BaseExchangeClient(object):
 
         return result
 
-    def trip_circuit_breaker(self):
-        self.breaker_tripped = time.time()
+    def trip_circuit_breaker(self, exc_types, call: functools.partial):
+        log.warning('Circuit breaker tripped by {}', event_name='exchange_api.breaker_tripped',
+                    event_data={'exchange': self.name, 'method': call.func.__name__,
+                                'args': call.args, 'kwargs': call.keywords})
+        self.breaker_tripped = {
+            'time': time.time(),
+            'retry': call,
+            'exc_types': exc_types,
+        }
 
     def supports_pair(self, base_currency: str, quote_currency: str) -> bool:
         pair = self.api.formatter.pair(base_currency, quote_currency)

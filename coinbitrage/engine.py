@@ -44,13 +44,13 @@ class ArbitrageEngine(object):
         """Runs the arbitrage strategy in a loop, checking at each iteration whether there is an
          opportunity to profit. Every few minutes it will perform other tasks such as rebalancing
          funds between exchanges or printing the current arbitrage table to stdout."""
-        manage_balances = RunEvery(self._exchanges.manage_balances, delay=REBALANCE_FUNDS_EVERY)
+        manage_exchanges = RunEvery(self._exchanges.manage_exchanges, delay=REBALANCE_FUNDS_EVERY)
         print_table = RunEvery(self._print_arbitrage_table, delay=PRINT_TABLE_EVERY)
 
         with self._exchanges.live_updates():
             try:
                 while True:
-                    manage_balances()
+                    manage_exchanges()
                     self._attempt_arbitrage()
                     print_table()
             except KeyboardInterrupt:
@@ -93,7 +93,7 @@ class ArbitrageEngine(object):
         best_opportunity = None
 
         # TODO: Prefer exchanges with higher quote currency balances (to increase liquidity)
-        for buy_exchange, sell_exchange in product(self._exchanges.valid_buys(base_currency), self._exchanges.valid_sells(base_currency)):
+        for buy_exchange, sell_exchange in product(self._exchanges.buy_exchanges(base_currency), self._exchanges.sell_exchanges(base_currency)):
             if buy_exchange.name == sell_exchange.name:
                 continue
 
@@ -291,8 +291,8 @@ class ArbitrageEngine(object):
 
         :returns: a dataframe representing the current arbitrage table
         """
-        buy_exchanges = {x.name: x for x in self._exchanges.valid_buys(base_currency)}
-        sell_exchanges = {x.name: x for x in self._exchanges.valid_sells(base_currency)}
+        buy_exchanges = {x.name: x for x in self._exchanges.buy_exchanges(base_currency)}
+        sell_exchanges = {x.name: x for x in self._exchanges.sell_exchanges(base_currency)}
         table = pd.DataFrame(index=buy_exchanges.keys(), columns=sell_exchanges.keys())
 
         for buy_name, buy_exchg in buy_exchanges.items():

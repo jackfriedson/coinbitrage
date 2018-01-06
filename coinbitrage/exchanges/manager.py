@@ -80,7 +80,7 @@ class ExchangeManager(object):
     def exchanges(self):
         return list(filter(lambda x: not x.breaker_tripped, self._clients.values()))
 
-    def manage_balances(self):
+    def manage_exchanges(self):
         self._pre_distribute_step()
         self.update_trading_balances()
         for currency in self.base_currencies:
@@ -91,25 +91,35 @@ class ExchangeManager(object):
         log.info('Total balances: {totals}', event_name='update.total_balances',
                  event_data={'totals': self.totals()})
 
-    def valid_buys(self, base_currency: str):
+    def buy_exchanges(self, base_currency: str):
         def buy_exchange_filter(exchange):
-            supports_pair = exchange.supports_pair(base_currency, self.quote_currency)
             bid_ask = exchange.bid_ask(base_currency)
-            min_balance = self._balances[exchange.name].get(self.quote_currency, 0.) >= CURRENCIES[self.quote_currency]['order_size']
-            has_price = bid_ask['ask'] is not None
-            updated_recently = bid_ask['time'] and bid_ask['time'] > time.time() - MAX_REFRESH_DELAY
-            return all([supports_pair, min_balance, has_price, updated_recently])
+            return all([
+                # Supports this trading pair
+                exchange.supports_pair(base_currency, self.quote_currency),
+                # Balance is above minimum
+                self._balances[exchange.name].get(self.quote_currency, 0.) >= CURRENCIES[self.quote_currency]['order_size'],
+                # Has an ask price
+                bid_ask['ask'] is not None,
+                # Has been updated recently
+                bid_ask['time'] and bid_ask['time'] > time.time() - MAX_REFRESH_DELAY
+            ])
 
         return filter(buy_exchange_filter, self.exchanges)
 
-    def valid_sells(self, base_currency: str):
+    def sell_exchanges(self, base_currency: str):
         def sell_exchange_filter(exchange):
-            supports_pair = exchange.supports_pair(base_currency, self.quote_currency)
             bid_ask = exchange.bid_ask(base_currency)
-            min_balance = self._balances[exchange.name].get(base_currency, 0.) >= CURRENCIES[base_currency]['order_size']
-            has_price = bid_ask['bid'] is not None
-            updated_recently = bid_ask['time'] and bid_ask['time'] > time.time() - MAX_REFRESH_DELAY
-            return all([supports_pair, min_balance, has_price, updated_recently])
+            return all([
+                # Supports this trading pair
+                exchange.supports_pair(base_currency, self.quote_currency),
+                # Balance is above minimum
+                self._balances[exchange.name].get(base_currency, 0.) >= CURRENCIES[base_currency]['order_size'],
+                # Has a bid price
+                bid_ask['bid'] is not None,
+                # Has been updated recently
+                bid_ask['time'] and bid_ask['time'] > time.time() - MAX_REFRESH_DELAY
+            ])
 
         return filter(sell_exchange_filter, self.exchanges)
 
@@ -138,14 +148,24 @@ class ExchangeManager(object):
                 exchange.stop_live_updates()
 
     def _pre_distribute_step(self):
+        self._check_open_circuits()
         self._transfer_to_trading_accounts()
 
     def _pre_trading_step(self):
         self._exchange_proxy_currencies()
 
+    def _check_open_circuits(self):
+        for exchg in self._clients.values():
+            if exchg.breaker_tripped:
+                try:
+                    exchg.breaker_tripped['retry']()
+                except exchg.breaker_tripped['exc_types']:
+                    pass
+                else:
+                    exchg.breaker_tripped = None
+
     def _transfer_to_trading_accounts(self):
-        filtered_exchanges = list(filter(lambda x: isinstance(x.api, SeparateTradingAccountMixin),
-                                         self.exchanges))
+        filtered_exchanges = filter(lambda x: isinstance(x.api, SeparateTradingAccountMixin), self.exchanges)
 
         def bank_to_trading(exchange):
             for currency in self.all_currencies:
@@ -160,12 +180,8 @@ class ExchangeManager(object):
         self._loop.run_until_complete(asyncio.gather(*futures))
 
     def _exchange_proxy_currencies(self):
-        filtered_exchanges = list(filter(lambda x: isinstance(x.api, ProxyCurrencyWrapper),
-                                         self.exchanges))
-
-        futures = [
-            self._loop.run_in_executor(None, exchg.proxy_to_quote) for exchg in filtered_exchanges
-        ]
+        filtered_exchanges = filter(lambda x: isinstance(x.api, ProxyCurrencyWrapper), self.exchanges)
+        futures = [self._loop.run_in_executor(None, exchg.proxy_to_quote) for exchg in filtered_exchanges]
         self._loop.run_until_complete(asyncio.gather(*futures))
 
     def _redistribute_base(self, currency: str):
@@ -258,7 +274,7 @@ class ExchangeManager(object):
             try:
                 return exchange.name, exchange.balance()
             except (ServerError, Timeout) as e:
-                exchange.set_inactive()
+                exchange.trip_circuit_breaker((ServerError, Timeout), partial(exchange.balance))
                 return None
 
         with ThreadPoolExecutor(max_workers=len(self._clients)) as executor:
