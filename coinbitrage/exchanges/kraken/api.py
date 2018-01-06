@@ -100,9 +100,11 @@ class KrakenAPIAdapter(BitExAPIAdapter):
 
     def withdraw(self, currency: str, address: str, amount: float, **kwargs) -> bool:
         key = address
-        if currency == 'XRP' and 'tag' in kwargs:
-            tag = kwargs.pop('tag')
-            key += '-{}'.format(tag)
+        if 'tag' in kwargs:
+            kwargs.update({'paymentId': kwargs.pop('tag')})
+        if currency == 'XRP' and 'paymentId' in kwargs:
+            paymentId = kwargs.pop('paymentId')
+            key += '-{}'.format(paymentId)
         return super(KrakenAPIAdapter, self).withdraw(currency, key, amount, **kwargs)
 
 class KrakenTetherAdapter(ProxyCurrencyWrapper):

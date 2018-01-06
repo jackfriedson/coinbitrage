@@ -255,7 +255,11 @@ class ExchangeManager(object):
 
     def update_trading_balances(self):
         def get_balance(exchange):
-            return exchange.name, exchange.balance()
+            try:
+                return exchange.name, exchange.balance()
+            except (ServerError, Timeout) as e:
+                exchange.set_inactive()
+                return None
 
         with ThreadPoolExecutor(max_workers=len(self._clients)) as executor:
             futures = [
@@ -267,5 +271,5 @@ class ExchangeManager(object):
         self._balances = {
             name: {
                 cur: bal for cur, bal in balances.items()
-            } for name, balances in results
+            } for name, balances in filter(None, results)
         }

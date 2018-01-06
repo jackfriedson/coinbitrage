@@ -50,3 +50,7 @@ class CoinbitrageShell(cmd.Cmd):
             command(args, obj=obj)
         except SystemExit:
             pass
+        except KeyboardInterrupt:
+            return True
+        except Exception as e:
+            print(e)

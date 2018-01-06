@@ -26,7 +26,7 @@ CURRENCIES = {
         'order_size': 10,
     },
     'XRP': {
-        'order_size': 25,
+        'order_size': 5,
     }
 }
 
@@ -38,7 +38,7 @@ class Defaults(object):
     ORDER_FEE = 0.0025
     ORDER_PRECISION = 0.0015
     PLACE_ORDER_TIMEOUT = 60
-    QUOTE_CURRENCY = 'USD'
+    QUOTE_CURRENCY = 'BTC'
     REBALANCE_QUOTE_THRESHOLD = 0.9
     USDT_ASK = 1.01
     USDT_BID = 0.99

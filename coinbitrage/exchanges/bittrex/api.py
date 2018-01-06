@@ -37,7 +37,7 @@ class BittrexAPIAdapter(BitExAPIAdapter):
         if currency == 'XRP':
             addr_info = {
                 'address': self.ripple_address,
-                'tag': addr_info['address']
+                'paymentId': addr_info['address']
             }
         return addr_info
 
