@@ -35,7 +35,7 @@ class HitBtcAPIAdapter(BitExAPIAdapter, SeparateTradingAccountMixin):
             resp = self._wrap(self._api.private_query)('account/transfer', method_verb='POST', params=params)
         except ClientError:
             return False
-        return 'id' in resp.json()
+        return 'id' in resp
 
     def raise_for_exchange_error(self, response_data: dict):
         if isinstance(response_data, dict) and 'error' in response_data:

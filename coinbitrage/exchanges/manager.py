@@ -191,6 +191,8 @@ class ExchangeManager(object):
         self._loop.run_until_complete(asyncio.gather(*futures))
 
     def _redistribute_base(self, currency: str):
+        # TODO: revisit this strategy and determine if it makes sense
+
         total_bal = self.totals().get(currency)
         if not total_bal:
             return
@@ -207,10 +209,13 @@ class ExchangeManager(object):
         hi_bal = balances[currency]
         highest_balance = self.get(hi_bal_name)
 
-        if best_price.name == highest_balance.name:
+        if best_price.name == highest_balance.name or lo_bal >= hi_bal:
             return
 
         transfer_amt = max(hi_bal - target_bal, target_bal - lo_bal)
+
+        if transfer_amt <= CURRENCIES[currency]['min_order_size']:
+            return
 
         tx_fee = highest_balance.tx_fee(currency) * highest_balance.bid(currency)
         if tx_fee > self.tx_credits:
@@ -227,7 +232,6 @@ class ExchangeManager(object):
 
     # TODO: implement redistribution of quote currency only when there is a
     # severe imbalance (and it is possible to rebalance)
-
     def _redistribute_quote(self):
         total_bal = self.totals().get(self.quote_currency)
         if not total_bal:
