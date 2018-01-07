@@ -46,11 +46,11 @@ class HitBtcClient(BaseExchangeClient, PeriodicRefreshMixin):
 
         tx_info = wait_for_transaction(tx_id)
         fees = float(tx_info['fee']) + float(tx_info['networkFee'])
-        if fees > self._tx_fees[currency]:
+        if fees > CURRENCIES[currency]['hitbtc_withdraw_fee']:
             log.warning('HitBTC withdrawal fee ({actual}) higher than expected ({expected})',
                         event_name='hitbtc_api.unexpected_fee',
                         event_data={'exchange': self.name, 'currency': currency, 'actual': fees,
-                                    'expected': self._tx_fees[currency], 'withdrawal_info': tx_info})
+                                    'expected': CURRENCIES[currency]['hitbtc_withdraw_fee'], 'withdrawal_info': tx_info})
             self.api.rollback_withdrawal(tx_id)
             raise ExchangeError('Withdrawal fee higher than expected')
         return self.api.commit_withdrawal(tx_id)
