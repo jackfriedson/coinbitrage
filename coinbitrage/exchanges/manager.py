@@ -44,13 +44,13 @@ class ExchangeManager(object):
     # TODO: implement withdraw-all function to transfer funds (of a particular currency) from all exchanges
     # to a single address
 
-    def _init_clients(self, all_clients: list):
-        with ThreadPoolExecutor(max_workers=len(all_clients)) as executor:
-            futures = [self._loop.run_in_executor(executor, exchg.init) for exchg in all_clients]
+    def _init_clients(self, clients: list):
+        with ThreadPoolExecutor(max_workers=len(clients)) as executor:
+            futures = [self._loop.run_in_executor(executor, exchg.init) for exchg in clients]
             self._loop.run_until_complete(asyncio.gather(*futures))
 
         self._clients = {
-            exchg.name: exchg for exchg in all_clients
+            exchg.name: exchg for exchg in clients
             if any(exchg.supports_pair(base, self.quote_currency) for base in self.base_currencies)
         }
 
@@ -98,7 +98,7 @@ class ExchangeManager(object):
                 # Supports this trading pair
                 exchange.supports_pair(base_currency, self.quote_currency),
                 # Balance is above minimum
-                self._balances[exchange.name].get(self.quote_currency, 0.) >= CURRENCIES[self.quote_currency]['order_size'],
+                self._balances[exchange.name].get(self.quote_currency, 0.) >= CURRENCIES[self.quote_currency]['min_order_size'],
                 # Has an ask price
                 bid_ask['ask'] is not None,
                 # Has been updated recently
@@ -114,7 +114,7 @@ class ExchangeManager(object):
                 # Supports this trading pair
                 exchange.supports_pair(base_currency, self.quote_currency),
                 # Balance is above minimum
-                self._balances[exchange.name].get(base_currency, 0.) >= CURRENCIES[base_currency]['order_size'],
+                self._balances[exchange.name].get(base_currency, 0.) >= CURRENCIES[base_currency]['min_order_size'],
                 # Has a bid price
                 bid_ask['bid'] is not None,
                 # Has been updated recently

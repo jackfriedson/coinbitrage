@@ -128,7 +128,7 @@ class ArbitrageEngine(object):
             else:
                 order_size -= sell_fee / sell_price
 
-            if order_size < CURRENCIES[base_currency]['order_size']:
+            if order_size < CURRENCIES[base_currency]['min_order_size']:
                 continue
 
             gross_percent_profit = (sell_price / buy_price) - 1

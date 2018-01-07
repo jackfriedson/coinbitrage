@@ -10,7 +10,7 @@ class BitfinexClient(BaseExchangeClient, PeriodicRefreshMixin):
 
     def __init__(self, key_file: str):
         BaseExchangeClient.__init__(self, key_file)
-        PeriodicRefreshMixin.__init__(self, 1)
+        PeriodicRefreshMixin.__init__(self, 2)
 
     def init(self):
         raise NotImplementedError

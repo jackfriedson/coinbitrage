@@ -1,6 +1,7 @@
 from coinbitrage import settings
 
 from .bitstamp import BitstampClient as Bitstamp
+from .bitfinex import BitfinexClient as Bitfinex
 from .bittrex import BittrexClient as Bittrex
 from .coinbase import CoinbaseClient as Coinbase
 from .hitbtc import HitBtcClient as HitBtc
@@ -9,6 +10,7 @@ from .poloniex import PoloniexClient as Poloniex
 
 
 _exchange_map = {
+    'bitfinex': Bitfinex,
     'bitstamp': Bitstamp,
     'bittrex': Bittrex,
     'coinbase': Coinbase,

@@ -7,18 +7,47 @@ API_KEY_DIR = Path.home()/'.api_keys'
 EXCHANGES = ['bittrex', 'hitbtc', 'poloniex']
 
 CURRENCIES = {
-    'BCH': {'order_size': 0.019,},
-    'BTC': {'order_size': 0.0017,},
-    'ETH': {'order_size': 0.05,},
-    'LTC': {'order_size': 0.16,},
-    'USDT': {'order_size': 10,},
-    'USD': {'order_size': 10,},
-    'XRP': {'order_size': 5,}
+    'BCH': {
+        'hitbtc_withdraw_fee': 0.002,
+        'min_order_size': 0.019,
+    },
+    'BTC': {
+        'hitbtc_withdraw_fee': 0.001,
+        'min_order_size': 0.0017,
+    },
+    'ETH': {
+        'hitbtc_withdraw_fee': 0.01,
+        'min_order_size': 0.05,
+    },
+    'LTC': {
+        'hitbtc_withdraw_fee': 0.003,
+        'min_order_size': 0.16,
+    },
+    'LSK': {
+        'hitbtc_withdraw_fee': 0.3,
+        'min_order_size': 0.4,
+    },
+    'SC': {
+        'hitbtc_withdraw_fee': 30.,
+        'min_order_size': 100.,
+    },
+    'USDT': {
+        'hitbtc_withdraw_fee': 100.,
+        'min_order_size': 10,
+    },
+    'USD': {
+        'hitbtc_withdraw_fee': 100.,
+        'min_order_size': 10,
+    },
+    'XRP': {
+        'hitbtc_withdraw_fee': 0.05,
+        'min_order_size': 5,
+    }
 }
 
 
 class Defaults(object):
-    BASE_CURRENCIES = ['XRP', 'LTC', 'ETH']
+    BASE_CURRENCIES = ['XRP', 'LTC']
     FILL_ORDER_TIMEOUT = 120
     HTTP_TIMEOUT = 15
     MIN_PROFIT = 0.

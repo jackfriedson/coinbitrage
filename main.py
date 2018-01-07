@@ -42,4 +42,5 @@ def pdb():
     coinbase = get_exchange('coinbase')
     bittrex = get_exchange('bittrex')
     poloniex = get_exchange('poloniex')
+    bitfinex = get_exchange('bitfinex')
     import ipdb; ipdb.set_trace()

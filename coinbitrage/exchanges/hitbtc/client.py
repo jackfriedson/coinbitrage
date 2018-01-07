@@ -4,6 +4,7 @@ from coinbitrage import bitlogging
 from coinbitrage.exchanges.base import BaseExchangeClient
 from coinbitrage.exchanges.errors import ClientError
 from coinbitrage.exchanges.mixins import PeriodicRefreshMixin
+from coinbitrage.settings import CURRENCIES
 from coinbitrage.utils import retry_on_exception
 
 from .api import HitBtcAPIAdapter
@@ -15,14 +16,6 @@ log = bitlogging.getLogger(__name__)
 class HitBtcClient(BaseExchangeClient, PeriodicRefreshMixin):
     name = 'hitbtc'
     _api_class = HitBtcAPIAdapter
-    _tx_fees = {
-        'BCH': 0.002,
-        'BTC': 0.001,
-        'ETH': 0.01,
-        'LTC': 0.003,
-        'USDT': 100.,
-        'XRP': 0.05,
-    }
 
     def __init__(self, key_file: str):
         BaseExchangeClient.__init__(self, key_file)
@@ -38,7 +31,7 @@ class HitBtcClient(BaseExchangeClient, PeriodicRefreshMixin):
         }
 
     def tx_fee(self, currency: str) -> float:
-        return self._tx_fees[currency]
+        return CURRENCIES[currency]['hitbtc_withdraw_fee']
 
     def withdraw(self, currency: str, address: str, amount: float, **kwargs) -> bool:
         tx_info = self.api.withdraw(currency, address, amount, autoCommit=False, **kwargs)

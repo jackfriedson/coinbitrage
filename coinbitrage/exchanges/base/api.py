@@ -105,7 +105,7 @@ class BaseExchangeAPI(object):
     def raise_for_exchange_error(self, resp_data: dict):
         pass
 
-    #  Must override following methods in subclasses
+    #  Following methods must be overridden by subclasses
 
     def ticker(self, base_currency: str, quote_currency: str = Defaults.QUOTE_CURRENCY):
         raise NotImplementedError

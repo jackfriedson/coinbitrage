@@ -8,6 +8,7 @@ from coinbitrage.exchanges.bitex import BitExFormatter
 class PoloniexFormatter(BitExFormatter):
     _currency_map = {
         'USD': 'USDT',
+        'XLM': 'STR'
     }
 
     def __init__(self):
