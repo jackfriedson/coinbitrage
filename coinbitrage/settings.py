@@ -9,18 +9,25 @@ EXCHANGES = ['bittrex', 'hitbtc', 'poloniex']
 CURRENCIES = {
     'BCH': {
         'hitbtc_withdraw_fee': 0.002,
+        'kraken_method': 'Bitcoin Cash',
         'min_order_size': 0.019,
     },
     'BTC': {
+        'bitfinex_method': 'bitcoin',
         'hitbtc_withdraw_fee': 0.001,
+        'kraken_method': 'Bitcoin',
         'min_order_size': 0.0017,
     },
     'ETH': {
+        'bitfinex_method': 'ethereum',
         'hitbtc_withdraw_fee': 0.01,
+        'kraken_method': 'Ether (Hex)',
         'min_order_size': 0.05,
     },
     'LTC': {
+        'bitfinex_method': 'litecoin',
         'hitbtc_withdraw_fee': 0.003,
+        'kraken_method': 'Litecoin',
         'min_order_size': 0.16,
     },
     'LSK': {
@@ -32,16 +39,26 @@ CURRENCIES = {
         'min_order_size': 100.,
     },
     'USDT': {
+        'bitfinex_method': 'tetheruso',
         'hitbtc_withdraw_fee': 100.,
+        'kraken_method': 'Tether USD',
         'min_order_size': 10,
     },
     'USD': {
+        'bitfinex_method': 'tetheruso',
         'hitbtc_withdraw_fee': 100.,
         'min_order_size': 10,
     },
     'XRP': {
+        'bitfinex_method': 'ripple',
         'hitbtc_withdraw_fee': 0.05,
+        'kraken_method': 'Ripple XRP',
         'min_order_size': 5,
+    },
+    'ZEC': {
+        'bitfinex_method': 'zcash',
+        'hitbtc_withdraw_fee': 0.0001,
+        'min_order_size': 0.01,
     }
 }
 
@@ -52,7 +69,7 @@ class Defaults(object):
     HTTP_TIMEOUT = 20
     MIN_PROFIT = 0.
     ORDER_FEE = 0.0025
-    ORDER_PRECISION = 0.0025
+    ORDER_PRECISION = 0.003
     PLACE_ORDER_TIMEOUT = 60
     QUOTE_CURRENCY = 'BTC'
     REBALANCE_QUOTE_THRESHOLD = 0.9

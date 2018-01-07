@@ -38,7 +38,7 @@ def totals(obj, update: bool, full: bool):
 
 @click.command()
 @click.argument('amount', type=float)
-@click.argument('currency', type=click.Choice(CURRENCIES.keys()))
+@click.argument('currency', type=str)
 @click.option('from_exchange', '--from', type=str)
 @click.option('to_exchange', '--to', type=str)
 @click.pass_obj
@@ -61,30 +61,30 @@ def exchange_command(f):
 
 
 @click.command()
-@click.argument('currency', click.Choice(CURRENCIES.keys()))
+@click.argument('currency', str)
 @exchange_command
 def address(exchg, currency: str):
     print(exchg.deposit_address(currency.upper()))
 
 
 @click.command()
-@click.option('base', '--base', type=click.Choice(CURRENCIES.keys()))
-@click.option('quote', '--quote', type=click.Choice(CURRENCIES.keys()))
+@click.option('base', '--base', type=str)
+@click.option('quote', '--quote', type=str)
 @exchange_command
 def fee(exchg, base, quote):
     print(exchg.fee(base, quote))
 
 
 @click.command()
-@click.argument('base', type=click.Choice(CURRENCIES.keys()))
-@click.argument('quote', type=click.Choice(CURRENCIES.keys()))
+@click.argument('base', type=str)
+@click.argument('quote', type=str)
 @exchange_command
 def supports(exchg, base, quote):
     print(exchg.supports_pair(base, quote))
 
 
 @click.command()
-@click.argument('currency', type=click.Choice(CURRENCIES.keys()))
+@click.argument('currency', type=str)
 @exchange_command
 def txfee(exchg, currency):
     print(exchg.tx_fee(currency))
@@ -92,7 +92,7 @@ def txfee(exchg, currency):
 
 @click.command()
 @click.argument('amount', type=float)
-@click.argument('currency', type=click.Choice(CURRENCIES.keys()))
+@click.argument('currency', type=str)
 @click.option('--address', type=str, prompt=True)
 @exchange_command
 def withdraw(exchg, amount, currency, address):

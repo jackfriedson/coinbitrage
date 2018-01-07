@@ -8,7 +8,7 @@ from coinbitrage import bitlogging
 from coinbitrage.exchanges.bitex import BitExAPIAdapter
 from coinbitrage.exchanges.errors import ClientError, ExchangeError, ServerError
 from coinbitrage.exchanges.mixins import ProxyCurrencyWrapper
-from coinbitrage.settings import Defaults
+from coinbitrage.settings import CURRENCIES, Defaults
 from coinbitrage.utils import retry_on_exception
 
 from .formatter import KrakenFormatter
@@ -22,18 +22,8 @@ KRAKEN_TIMEOUT = 60
 
 class KrakenAPIAdapter(BitExAPIAdapter):
     _api_class = Kraken
-    _deposit_methods = {
-        'BTC': 'Bitcoin',
-        'BCH': 'Bitcoin Cash',
-        'ETH': 'Ether (Hex)',
-        'LTC': 'Litecoin',
-        'USDT': 'Tether USD',
-        'XRP': 'Ripple XRP',
-    }
     _error_cls_map = defaultdict(lambda: ClientError)
-    _error_cls_map.update({
-        'Service': ServerError,
-    })
+    _error_cls_map.update({'Service': ServerError,})
     formatter = KrakenFormatter()
 
     def __init__(self, *args, **kwargs):
@@ -41,7 +31,7 @@ class KrakenAPIAdapter(BitExAPIAdapter):
         super(KrakenAPIAdapter, self).__init__(*args, **kwargs)
 
     def deposit_address(self, currency: str) -> dict:
-        deposit_method = self._deposit_methods.get(currency)
+        deposit_method = CURRENCIES[currency].get('kraken_method')
         if not deposit_method:
             raise NotImplementedError('Deposit address not implemented for {}'.format(currency))
 

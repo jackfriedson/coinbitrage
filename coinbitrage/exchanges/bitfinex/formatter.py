@@ -2,4 +2,9 @@ from coinbitrage.exchanges.bitex import BitExFormatter
 
 
 class BitfinexFormatter(BitExFormatter):
-    pass
+
+    def deposit_address(self, data):
+        data.pop('result')
+        data.pop('method')
+        data.pop('currency')
+        return data
