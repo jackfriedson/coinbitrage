@@ -31,7 +31,7 @@ class HitBtcAPIAdapter(BitExAPIAdapter, SeparateTradingAccountMixin):
     def _transfer_between_accounts(self, to_trading: bool, currency: str, amount: float):
         direction = 'bankToExchange' if to_trading else 'exchangeToBank'
         params = {'currency': self.formatter.format(currency), 'amount': amount, 'type': direction}
-        resp = self._api.private_query('account/transfer', method_verb='POST', params=params)
+        resp = self._wrap(self._api.private_query)('account/transfer', method_verb='POST', params=params)
         return 'id' in resp.json()
 
     def raise_for_exchange_error(self, response_data: dict):
