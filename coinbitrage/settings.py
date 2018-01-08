@@ -5,6 +5,7 @@ API_KEY_DIR = Path.home()/'.api_keys'
 
 
 EXCHANGES = ['bittrex', 'hitbtc', 'poloniex']
+INACTIVE_EXCHANGES = ['bitfinex', 'kraken']
 
 CURRENCIES = {
     'BCH': {

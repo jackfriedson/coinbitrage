@@ -4,7 +4,7 @@ from coinbitrage import bitlogging
 from coinbitrage.engine import ArbitrageEngine
 from coinbitrage.exchanges import get_exchange
 from coinbitrage.exchanges.manager import ExchangeManager
-from coinbitrage.settings import CURRENCIES, EXCHANGES, Defaults
+from coinbitrage.settings import CURRENCIES, EXCHANGES, INACTIVE_EXCHANGES, Defaults
 from coinbitrage.shell import CoinbitrageShell
 
 
@@ -30,7 +30,7 @@ def run(**kwargs):
 @click.option('--base-currency', type=list, default=Defaults.BASE_CURRENCIES)
 @click.option('--quote-currency', type=click.Choice(CURRENCIES.keys()), default=Defaults.QUOTE_CURRENCY)
 def shell(base_currency, quote_currency):
-    exchgs = EXCHANGES + ['kraken']
+    exchgs = EXCHANGES + INACTIVE_EXCHANGES
     coin_shell = CoinbitrageShell(exchgs, base_currency, quote_currency)
     coin_shell.cmdloop()
 
