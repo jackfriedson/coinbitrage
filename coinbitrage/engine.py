@@ -97,8 +97,8 @@ class ArbitrageEngine(object):
             if buy_exchange.name == sell_exchange.name:
                 continue
 
-            buy_price = buy_exchange.ask(base_currency) * (1 + Defaults.ORDER_PRECISION)
-            sell_price = sell_exchange.bid(base_currency) * (1 - Defaults.ORDER_PRECISION)
+            buy_price = buy_exchange.ask(base_currency) * (1 + (Defaults.ORDER_PRECISION * 0.5))
+            sell_price = sell_exchange.bid(base_currency) * (1 - (Defaults.ORDER_PRECISION * 0.5))
 
             # TODO: move this somewhere that makes more sense
             if base_currency in ['ETH', 'LTC']:

@@ -27,7 +27,7 @@ class BitfinexAPIAdapter(BitExAPIAdapter):
         result = super(BitfinexAPIAdapter, self).deposit_address(currency, method=deposit_method,
                                                                  wallet_name='exchange')
 
-        if currency == 'XRP':
+        if currency.upper() == 'XRP':
             result['paymentId'] = result.pop('address')
             result['address'] = result.pop('address_pool')
 

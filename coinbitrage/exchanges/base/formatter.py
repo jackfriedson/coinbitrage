@@ -18,7 +18,7 @@ class BaseFormatter(object):
         return lambda x: x
 
     def format(self, currency: str, inverse: bool = False) -> str:
-        currence = currency.upper()
+        currency = currency.upper()
         cur_map = self._currency_map if not inverse else self._inverse_currency_map
         return cur_map.get(currency, currency)
 

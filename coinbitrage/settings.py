@@ -42,18 +42,18 @@ CURRENCIES = {
         'bitfinex_method': 'tetheruso',
         'hitbtc_withdraw_fee': 100.,
         'kraken_method': 'Tether USD',
-        'min_order_size': 10,
+        'min_order_size': 20,
     },
     'USD': {
         'bitfinex_method': 'tetheruso',
         'hitbtc_withdraw_fee': 100.,
-        'min_order_size': 10,
+        'min_order_size': 20,
     },
     'XRP': {
         'bitfinex_method': 'ripple',
         'hitbtc_withdraw_fee': 0.05,
         'kraken_method': 'Ripple XRP',
-        'min_order_size': 5,
+        'min_order_size': 10,
     },
     'ZEC': {
         'bitfinex_method': 'zcash',
@@ -69,7 +69,7 @@ class Defaults(object):
     HTTP_TIMEOUT = 20
     MIN_PROFIT = 0.
     ORDER_FEE = 0.0025
-    ORDER_PRECISION = 0.003
+    ORDER_PRECISION = 0.006
     PLACE_ORDER_TIMEOUT = 60
     QUOTE_CURRENCY = 'BTC'
     REBALANCE_QUOTE_THRESHOLD = 0.9

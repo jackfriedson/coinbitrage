@@ -10,7 +10,14 @@ class BitfinexClient(BaseExchangeClient, PeriodicRefreshMixin):
 
     def __init__(self, key_file: str):
         BaseExchangeClient.__init__(self, key_file)
-        PeriodicRefreshMixin.__init__(self, 2)
+        PeriodicRefreshMixin.__init__(self, 6)
 
     def init(self):
-        raise NotImplementedError
+        self.supported_pairs = self.api.pairs()
+        self.currency_info = {
+            cur: {'tx_fee': float(fee)} for cur, fee in self.api.withdraw_fees()['withdraw'].items()
+        }
+        self._fee = float(self.api.fees()[0]['taker_fees']) / 100
+
+    def fee(self, base_currency: str, quote_currency: str) -> float:
+        return self._fee

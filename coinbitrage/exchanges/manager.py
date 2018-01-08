@@ -171,8 +171,8 @@ class ExchangeManager(object):
         def bank_to_trading(exchange):
             try:
                 bank_balances = exchange.bank_balance()
-            except (ServerError, Timeout) as e:
-                exchange.trip_circuit_breaker((ServerError, Timeout), partial(exchange.bank_balance))
+            except RequestException as e:
+                exchange.trip_circuit_breaker(RequestException, partial(exchange.bank_balance))
             else:
                 for currency in self.all_currencies:
                     bank_balance = bank_balances.get(currency, 0.)
@@ -283,8 +283,8 @@ class ExchangeManager(object):
         def get_balance(exchange):
             try:
                 return exchange.name, exchange.balance()
-            except (ServerError, Timeout) as e:
-                exchange.trip_circuit_breaker((ServerError, Timeout), partial(exchange.balance))
+            except RequestException as e:
+                exchange.trip_circuit_breaker(RequestException, partial(exchange.balance))
                 return None
 
         with ThreadPoolExecutor(max_workers=len(self._clients)) as executor:
