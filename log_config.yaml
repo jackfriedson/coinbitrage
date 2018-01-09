@@ -36,6 +36,7 @@ handlers:
   file:
     class: logging.handlers.TimedRotatingFileHandler
     when: midnight
+    backupCount: 3
     formatter: json
     level: DEBUG
   order:
