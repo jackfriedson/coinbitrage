@@ -52,7 +52,7 @@ CURRENCIES = {
     },
     'XRP': {
         'bitfinex_method': 'ripple',
-        'hitbtc_withdraw_fee': 0.05,
+        'hitbtc_withdraw_fee': 0.6,
         'kraken_method': 'Ripple XRP',
         'min_order_size': 10,
     },
