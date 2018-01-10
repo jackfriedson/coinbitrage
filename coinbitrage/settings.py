@@ -19,6 +19,11 @@ CURRENCIES = {
         'kraken_method': 'Bitcoin',
         'min_order_size': 0.0017,
     },
+    'ETC': {
+        'bitfinex_method': 'ethereumc',
+        'hitbtc_withdraw_fee': 0.005,
+        'min_order_size': 0.5,
+    },
     'ETH': {
         'bitfinex_method': 'ethereum',
         'hitbtc_withdraw_fee': 0.01,
@@ -65,7 +70,7 @@ CURRENCIES = {
 
 
 class Defaults(object):
-    BASE_CURRENCIES = ['XRP', 'LTC']
+    BASE_CURRENCIES = ['XRP', 'ETC']
     FILL_ORDER_TIMEOUT = 120
     HTTP_TIMEOUT = 20
     MIN_PROFIT = 0.
