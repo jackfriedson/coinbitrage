@@ -1,7 +1,7 @@
 from typing import Dict, Optional
 
 from bitex import HitBtc
-from requests.exceptions import Timeout
+from requests.exceptions import RequestException, Timeout
 
 from coinbitrage import bitlogging
 from coinbitrage.exchanges.bitex import BitExAPIAdapter

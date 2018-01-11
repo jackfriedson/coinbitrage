@@ -169,15 +169,20 @@ class ExchangeManager(object):
         filtered_exchanges = filter(lambda x: isinstance(x.api, SeparateTradingAccountMixin), self.exchanges)
 
         def bank_to_trading(exchange):
+            # TODO: see if we can refactor circuit breaker as a decorator or context manager
             try:
                 bank_balances = exchange.bank_balance()
-            except RequestException as e:
+            except RequestException:
                 exchange.trip_circuit_breaker(RequestException, partial(exchange.bank_balance))
             else:
                 for currency in self.all_currencies:
                     bank_balance = bank_balances.get(currency, 0.)
                     if bank_balance > 0:
-                        exchange.bank_to_trading(currency, bank_balance)
+                        try:
+                            exchange.bank_to_trading(currency, bank_balance)
+                        except RequestException as e:
+                            retry_fn = partial(exchange.bank_to_trading, currency, bank_balance)
+                            exchange.trip_circuit_breaker(RequestException, retry_fn)
 
         futures = [
             self._loop.run_in_executor(None, bank_to_trading, exchg)
