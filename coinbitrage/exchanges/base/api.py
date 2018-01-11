@@ -7,7 +7,7 @@ from requests.exceptions import HTTPError, RequestException
 from coinbitrage import bitlogging
 from coinbitrage.exchanges.errors import ClientError, ServerError
 from coinbitrage.settings import Defaults
-from coinbitrage.utils import format_float
+from coinbitrage.utils import format_float, format_log_args
 
 from .formatter import BaseFormatter
 
@@ -36,11 +36,10 @@ class BaseExchangeAPI(object):
             args = tuple([format_float(a, self.float_precision) for a in args])
             kwargs = {kw: format_float(arg, self.float_precision) for kw, arg in kwargs.items()}
 
-            log_args = tuple(list(args) + ['{}={}'.format(kw, arg) for kw, arg in kwargs.items()])
             log.debug('API call -- {exchange}.{method}{log_args}',
                       event_name='exchange_api.call',
                       event_data={'exchange': self.name, 'method': func.__name__, 'args': args,
-                                  'kwargs': kwargs, 'log_args': log_args})
+                                  'kwargs': kwargs, 'log_args': format_log_args(args, kwargs)})
 
             try:
                 resp = func(*args, **kwargs)
@@ -51,8 +50,8 @@ class BaseExchangeAPI(object):
                 resp.raise_for_status()
             except HTTPError as e:
                 log_msg = '{exchange}.{method}{log_args} encountered an HTTP error ({status_code})'
-                event_data = {'exchange': self.name, 'status_code': resp.status_code,
-                              'method': func.__name__, 'log_args': log_args, 'args': args, 'kwargs': kwargs}
+                event_data = {'exchange': self.name, 'status_code': resp.status_code, 'method': func.__name__,
+                              'log_args': format_log_args(args, kwargs), 'args': args, 'kwargs': kwargs}
                 if 'application/json' in resp.headers['Content-Type']:
                     log_msg += ': {error_message}'
                     event_data['error_message'] = resp.json()

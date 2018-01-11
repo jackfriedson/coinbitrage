@@ -20,6 +20,10 @@ def format_float(value, precision: int = 2):
     return '{:.{prec}}'.format(str(value), prec=precision+len(leading)+1)
 
 
+def format_log_args(args: tuple, kwargs: dict) -> tuple:
+    return tuple(list(args) + ['{}={}'.format(kw, arg) for kw, arg in kwargs.items()])
+
+
 def thread_running(thread: Thread) -> bool:
     return thread and thread.is_alive()
 

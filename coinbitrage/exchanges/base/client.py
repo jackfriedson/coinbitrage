@@ -3,6 +3,7 @@ import time
 
 from coinbitrage import bitlogging
 from coinbitrage.settings import Defaults
+from coinbitrage.utils import format_log_args
 
 
 log = bitlogging.getLogger(__name__)
@@ -38,9 +39,11 @@ class BaseExchangeClient(object):
         return result
 
     def trip_circuit_breaker(self, exc_types, call: functools.partial):
-        log.warning('Circuit breaker tripped by {}', event_name='exchange_api.breaker_tripped',
+        log.warning('Circuit breaker tripped by {exchange}.{method}{log_args}',
+                    event_name='exchange_api.breaker_tripped',
                     event_data={'exchange': self.name, 'method': call.func.__name__,
-                                'args': call.args, 'kwargs': call.keywords})
+                                'args': call.args, 'kwargs': call.keywords,
+                                'log_args': format_log_args(args, kwargs)})
         self.breaker_tripped = {
             'time': time.time(),
             'retry': call,

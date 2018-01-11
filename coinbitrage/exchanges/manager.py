@@ -180,9 +180,8 @@ class ExchangeManager(object):
                     if bank_balance > 0:
                         try:
                             exchange.bank_to_trading(currency, bank_balance)
-                        except RequestException as e:
-                            retry_fn = partial(exchange.bank_to_trading, currency, bank_balance)
-                            exchange.trip_circuit_breaker(RequestException, retry_fn)
+                        except RequestException:
+                            pass
 
         futures = [
             self._loop.run_in_executor(None, bank_to_trading, exchg)
