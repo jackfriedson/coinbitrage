@@ -24,6 +24,12 @@ class BaseExchangeClient(object):
 
     def get_funds_from(self, from_exchange, currency: str, amount: float) -> bool:
         addr_info = self.api.deposit_address(currency)
+        if not addr_info:
+            log.warning('Unable to get {currency} deposit address from {exchange}, transfer unsuccessful',
+                         event_name='exchange_api.deposit_address.error',
+                         event_data={'exchange': self.name, 'currency': currency})
+            return
+
         address = addr_info.pop('address')
         result = from_exchange.withdraw(currency, address, amount, **addr_info)
 

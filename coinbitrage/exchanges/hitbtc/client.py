@@ -1,4 +1,5 @@
 import time
+from typing import Optional
 
 from coinbitrage import bitlogging
 from coinbitrage.exchanges.base import BaseExchangeClient
@@ -33,10 +34,17 @@ class HitBtcClient(BaseExchangeClient, PeriodicRefreshMixin):
     def tx_fee(self, currency: str) -> float:
         return CURRENCIES[currency]['hitbtc_withdraw_fee']
 
+    def deposit_address(self, currency: str, **kwargs) -> Optional[dict]:
+        if not self.currency_info[currency]['deposits_active']:
+            return None
+
     def withdraw(self, currency: str, address: str, amount: float, **kwargs) -> bool:
+        if not self.currency_info[currency]['withdrawals_active']:
+            return False
+
         tx_info = self.api.withdraw(currency, address, amount, autoCommit=False, **kwargs)
         if not tx_info:
-            return
+            return False
 
         tx_id = tx_info.get('id')
 
@@ -52,5 +60,5 @@ class HitBtcClient(BaseExchangeClient, PeriodicRefreshMixin):
                         event_data={'exchange': self.name, 'currency': currency, 'actual': fees,
                                     'expected': CURRENCIES[currency]['hitbtc_withdraw_fee'], 'withdrawal_info': tx_info})
             self.api.rollback_withdrawal(tx_id)
-            return
+            return False
         return self.api.commit_withdrawal(tx_id)

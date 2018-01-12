@@ -19,7 +19,8 @@ class HitBtcFormatter(BitExFormatter):
         return {
             self.format(cur['id'], inverse=True): {
                 'min_confirmations': cur['payinConfirmations'],
-                'is_active': cur['payinEnabled'] and cur['payoutEnabled'] and cur['transferEnabled'],
+                'deposits_active': cur['payinEnabled'] and cur['transferEnabled'],
+                'withdrawals_active': cur['payoutEnabled'] and cur['transferEnabled'],
             } for cur in data
         }
 
