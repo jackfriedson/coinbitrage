@@ -175,7 +175,7 @@ class ArbitrageEngine(object):
                         **kwargs) -> bool:
         max_quote_amt = self._exchanges.totals()[self.quote_currency] * Defaults.HI_BALANCE_PERCENT
 
-        if self._exchanges.balances()[buy_exchange.name][self.quote_currency] > max_quote_amt:
+        if self._exchanges.balances()[buy_exchange][self.quote_currency] > max_quote_amt:
             return net_pct_profit > 0.
 
         return net_pct_profit >= self._min_profit_threshold
