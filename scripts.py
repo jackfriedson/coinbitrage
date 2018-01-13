@@ -8,12 +8,10 @@ from coinbitrage.settings import CURRENCIES, EXCHANGES, INACTIVE_EXCHANGES, Defa
 from coinbitrage.shell import CoinbitrageShell
 
 
-bitlogging.configure()
-
-
 @click.group()
-def coin():
-    pass
+@click.option('-d', '--debug', is_flag=True)
+def coin(debug):
+    bitlogging.configure(debug=debug)
 
 
 @coin.command()
@@ -36,11 +34,13 @@ def shell(base_currency, quote_currency):
 
 
 @coin.command()
-def pdb():
-    kraken = get_exchange('kraken')
-    hitbtc = get_exchange('hitbtc')
-    coinbase = get_exchange('coinbase')
-    bittrex = get_exchange('bittrex')
-    poloniex = get_exchange('poloniex')
-    bitfinex = get_exchange('bitfinex')
-    import ipdb; ipdb.set_trace()
+def test():
+    import time
+    exchanges = ExchangeManager(['bitfinex'], 'ETH', 'BTC')
+    with exchanges.live_updates():
+        try:
+            bitfinex = exchanges.get('bitfinex')
+            while True:
+                bitfinex._update()
+        except Exception as e:
+            print(e)

@@ -14,11 +14,13 @@ LOG_DIR.mkdir(exist_ok=True)
 CONFIG_FILE = Path().resolve()/'log_config.yaml'
 
 
-def configure():
+def configure(debug: bool = False):
     with CONFIG_FILE.open('rt') as f:
         config = yaml.safe_load(f.read())
         config['handlers']['file']['filename'] = str(LOG_DIR/'all.log')
         config['handlers']['order']['filename'] = str(LOG_DIR/'orders.log')
+        if debug:
+            config['handlers']['console']['level'] = 'DEBUG'
         dictConfig(config)
 
     # Disable pushclient logger

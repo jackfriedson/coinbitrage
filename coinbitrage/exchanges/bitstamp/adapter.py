@@ -7,7 +7,7 @@ from bitex.api.WSS import BitstampWSS
 
 from coinbitrage import bitlogging
 from coinbitrage.exchanges.base import BaseExchangeClient
-from coinbitrage.exchanges.bitex import BitExAPIAdapter, BitExWSSAdapter
+from coinbitrage.exchanges.bitex import BitExAPIAdapter, BitExWebsocketAdapter
 from coinbitrage.exchanges.mixins import WebsocketMixin
 from coinbitrage.settings import Defaults
 
@@ -52,7 +52,7 @@ class BitstampClient(BaseExchangeClient, WebsocketMixin):
 
     def __init__(self, key_file: str):
         BaseExchangeClient.__init__(self, key_file)
-        WebsocketMixin.__init__(self, BitExWSSAdapter(BitstampWSS()))
+        WebsocketMixin.__init__(self, BitExWebsocketAdapter(BitstampWSS()))
         self._websocket._formatters.update({
             'order_book': lambda x: {
                 'bid': float(max(x[2]['bids'], key=lambda y: float(y[0]))[0]),

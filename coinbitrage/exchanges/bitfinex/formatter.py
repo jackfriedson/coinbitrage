@@ -36,3 +36,16 @@ class BitfinexFormatter(BitExFormatter):
             'avg_price': float(data['avg_execution_price']),
             'volume': float(data['original_amount']),
         }
+
+
+class BitfinexWebsocketFormatter(BitfinexFormatter):
+
+    def ticker(self, data):
+        return {
+            'bid': float(data[0][1]),
+            'ask': float(data[0][3]),
+            'time': data[1],
+        }
+
+    def order_book(self, data):
+        return data

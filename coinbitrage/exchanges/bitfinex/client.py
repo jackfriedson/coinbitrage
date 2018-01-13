@@ -1,16 +1,18 @@
 from coinbitrage.exchanges.base import BaseExchangeClient
-from coinbitrage.exchanges.mixins import PeriodicRefreshMixin
+from coinbitrage.exchanges.mixins import WebsocketMixin
 
 from .api import BitfinexAPIAdapter
+from .websocket import BitfinexWebsocketAdapter
 
 
-class BitfinexClient(BaseExchangeClient, PeriodicRefreshMixin):
+class BitfinexClient(BaseExchangeClient, WebsocketMixin):
     name = 'bitfinex'
     _api_class = BitfinexAPIAdapter
+    _websocket_class = BitfinexWebsocketAdapter
 
     def __init__(self, key_file: str):
         BaseExchangeClient.__init__(self, key_file)
-        PeriodicRefreshMixin.__init__(self, 6)
+        WebsocketMixin.__init__(self)
 
     def init(self):
         self.supported_pairs = self.api.pairs()

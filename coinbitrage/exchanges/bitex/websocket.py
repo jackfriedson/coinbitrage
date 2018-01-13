@@ -1,50 +1,47 @@
-from typing import Callable, Dict
+from typing import Callable, Dict, Optional
 from queue import Queue
 
 from coinbitrage.exchanges.interfaces import WebsocketInterface
 from coinbitrage.settings import Defaults
 
 
-class BitExWSSAdapter(WebsocketInterface):
+class BitExWebsocketAdapter(WebsocketInterface):
     """Class for implementing WSS adapters using the BitEx library."""
-    _formatters = {}
+    formatter = None
+    _websocket_class = None
 
-    class QueueWrapper(object):
-        """Wrapper around the BitEx websocket's data queue that adds additional
-        funcitonality such as filtering and formatting messages.
+    class _QueueWrapper(object):
+        """Wrapper around the BitEx websocket's data queue that can filter and format messages
+        as needed.
         """
-        def __init__(self, queue: Queue, formatters: Dict[str, Callable]):
-            self._queue = queue
-            self._formatters = formatters
-            self._allowed_channels = set()
-            self._allowed_pairs = set()
+        def __init__(self, formatter: Dict[str, Callable]):
+            self._queue = Queue()
+            self._formatter = formatter
+            self.allowed_channels = set()
+            self.allowed_pairs = set()
 
         def __getattr__(self, name: str):
             return getattr(self._queue, name)
 
-        def get(self):
-            message = self._queue.get()
-            formatter = self._formatters[message[0]]
-            return formatter(message)
+        def put(self, message: tuple, **kwargs):
+            channel, pair, data = message
+            data = getattr(self._formatter, channel)(data)
+            self._queue.put((pair, data))
 
-    def __init__(self, websocket, *args, **kwargs):
-        self._websocket = None
-        self.queue = None
-        self._init_websocket(websocket)
-        super(BitExWSSAdapter, self).__init__(*args, **kwargs)
+        def get(self, **kwargs):
+            return self._queue.get(**kwargs)
 
-    def _init_websocket(self, websocket):
-        self._websocket = websocket
-        queue_wrapper = self.QueueWrapper(self._websocket.data_q, self._formatters)
-        self._websocket.data_q = queue_wrapper
-        self.queue = self._websocket.data_q
+    def __init__(self, *args, **kwargs):
+        self._websocket = self._websocket_class()
+        self.queue = self._websocket.data_q = self._QueueWrapper(self.formatter)
+        super(BitExWebsocketAdapter, self).__init__(*args, **kwargs)
 
-    def subscribe(self,
-                  base_currency: str,
-                  channel: str = 'ticker',
-                  quote_currency: str = Defaults.QUOTE_CURRENCY):
-        if not self._websocket.running:
-            self._websocket.start()
+    def subscribe(self, channel: str, base_currency: str, quote_currency: str):
+        subscribe_method = getattr(self._websocket, channel)
+        subscribe_method(self.formatter.pair(base_currency, quote_currency))
 
-    def shutdown(self):
+    def start(self):
+        self._websocket.start()
+
+    def stop(self):
         self._websocket.stop()

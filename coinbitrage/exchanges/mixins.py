@@ -1,6 +1,7 @@
 import logging
 import time
 from abc import ABC, abstractproperty
+from collections import defaultdict
 from functools import partial, wraps
 from threading import Event, RLock, Thread
 from typing import Dict, List, Optional, Union
@@ -42,35 +43,38 @@ class LiveUpdateMixin(object):
 
 
 class WebsocketMixin(LiveUpdateMixin):
-    # TODO: implement for multiple base currencies
+    _websocket_class = None
 
-    def __init__(self, websocket, *args, **kwargs):
-        self._websocket = websocket
-        self._bid_ask = {'bid': None, 'ask': None, 'time': None}
+    def __init__(self, *args, **kwargs):
+        self._websocket = self._websocket_class()
+        self._bid_ask = defaultdict(lambda: {'bid': None, 'ask': None, 'time': None})
         super(WebsocketMixin, self).__init__(*args, **kwargs)
 
-    def start_live_updates(self, base_currency: str, quote_currency: str = Defaults.QUOTE_CURRENCY):
-        self._websocket.subscribe(self.pair(base_currency, quote_currency))
+    def start_live_updates(self, base_currency: Union[str, List[str]], quote_currency: str):
+        self._websocket.start()
+        if isinstance(base_currency, str):
+            base_currency = [base_currency]
+        for currency in base_currency:
+            self._websocket.subscribe('ticker', currency, quote_currency)
 
     def stop_live_updates(self):
-        self._websocket.shutdown()
+        self._websocket.stop()
 
     def _update(self):
-        bid_ask = None
-        # TODO: update this so only the most recent bid/ask is kept
+        message = None
         while not self._websocket.queue.empty():
-            bid_ask = se
-            lf._websocket.queue.get()
-        if bid_ask:
-            log.debug('{exchange} {bid_ask}', event_name='websocket_mixin.update',
-                      event_data={'exchange': self.name, 'bid_ask': format_bid_ask(bid_ask)})
-            self._bid_ask = bid_ask
+            message = self._websocket.queue.get()
+        if message:
+            pair, bid_ask = message
+            log.debug('{exchange} {pair} {bid_ask}', event_name='websocket_mixin.update',
+                      event_data={'exchange': self.name, 'pair': pair, 'bid_ask': format_bid_ask(bid_ask)})
+            self._bid_ask[pair] = bid_ask
 
     def bid_ask(self,
                 base_currency: str,
                 quote_currency: str = Defaults.QUOTE_CURRENCY):
         self._update()
-        return self._bid_ask
+        return self._bid_ask[self.formatter.pair(base_currency, quote_currency)]
 
 
 class PeriodicRefreshMixin(LiveUpdateMixin):
