@@ -1,10 +1,10 @@
+import asyncio
 import logging
 from functools import partial
 from queue import Queue
 from threading import Event, RLock, Thread
 from typing import Callable, Dict, List
 
-import asyncio
 import txaio
 from autobahn.asyncio.wamp import ApplicationSession, ApplicationSessionFactory
 from autobahn.asyncio.websocket import WampWebSocketClientFactory, WampWebSocketClientProtocol
@@ -38,13 +38,18 @@ class BaseWebsocketAdapter(WebsocketInterface):
     def running(self):
         return thread_running(self._websocket_thread)
 
-    def subscribe(self,
-                  pair: str,
-                  channel: str = 'ticker'):
-        if not thread_running(self._controller_thread):
-            self._start_controller()
+    def start(self):
+        self._start_controller()
 
-        self._pairs.add(pair)
+    def stop(self):
+        self._stop_controller()
+        self._stop_websocket()
+
+    def subscribe(self,
+                  channel: str,
+                  base_currency: str,
+                  quote_currency: str):
+        self._pairs.add(self.formatter.pair(base_currency, quote_currency))
         self._channels.add(channel)
 
         command = 'start' if not thread_running(self._websocket_thread) else 'restart'
@@ -84,15 +89,15 @@ class BaseWebsocketAdapter(WebsocketInterface):
 
     def _eval_command(self, command: str, *args):
         if command == 'start':
-            self._start(*args)
+            self._start_websocket(*args)
         elif command == 'stop':
-            self._stop()
+            self._stop_websocket()
         elif command == 'restart':
             with self._lock:
-                self._stop()
-                self._start(*args)
+                self._stop_websocket()
+                self._start_websocket(*args)
 
-    def _start(self, *args):
+    def _start_websocket(self, *args):
         log.debug('Starting {exchange} websocket thread...', event_data={'exchange': self.name},
                   event_name='websocket_adapter.websocket.start')
         with self._lock:
@@ -105,13 +110,13 @@ class BaseWebsocketAdapter(WebsocketInterface):
                                             name='{}WebsocketThread'.format(self.name.title()))
             self._websocket_thread.start()
 
-    def _stop(self):
+    def _stop_websocket(self):
         log.debug('Stopping {exchange} websocket thread...', event_data={'exchange': self.name},
                   event_name='websocket_adapter.websocket.stop')
         with self._lock:
             if not thread_running(self._websocket_thread):
                 log.warning('Attempted to stop a thread but there was none running',\
-                            event_name='websocket_adapter.no_thread_to_stop')
+                            event_name='websocket_adapter.no_thread_to_stop_websocket')
                 return
             self.websocket_running.clear()
             self._websocket_thread.join()
@@ -120,42 +125,42 @@ class BaseWebsocketAdapter(WebsocketInterface):
     def _websocket(self, *args):
         raise NotImplementedError
 
-    def shutdown(self):
-        self._stop_controller()
-        self._stop()
-
 
 class WampWebsocketAdapter(BaseWebsocketAdapter):
 
-    _formatters = {}
-
-    def __init__(self, name: str, url: str, host: str, port: int, realm: str,
-                 ssl: bool = True):
+    def __init__(self, name: str, url: str, host: str, port: int, realm: str, ssl: bool = True):
         super(WampWebsocketAdapter, self).__init__(name, url)
         self.realm = realm
         self.host = host
         self.port = port
+        self.ssl = ssl
         self._websocket_loop = None
 
-    def _start(self):
+    def _start_websocket(self):
         self._websocket_loop = asyncio.new_event_loop()
-        super(WampWebsocketAdapter, self)._start()
+        super(WampWebsocketAdapter, self)._start_websocket()
 
-    def _stop(self):
-        self._websocket_loop.stop()
-        super(WampWebsocketAdapter, self)._stop()
+    def _stop_websocket(self):
+        if self._websocket_loop:
+            self._websocket_loop.stop()
+        super(WampWebsocketAdapter, self)._stop_websocket()
 
     def _websocket(self, *args):
         loop = self._websocket_loop
         asyncio.set_event_loop(loop)
         txaio.config.loop = loop
         session_factory = ApplicationSessionFactory(ComponentConfig(realm=self.realm))
-        session_factory.session = partial(WampComponent, self.queue, self._channels, self._formatters)
+        session_factory.session = partial(WampComponent,
+                                          websocket_queue=self.queue,
+                                          channels=self._channels,
+                                          pairs=self._pairs,
+                                          formatter=self.formatter)
         protocol_factory = WampWebSocketClientFactory(session_factory, url=self.url)
-        protocol_factory.protocol = partial(WampProtocol, self._controller_queue)
+        protocol_factory.protocol = partial(WampProtocol, controller_queue=self._controller_queue)
         protocol_factory.setProtocolOptions(openHandshakeTimeout=60., closeHandshakeTimeout=60.)
-        coro = loop.create_connection(protocol_factory, self.host, self.port, ssl=True)
+        coro = loop.create_connection(protocol_factory, self.host, self.port, ssl=self.ssl)
         transport, protocol = loop.run_until_complete(coro)
+
         try:
             loop.run_forever()
         except KeyboardInterrupt:
@@ -167,7 +172,7 @@ class WampWebsocketAdapter(BaseWebsocketAdapter):
 
 class WampProtocol(WampWebSocketClientProtocol):
 
-    def __init__(self, controller_queue, *args, **kwargs):
+    def __init__(self, *args, controller_queue = None, **kwargs):
         self._queue = controller_queue
         super(WampProtocol, self).__init__(*args, **kwargs)
 
@@ -180,17 +185,25 @@ class WampProtocol(WampWebSocketClientProtocol):
 
 
 class WampComponent(ApplicationSession):
-    def __init__(self, queue: Queue, channels: List[str], pair: str,
-                 formatters: Dict[str, Callable], *args, **kwargs):
+    def __init__(self, *args,
+                 websocket_queue: Queue = None,
+                 channels: List[str] = None,
+                 pairs: List[str] = None,
+                 formatter = None,
+                 **kwargs):
         super(WampComponent, self).__init__(*args, **kwargs)
-        self._queue = queue
+        self._queue = websocket_queue
         self._channels = channels
-        self._pair = pair
-        self._formatters = formatters
+        self._pairs = pairs
+        self.formatter = formatter
 
     async def onJoin(self, details):
+        log.debug('joining session...')
         for channel in self._channels:
+            log.debug('subscribing to {}...'.format(channel))
+
             def callback_fn(*args):
-                data = self._formatters[channel](args)
+                data = getattr(self.formatter, channel)(args)
                 self._queue.put(data)
+
             await self.subscribe(callback_fn, channel)

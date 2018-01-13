@@ -1,4 +1,6 @@
 import click
+import logging
+import os
 
 from coinbitrage import bitlogging
 from coinbitrage.engine import ArbitrageEngine
@@ -10,8 +12,14 @@ from coinbitrage.shell import CoinbitrageShell
 
 @click.group()
 @click.option('-d', '--debug', is_flag=True)
-def coin(debug):
+@click.option('--asyncio-debug', is_flag=True)
+def coin(debug: bool, asyncio_debug):
     bitlogging.configure(debug=debug)
+
+    if asyncio_debug:
+        logging.getLogger('asyncio').setLevel(logging.DEBUG)
+        os.environ['PYTHONASYNCIODEBUG'] = '1'
+
 
 
 @coin.command()
@@ -35,12 +43,11 @@ def shell(base_currency, quote_currency):
 
 @coin.command()
 def test():
-    import time
-    exchanges = ExchangeManager(['bitfinex'], Defaults.BASE_CURRENCIES, Defaults.QUOTE_CURRENCY)
+    exchanges = ExchangeManager(['poloniex'], 'ETH', Defaults.QUOTE_CURRENCY)
     with exchanges.live_updates():
         try:
-            bitfinex = exchanges.get('bitfinex')
+            exchg = exchanges.get('poloniex')
             while True:
-                bitfinex._update()
+                exchg._update()
         except Exception as e:
             print(e)

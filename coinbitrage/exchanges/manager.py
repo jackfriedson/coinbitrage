@@ -55,6 +55,18 @@ class ExchangeManager(object):
             if any(exchg.supports_pair(base, self.quote_currency) for base in self.base_currencies)
         }
 
+    @contextmanager
+    def live_updates(self):
+        """A context manager for opening and closing resources associated with
+        exchanges."""
+        try:
+            for exchange in self.exchanges:
+                exchange.start_live_updates(self.base_currencies, self.quote_currency)
+            yield
+        finally:
+            for exchange in self.exchanges:
+                exchange.stop_live_updates()
+
     def get(self, exchange_name: str):
         return self._clients.get(exchange_name)
 
@@ -135,18 +147,6 @@ class ExchangeManager(object):
             counts[order['exchange']] += 1
         sorted_hist = sorted(counts.items(), key=lambda x: x[1], reverse=True)
         return [x[0] for x in sorted_hist]
-
-    @contextmanager
-    def live_updates(self):
-        """A context manager for opening and closing resources associated with
-        exchanges."""
-        try:
-            for exchange in self.exchanges:
-                exchange.start_live_updates(self.base_currencies, self.quote_currency)
-            yield
-        finally:
-            for exchange in self.exchanges:
-                exchange.stop_live_updates()
 
     def _pre_distribute_step(self):
         self._check_open_circuits()

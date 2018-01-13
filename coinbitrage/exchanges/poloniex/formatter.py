@@ -62,3 +62,13 @@ class PoloniexFormatter(BitExFormatter):
     def unpair(self, currency_pair: str) -> Tuple[str, str]:
         quote, base = super(PoloniexFormatter, self).unpair(currency_pair)
         return base, quote
+
+
+class PoloniexWebsocketFormatter(PoloniexFormatter):
+
+    def ticker(self, data):
+        print(data)
+        return data
+
+    def order_book(self, data):
+        pass
