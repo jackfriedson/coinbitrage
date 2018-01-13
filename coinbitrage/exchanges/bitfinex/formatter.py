@@ -42,8 +42,8 @@ class BitfinexWebsocketFormatter(BitfinexFormatter):
 
     def ticker(self, data):
         return {
-            'bid': float(data[0][1]),
-            'ask': float(data[0][3]),
+            'bid': float(data[0][0]),
+            'ask': float(data[0][2]),
             'time': data[1],
         }
 

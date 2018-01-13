@@ -15,7 +15,7 @@ def coin(debug):
 
 
 @coin.command()
-@click.option('--base-currency', type=list, default=Defaults.BASE_CURRENCIES)
+@click.option('--base-currency', default=Defaults.BASE_CURRENCIES)
 @click.option('--quote-currency', type=click.Choice(CURRENCIES.keys()), default=Defaults.QUOTE_CURRENCY)
 @click.option('--min-profit', type=float, default=Defaults.MIN_PROFIT)
 @click.option('--initial-tx-credit', type=float, default=0.)
@@ -25,7 +25,7 @@ def run(**kwargs):
 
 
 @coin.command()
-@click.option('--base-currency', type=list, default=Defaults.BASE_CURRENCIES)
+@click.option('--base-currency', default=Defaults.BASE_CURRENCIES)
 @click.option('--quote-currency', type=click.Choice(CURRENCIES.keys()), default=Defaults.QUOTE_CURRENCY)
 def shell(base_currency, quote_currency):
     exchgs = EXCHANGES + INACTIVE_EXCHANGES
@@ -36,7 +36,7 @@ def shell(base_currency, quote_currency):
 @coin.command()
 def test():
     import time
-    exchanges = ExchangeManager(['bitfinex'], 'ETH', 'BTC')
+    exchanges = ExchangeManager(['bitfinex'], Defaults.BASE_CURRENCIES, Defaults.QUOTE_CURRENCY)
     with exchanges.live_updates():
         try:
             bitfinex = exchanges.get('bitfinex')

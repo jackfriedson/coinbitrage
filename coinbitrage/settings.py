@@ -4,7 +4,7 @@ from pathlib import Path
 API_KEY_DIR = Path.home()/'.api_keys'
 
 
-EXCHANGES = ['bittrex', 'hitbtc', 'poloniex']
+EXCHANGES = ['bitfinex', 'bittrex', 'hitbtc', 'poloniex']
 # INACTIVE_EXCHANGES = ['bitfinex', 'kraken']
 INACTIVE_EXCHANGES = []
 

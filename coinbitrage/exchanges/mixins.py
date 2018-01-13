@@ -47,7 +47,7 @@ class WebsocketMixin(LiveUpdateMixin):
 
     def __init__(self, *args, **kwargs):
         self._websocket = self._websocket_class()
-        self._bid_ask = defaultdict(lambda: {'bid': None, 'ask': None, 'time': None})
+        self._bid_ask = {}
         super(WebsocketMixin, self).__init__(*args, **kwargs)
 
     def start_live_updates(self, base_currency: Union[str, List[str]], quote_currency: str):
@@ -55,6 +55,7 @@ class WebsocketMixin(LiveUpdateMixin):
         if isinstance(base_currency, str):
             base_currency = [base_currency]
         for currency in base_currency:
+            self._bid_ask[currency] = {'bid': None, 'ask': None, 'time': None}
             self._websocket.subscribe('ticker', currency, quote_currency)
 
     def stop_live_updates(self):
@@ -66,15 +67,16 @@ class WebsocketMixin(LiveUpdateMixin):
             message = self._websocket.queue.get()
         if message:
             pair, bid_ask = message
-            log.debug('{exchange} {pair} {bid_ask}', event_name='websocket_mixin.update',
-                      event_data={'exchange': self.name, 'pair': pair, 'bid_ask': format_bid_ask(bid_ask)})
-            self._bid_ask[pair] = bid_ask
+            base, quote = self.formatter.unpair(pair)
+            log.debug('{exchange} {currency} {bid_ask}', event_name='websocket_mixin.update',
+                      event_data={'exchange': self.name, 'currency': base, 'bid_ask': format_bid_ask(bid_ask)})
+            self._bid_ask[base] = bid_ask
 
     def bid_ask(self,
                 base_currency: str,
                 quote_currency: str = Defaults.QUOTE_CURRENCY):
         self._update()
-        return self._bid_ask[self.formatter.pair(base_currency, quote_currency)]
+        return self._bid_ask[base_currency]
 
 
 class PeriodicRefreshMixin(LiveUpdateMixin):

@@ -49,7 +49,7 @@ class BaseExchangeClient(object):
                     event_name='exchange_api.breaker_tripped',
                     event_data={'exchange': self.name, 'method': call.func.__name__,
                                 'args': call.args, 'kwargs': call.keywords,
-                                'log_args': format_log_args(args, kwargs)})
+                                'log_args': format_log_args(call.args, call.keywords)})
         self.breaker_tripped = {
             'time': time.time(),
             'retry': call,
