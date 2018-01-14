@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 from functools import partial
 from queue import Queue
@@ -9,6 +10,7 @@ import txaio
 from autobahn.asyncio.wamp import ApplicationSession, ApplicationSessionFactory
 from autobahn.asyncio.websocket import WampWebSocketClientFactory, WampWebSocketClientProtocol
 from autobahn.wamp.types import ComponentConfig
+from websocket import WebSocketException, WebSocketTimeoutException, create_connection
 
 from coinbitrage import bitlogging
 from coinbitrage.exchanges.interfaces import WebsocketInterface
@@ -119,6 +121,31 @@ class BaseWebsocket(WebsocketInterface):
             self._websocket_thread = None
 
     def _websocket(self, *args):
+        try:
+            conn = create_connection(self.url)
+        except WebSocketException as e:
+            self._controller_queue.put('restart')
+            return
+
+        for channel in self._channels:
+            for pair in self._pairs:
+                self._subscribe(conn, channel, pair)
+
+        while self.websocket_running.is_set():
+            try:
+                msg = json.loads(conn.recv())
+            except WebSocketTimeoutException:
+                self._controller_queue.put('restart')
+                return
+
+            msg_tuple = self.formatter.websocket_message(msg)
+
+            if msg_tuple:
+                pair, data = msg_tuple
+                if pair in self._pairs:
+                    self.queue.put(msg_tuple)
+
+    def _subscribe(self, connection, channel: str, pair: str):
         raise NotImplementedError
 
 
@@ -164,7 +191,7 @@ class WampWebsocket(BaseWebsocket):
 
 class WampProtocol(WampWebSocketClientProtocol):
 
-    def __init__(self, *args, controller_queue = None, **kwargs):
+    def __init__(self, controller_queue, *args, **kwargs):
         self._queue = controller_queue
         super(WampProtocol, self).__init__(*args, **kwargs)
 

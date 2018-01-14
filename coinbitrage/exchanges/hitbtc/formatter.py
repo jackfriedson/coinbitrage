@@ -1,4 +1,5 @@
 import time
+from typing import Optional, Tuple
 
 import dateutil.parser
 
@@ -47,6 +48,14 @@ class HitBtcFormatter(BitExFormatter):
 
 
 class HitBtcWebsocketFormatter(HitBtcFormatter):
+
+    def websocket_message(self, msg: dict) -> Optional[Tuple[str, dict]]:
+        if 'method' not in msg:
+            return None
+
+        formatter = getattr(self, msg['method'])
+        return msg['params']['symbol'], formatter(msg['params'])
+
 
     def ticker(self, data):
         return {

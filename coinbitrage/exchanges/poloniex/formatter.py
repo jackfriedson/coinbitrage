@@ -1,8 +1,11 @@
-from typing import Tuple
+import time
+from typing import Optional, Tuple, Union
 
 import numpy as np
 
 from coinbitrage.exchanges.bitex import BitExFormatter
+
+from .symbol_ids import SYMBOL_IDS
 
 
 class PoloniexFormatter(BitExFormatter):
@@ -55,7 +58,6 @@ class PoloniexFormatter(BitExFormatter):
             return result
         return pair_orders(data)
 
-
     def pair(self, base_currency: str, quote_currency: str) -> str:
         return super(PoloniexFormatter, self).pair(quote_currency, base_currency)
 
@@ -65,10 +67,41 @@ class PoloniexFormatter(BitExFormatter):
 
 
 class PoloniexWebsocketFormatter(PoloniexFormatter):
+    channel_names = {
+        1001: 'trollbox',
+        1002: 'ticker',
+        1003: 'stats',
+        1010: 'heartbeat',
+    }
+    channel_ids = {v: k for k, v in channel_names.items()}
 
-    def ticker(self, data):
-        print(data)
-        return data
+    def websocket_message(self, msg: list) -> Optional[Tuple[str, dict]]:
+        channel = self.get_channel_name(msg[0])
+        formatter = getattr(self, channel)
+        return formatter(msg)
+
+    def get_channel_id(self, channel: str, pair: str) -> Union[int, str]:
+        if channel == 'order_book':
+            return pair
+        return self.channel_ids[channel]
+
+    def get_channel_name(self, channel_id: Union[str, int]) -> str:
+        if channel_id in SYMBOL_IDS:
+            return 'order_book'
+        return self.channel_names[channel_id]
+
+    def ticker(self, msg) -> Optional[Tuple[str, dict]]:
+        if len(msg) <= 2:
+            return None
+
+        data = msg[2]
+        pair = SYMBOL_IDS[data[0]]
+        bid_ask = {
+            'bid': float(data[2]),
+            'ask': float(data[3]),
+            'time': time.time(),
+        }
+        return pair, bid_ask
 
     def order_book(self, data):
-        pass
+        return data

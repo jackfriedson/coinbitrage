@@ -42,13 +42,13 @@ class LiveUpdateMixin(object):
         return self.bid_ask(currency).get('ask')
 
 
-class WebsocketMixin(LiveUpdateMixin):
+class WebsocketTickerMixin(LiveUpdateMixin):
     _websocket_class = None
 
     def __init__(self, *args, **kwargs):
         self._websocket = self._websocket_class()
         self._bid_ask = {}
-        super(WebsocketMixin, self).__init__(*args, **kwargs)
+        super(WebsocketTickerMixin, self).__init__(*args, **kwargs)
 
     def start_live_updates(self, base_currency: Union[str, List[str]], quote_currency: str):
         self._websocket.start()
