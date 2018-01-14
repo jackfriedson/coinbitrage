@@ -85,10 +85,10 @@ class PoloniexWebsocketFormatter(PoloniexFormatter):
             return pair
         return self.channel_ids[channel]
 
-    def get_channel_name(self, channel_id: Union[str, int]) -> str:
+    def get_channel_name(self, channel_id: str) -> str:
         if channel_id in SYMBOL_IDS:
             return 'order_book'
-        return self.channel_names[channel_id]
+        return self.channel_names[int(channel_id)]
 
     def ticker(self, msg) -> Optional[Tuple[str, dict]]:
         if len(msg) <= 2:
@@ -99,7 +99,7 @@ class PoloniexWebsocketFormatter(PoloniexFormatter):
         bid_ask = {
             'bid': float(data[2]),
             'ask': float(data[3]),
-            'time': time.time(),
+            'recv_time': time.time(),
         }
         return pair, bid_ask
 

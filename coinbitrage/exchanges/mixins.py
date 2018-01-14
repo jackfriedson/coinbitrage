@@ -17,7 +17,7 @@ log = bitlogging.getLogger(__name__)
 
 
 def format_bid_ask(bid_ask: Dict[str, float]) -> Dict[str, str]:
-    return {k: '{:.6f}'.format(v) for k, v in bid_ask.items()}
+    return {k: '{:.6f}'.format(v) for k, v in bid_ask.items() if v}
 
 
 class LiveUpdateMixin(object):
@@ -119,8 +119,10 @@ class PeriodicRefreshMixin(LiveUpdateMixin):
                 bid_ask = {
                     'bid': ticker.get('bid'),
                     'ask': ticker.get('ask'),
-                    'time': ticker.get('time', time.time())
+                    'time': ticker.get('time')
                 }
+                if bid_ask['time'] is None:
+                    bid_ask['recv_time'] = time.time()
                 with self._lock:
                     self._bid_ask[currency] = bid_ask
                     log.debug('{exchange} {currency} {bid_ask}', event_name='refresh_mixin.update',

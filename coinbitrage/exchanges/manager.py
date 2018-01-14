@@ -112,7 +112,8 @@ class ExchangeManager(object):
                 # Has an ask price
                 bid_ask['ask'] is not None,
                 # Has been updated recently
-                bid_ask['time'] and bid_ask['time'] > time.time() - exchange.max_refresh_delay
+                self.updated_recently(bid_ask, exchange)
+
             ])
 
         return filter(buy_exchange_filter, self.exchanges)
@@ -128,10 +129,24 @@ class ExchangeManager(object):
                 # Has a bid price
                 bid_ask['bid'] is not None,
                 # Has been updated recently
-                bid_ask['time'] and bid_ask['time'] > time.time() - exchange.max_refresh_delay
+                self.updated_recently(bid_ask, exchange)
             ])
 
         return filter(sell_exchange_filter, self.exchanges)
+
+    @staticmethod
+    def updated_recently(bid_ask: dict, exchange) -> bool:
+        last_updated = bid_ask.get('time')
+
+        if last_updated:
+            return last_updated > time.time() - exchange.max_refresh_delay
+
+        last_updated = bid_ask.get('recv_time')
+
+        if last_updated:
+            return last_updated > time.time() - (exchange.max_refresh_delay + Defaults.RECEIVE_TIME_OFFSET)
+
+        return False
 
     def add_order(self, side: str, exchange_name: str):
         self._order_history[side].append({'exchange': exchange_name, 'time': time.time()})

@@ -81,5 +81,6 @@ class Defaults(object):
     ORDER_PRECISION = 0.004
     PLACE_ORDER_TIMEOUT = 60
     QUOTE_CURRENCY = 'BTC'
+    RECEIVE_TIME_OFFSET = 1
     USDT_ASK = 1.01
     USDT_BID = 0.99
