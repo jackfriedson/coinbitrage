@@ -9,6 +9,7 @@ from .websocket import PoloniexWebsocketAdapter
 class PoloniexClient(BaseExchangeClient, WebsocketTickerMixin):
     _api_class = PoloniexAPIAdapter
     _websocket_class = PoloniexWebsocketAdapter
+    max_refresh_delay = 10
     name = 'poloniex'
 
     def __init__(self, key_file: str):
