@@ -141,6 +141,7 @@ class BaseWebsocket(WebsocketInterface):
             msg_tuple = self.formatter.websocket_message(msg)
 
             if msg_tuple:
+                print(msg_tuple)
                 pair, data = msg_tuple
                 if pair in self._pairs:
                     self.queue.put(msg_tuple)
