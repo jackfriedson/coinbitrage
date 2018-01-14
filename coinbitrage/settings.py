@@ -71,7 +71,7 @@ CURRENCIES = {
 
 
 class Defaults(object):
-    BASE_CURRENCIES = ['XRP', 'ETC', 'ETH']
+    BASE_CURRENCIES = ['XRP', 'ETC']
     FILL_ORDER_TIMEOUT = 120
     HI_BALANCE_PERCENT = 0.9
     HTTP_TIMEOUT = 20
