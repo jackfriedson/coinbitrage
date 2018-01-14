@@ -34,10 +34,6 @@ class BaseWebsocketAdapter(WebsocketInterface):
         self._controller_thread = None
         self._websocket_thread = None
 
-    @property
-    def running(self):
-        return thread_running(self._websocket_thread)
-
     def start(self):
         self._start_controller()
 
@@ -159,7 +155,7 @@ class WampWebsocketAdapter(BaseWebsocketAdapter):
         protocol_factory.protocol = partial(WampProtocol, controller_queue=self._controller_queue)
         protocol_factory.setProtocolOptions(openHandshakeTimeout=60., closeHandshakeTimeout=60.)
         coro = loop.create_connection(protocol_factory, self.host, self.port, ssl=self.ssl)
-        transport, protocol = loop.run_until_complete(coro)
+        _, protocol = loop.run_until_complete(coro)
 
         try:
             loop.run_forever()
