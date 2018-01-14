@@ -1,3 +1,7 @@
+import time
+
+import dateutil.parser
+
 from coinbitrage.exchanges.bitex import BitExFormatter
 
 
@@ -40,3 +44,16 @@ class HitBtcFormatter(BitExFormatter):
 
     def order_history(self, data):
         return [self.order(order_data) for order_data in data]
+
+
+class HitBtcWebsocketFormatter(HitBtcFormatter):
+
+    def ticker(self, data):
+        return {
+            'bid': float(data['bid']),
+            'ask': float(data['ask']),
+            'time': dateutil.parser.parse(data['timestamp']).timestamp()
+        }
+
+    def order_book(self, data):
+        return data

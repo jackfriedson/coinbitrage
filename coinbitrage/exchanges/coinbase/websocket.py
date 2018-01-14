@@ -4,7 +4,7 @@ import time
 from websocket import create_connection, WebSocketTimeoutException, WebSocketConnectionClosedException
 
 from coinbitrage import bitlogging
-from coinbitrage.exchanges.wss import BaseWebsocketAdapter
+from coinbitrage.exchanges.wss import BaseWebsocket
 
 
 log = bitlogging.getLogger(__name__)
@@ -13,7 +13,7 @@ log = bitlogging.getLogger(__name__)
 WEBSOCKET_TIMEOUT = 30.
 
 
-class CoinbaseWebsocket(BaseWebsocketAdapter):
+class CoinbaseWebsocket(BaseWebsocket):
     _formatters = {
         'ticker': lambda msg: {
             'bid': float(msg[1]['best_bid']),

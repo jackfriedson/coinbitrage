@@ -42,11 +42,13 @@ def shell(base_currency, quote_currency):
 
 @coin.command()
 def test():
-    exchanges = ExchangeManager(['poloniex'], 'ETH', Defaults.QUOTE_CURRENCY)
+    exchanges = ExchangeManager(['bitfinex', 'hitbtc'], 'ETH', Defaults.QUOTE_CURRENCY)
     with exchanges.live_updates():
         try:
-            exchg = exchanges.get('poloniex')
+            bitfinex = exchanges.get('bitfinex')
+            hitbtc = exchanges.get('hitbtc')
             while True:
-                exchg._update()
+                bitfinex._update()
+                hitbtc._update()
         except Exception as e:
             print(e)

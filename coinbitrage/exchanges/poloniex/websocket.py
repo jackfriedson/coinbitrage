@@ -1,5 +1,5 @@
 from coinbitrage import bitlogging
-from coinbitrage.exchanges.wss import WampWebsocketAdapter
+from coinbitrage.exchanges.wss import WampWebsocket
 
 from .formatter import PoloniexWebsocketFormatter
 
@@ -7,7 +7,7 @@ from .formatter import PoloniexWebsocketFormatter
 log = bitlogging.getLogger(__name__)
 
 
-class PoloniexWebsocketAdapter(WampWebsocketAdapter):
+class PoloniexWebsocketAdapter(WampWebsocket):
     formatter = PoloniexWebsocketFormatter()
 
     def __init__(self):

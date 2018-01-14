@@ -18,7 +18,7 @@ from coinbitrage.utils import thread_running
 log = bitlogging.getLogger(__name__)
 
 
-class BaseWebsocketAdapter(WebsocketInterface):
+class BaseWebsocket(WebsocketInterface):
 
     def __init__(self, name: str, url: str):
         self.name = name
@@ -45,17 +45,17 @@ class BaseWebsocketAdapter(WebsocketInterface):
                   channel: str,
                   base_currency: str,
                   quote_currency: str):
-        self._pairs.add(self.formatter.pair(base_currency, quote_currency))
+        if thread_running(self._websocket_thread):
+            self._stop_websocket()
         self._channels.add(channel)
-
-        command = 'start' if not thread_running(self._websocket_thread) else 'restart'
-        self._controller_queue.put(command)
+        self._pairs.add(self.formatter.pair(base_currency, quote_currency))
+        self._start_websocket()
 
     def _start_controller(self):
         log.debug('Starting {exchange} controller thread...', event_data={'exchange': self.name},
                   event_name='websocket_adapter.controller.start')
         if thread_running(self._controller_thread):
-            log.warning('Attempted to start a thread but it was already running',
+            log.warning('Attempted to start the controller thread but it was already running',
                         event_name='websocket_adapter.thread_already_running')
             return
         self.controller_running.set()
@@ -67,7 +67,7 @@ class BaseWebsocketAdapter(WebsocketInterface):
         log.debug('Stopping {exchange} controller thread...', event_data={'exchange': self.name},
                   event_name='websocket_adapter.controller.stop')
         if not thread_running(self._controller_thread):
-            log.warning('Attemped to stop a thread but there was none running',
+            log.warning('Attemped to stop the controller thread but it wasn\'t running',
                         event_name='websocket_adapter.no_thread_to_stop')
             return
         self.controller_running.clear()
@@ -98,7 +98,7 @@ class BaseWebsocketAdapter(WebsocketInterface):
                   event_name='websocket_adapter.websocket.start')
         with self._lock:
             if thread_running(self._websocket_thread):
-                log.warning('Attempted to start a thread but it was already running',
+                log.warning('Attempted to start the websocket thread but it was already running',
                             event_name='websocket_adapter.thread_already_running')
                 return
             self.websocket_running.set()
@@ -111,7 +111,7 @@ class BaseWebsocketAdapter(WebsocketInterface):
                   event_name='websocket_adapter.websocket.stop')
         with self._lock:
             if not thread_running(self._websocket_thread):
-                log.warning('Attempted to stop a thread but there was none running',\
+                log.warning('Attempted to stop the websocket thread but it wasn\'t running',\
                             event_name='websocket_adapter.no_thread_to_stop_websocket')
                 return
             self.websocket_running.clear()
@@ -122,10 +122,10 @@ class BaseWebsocketAdapter(WebsocketInterface):
         raise NotImplementedError
 
 
-class WampWebsocketAdapter(BaseWebsocketAdapter):
+class WampWebsocket(BaseWebsocket):
 
     def __init__(self, name: str, url: str, host: str, port: int, realm: str, ssl: bool = True):
-        super(WampWebsocketAdapter, self).__init__(name, url)
+        super(WampWebsocket, self).__init__(name, url)
         self.realm = realm
         self.host = host
         self.port = port
@@ -134,25 +134,21 @@ class WampWebsocketAdapter(BaseWebsocketAdapter):
 
     def _start_websocket(self):
         self._websocket_loop = asyncio.new_event_loop()
-        super(WampWebsocketAdapter, self)._start_websocket()
+        super(WampWebsocket, self)._start_websocket()
 
     def _stop_websocket(self):
         if self._websocket_loop:
             self._websocket_loop.stop()
-        super(WampWebsocketAdapter, self)._stop_websocket()
+        super(WampWebsocket, self)._stop_websocket()
 
     def _websocket(self, *args):
         loop = self._websocket_loop
         asyncio.set_event_loop(loop)
         txaio.config.loop = loop
         session_factory = ApplicationSessionFactory(ComponentConfig(realm=self.realm))
-        session_factory.session = partial(WampComponent,
-                                          websocket_queue=self.queue,
-                                          channels=self._channels,
-                                          pairs=self._pairs,
-                                          formatter=self.formatter)
+        session_factory.session = partial(WampComponent, self.queue, self._channels, self._pairs, self.formatter)
         protocol_factory = WampWebSocketClientFactory(session_factory, url=self.url)
-        protocol_factory.protocol = partial(WampProtocol, controller_queue=self._controller_queue)
+        protocol_factory.protocol = partial(WampProtocol, self._controller_queue)
         protocol_factory.setProtocolOptions(openHandshakeTimeout=60., closeHandshakeTimeout=60.)
         coro = loop.create_connection(protocol_factory, self.host, self.port, ssl=self.ssl)
         _, protocol = loop.run_until_complete(coro)
@@ -181,12 +177,7 @@ class WampProtocol(WampWebSocketClientProtocol):
 
 
 class WampComponent(ApplicationSession):
-    def __init__(self, *args,
-                 websocket_queue: Queue = None,
-                 channels: List[str] = None,
-                 pairs: List[str] = None,
-                 formatter = None,
-                 **kwargs):
+    def __init__(self, websocket_queue: Queue, channels: List[str], pairs: List[str], formatter, *args, **kwargs):
         super(WampComponent, self).__init__(*args, **kwargs)
         self._queue = websocket_queue
         self._channels = channels

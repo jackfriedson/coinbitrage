@@ -25,7 +25,10 @@ def format_log_args(args: tuple, kwargs: dict) -> tuple:
 
 
 def thread_running(thread: Thread) -> bool:
-    return thread and thread.is_alive()
+    if thread is None:
+        return False
+
+    return thread.is_alive()
 
 
 def to_unixtime(ts: Timestamp) -> int:
