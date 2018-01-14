@@ -6,8 +6,8 @@ from .api import BittrexAPIAdapter
 
 
 class BittrexClient(BaseExchangeClient, PeriodicRefreshMixin):
-    name = 'bittrex'
     _api_class = BittrexAPIAdapter
+    name = 'bittrex'
 
     def __init__(self, key_file: str):
         BaseExchangeClient.__init__(self, key_file)

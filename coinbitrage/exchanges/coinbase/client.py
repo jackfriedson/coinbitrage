@@ -6,13 +6,13 @@ from .websocket import CoinbaseWebsocket
 
 
 class CoinbaseClient(BaseExchangeClient, PeriodicRefreshMixin):
-    name = 'coinbase'
     _api_class = CoinbaseAPIAdapter
     _fees = {
         'BTC': 0.0025,
         'ETH': 0.003,
         'LTC': 0.003
     }
+    name = 'coinbase'
 
     def __init__(self, coinbase_key_file: str, gdax_key_file: str = None):
         BaseExchangeClient.__init__(self, coinbase_key_file, gdax_key_file=gdax_key_file)

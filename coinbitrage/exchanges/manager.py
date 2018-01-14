@@ -18,9 +18,6 @@ from coinbitrage.settings import CURRENCIES, Defaults
 log = bitlogging.getLogger(__name__)
 
 
-MAX_REFRESH_DELAY = 5  # Filter exchanges not updated within the last 5 seconds
-
-
 class ExchangeManager(object):
     # TODO: Set a flag when deposits are pending to avoid rebalancing again; check at the beginning
     #       of each rebalance whether deposits have completed and unset the flag if so
@@ -115,7 +112,7 @@ class ExchangeManager(object):
                 # Has an ask price
                 bid_ask['ask'] is not None,
                 # Has been updated recently
-                bid_ask['time'] and bid_ask['time'] > time.time() - MAX_REFRESH_DELAY
+                bid_ask['time'] and bid_ask['time'] > time.time() - exchange.max_refresh_delay
             ])
 
         return filter(buy_exchange_filter, self.exchanges)
@@ -131,7 +128,7 @@ class ExchangeManager(object):
                 # Has a bid price
                 bid_ask['bid'] is not None,
                 # Has been updated recently
-                bid_ask['time'] and bid_ask['time'] > time.time() - MAX_REFRESH_DELAY
+                bid_ask['time'] and bid_ask['time'] > time.time() - exchange.max_refresh_delay
             ])
 
         return filter(sell_exchange_filter, self.exchanges)

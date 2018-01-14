@@ -7,9 +7,9 @@ from .websocket import PoloniexWebsocketAdapter
 
 
 class PoloniexClient(BaseExchangeClient, PeriodicRefreshMixin):
-    name = 'poloniex'
     _api_class = PoloniexAPIAdapter
     _websocket_class = PoloniexWebsocketAdapter
+    name = 'poloniex'
 
     def __init__(self, key_file: str):
         BaseExchangeClient.__init__(self, key_file)

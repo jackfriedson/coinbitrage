@@ -6,9 +6,10 @@ from .websocket import BitfinexWebsocketAdapter
 
 
 class BitfinexClient(BaseExchangeClient, WebsocketMixin):
-    name = 'bitfinex'
     _api_class = BitfinexAPIAdapter
     _websocket_class = BitfinexWebsocketAdapter
+    name = 'bitfinex'
+    max_refresh_delay = 10
 
     def __init__(self, key_file: str):
         BaseExchangeClient.__init__(self, key_file)

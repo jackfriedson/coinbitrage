@@ -8,7 +8,6 @@ KRAKEN_CALL_RATE = 3
 
 
 class KrakenClient(BaseExchangeClient, PeriodicRefreshMixin):
-    name = 'kraken'
     _api_class = KrakenAPIAdapter
     _tx_fees = {
         'BCH': 0.001,
@@ -18,6 +17,7 @@ class KrakenClient(BaseExchangeClient, PeriodicRefreshMixin):
         'USDT': 5.,
         'XRP': 0.02,
     }
+    name = 'kraken'
 
     def __init__(self, key_file: str):
         BaseExchangeClient.__init__(self, key_file)

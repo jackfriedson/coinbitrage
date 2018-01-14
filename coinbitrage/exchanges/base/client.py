@@ -10,8 +10,9 @@ log = bitlogging.getLogger(__name__)
 
 
 class BaseExchangeClient(object):
-    name = None
     _api_class = None
+    max_refresh_delay = Defaults.MAX_REFRESH_DELAY
+    name = None
 
     def __init__(self, key_file: str, **kwargs):
         self.api = self._api_class(self.name, key_file, **kwargs)

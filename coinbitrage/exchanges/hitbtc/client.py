@@ -15,8 +15,8 @@ log = bitlogging.getLogger(__name__)
 
 
 class HitBtcClient(BaseExchangeClient, PeriodicRefreshMixin):
-    name = 'hitbtc'
     _api_class = HitBtcAPIAdapter
+    name = 'hitbtc'
 
     def __init__(self, key_file: str):
         BaseExchangeClient.__init__(self, key_file)

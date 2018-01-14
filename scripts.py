@@ -21,7 +21,6 @@ def coin(debug: bool, asyncio_debug):
         os.environ['PYTHONASYNCIODEBUG'] = '1'
 
 
-
 @coin.command()
 @click.option('--base-currency', default=Defaults.BASE_CURRENCIES)
 @click.option('--quote-currency', type=click.Choice(CURRENCIES.keys()), default=Defaults.QUOTE_CURRENCY)
