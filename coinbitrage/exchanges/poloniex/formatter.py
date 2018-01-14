@@ -103,5 +103,5 @@ class PoloniexWebsocketFormatter(PoloniexFormatter):
         }
         return pair, bid_ask
 
-    def order_book(self, data):
-        return data
+    # def order_book(self, data):
+    #     return data
