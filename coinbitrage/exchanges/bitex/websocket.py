@@ -2,6 +2,7 @@ from typing import Callable, Dict, Optional
 from queue import Queue
 
 from coinbitrage.exchanges.interfaces import WebsocketInterface
+from coinbitrage.exchanges.wss import WebsocketMessage
 from coinbitrage.settings import Defaults
 
 
@@ -26,7 +27,7 @@ class BitExWebsocketAdapter(WebsocketInterface):
         def put(self, message: tuple, **kwargs):
             channel, pair, data = message
             data = getattr(self._formatter, channel)(data)
-            self._queue.put((pair, data))
+            self._queue.put(WebsocketMessage(channel, pair, data))
 
         def get(self, **kwargs):
             return self._queue.get(**kwargs)

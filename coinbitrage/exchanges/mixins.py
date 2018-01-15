@@ -66,17 +66,31 @@ class WebsocketTickerMixin(LiveUpdateMixin):
         while not self._websocket.queue.empty():
             message = self._websocket.queue.get()
         if message:
-            pair, bid_ask = message
-            base, quote = self.formatter.unpair(pair)
+            base, quote = self.formatter.unpair(message.pair)
             log.debug('{exchange} {currency} {bid_ask}', event_name='websocket_mixin.update',
-                      event_data={'exchange': self.name, 'currency': base, 'bid_ask': format_bid_ask(bid_ask)})
-            self._bid_ask[base] = bid_ask
+                      event_data={'exchange': self.name, 'currency': base, 'bid_ask': format_bid_ask(message.data)})
+            self._bid_ask[base] = message.data
 
-    def bid_ask(self,
-                base_currency: str,
-                quote_currency: str = Defaults.QUOTE_CURRENCY):
+    def bid_ask(self, base_currency: str, quote_currency: str = Defaults.QUOTE_CURRENCY):
         self._update()
         return self._bid_ask[base_currency]
+
+
+class WebsocketOrderBookMixin(LiveUpdateMixin):
+    _websocket_order_book_class = None
+
+    def __init__(self, *args, **kwargs):
+        self._websocket_order_book = self._websocket_order_book_class()
+        super(WebsocketOrderBookMixin, self).__init__(*args, **kwargs)
+
+    def start_live_updates(self, base_currency: Union[str, List[str]], quote_currency: str):
+        pass
+
+    def stop_live_updates(self):
+        pass
+
+    def bid_ask(self, base_currency: str, quote_currency: str = Defaults.QUOTE_CURRENCY):
+        pass
 
 
 class PeriodicRefreshMixin(LiveUpdateMixin):
@@ -86,7 +100,7 @@ class PeriodicRefreshMixin(LiveUpdateMixin):
         self._running = Event()
         self._lock = RLock()
         self._refresh_threads = {}
-        self._bid_ask = {'bid': None, 'ask': None, 'time': None}
+        self._bid_ask = defaultdict(lambda: {'bid': None, 'ask': None, 'time': None})
         super(PeriodicRefreshMixin, self).__init__(*args, **kwargs)
 
     def start_live_updates(self, base_currency: Union[str, List[str]], quote_currency: str = Defaults.QUOTE_CURRENCY):

@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+from collections import namedtuple
 from functools import partial
 from queue import Queue
 from threading import Event, RLock, Thread
@@ -10,7 +11,8 @@ import txaio
 from autobahn.asyncio.wamp import ApplicationSession, ApplicationSessionFactory
 from autobahn.asyncio.websocket import WampWebSocketClientFactory, WampWebSocketClientProtocol
 from autobahn.wamp.types import ComponentConfig
-from websocket import WebSocketException, WebSocketTimeoutException, create_connection
+from pylimitbook.book import Book
+from websocket import WebSocketApp, WebSocketException, WebSocketTimeoutException, create_connection
 
 from coinbitrage import bitlogging
 from coinbitrage.exchanges.interfaces import WebsocketInterface
@@ -18,6 +20,9 @@ from coinbitrage.utils import thread_running
 
 
 log = bitlogging.getLogger(__name__)
+
+
+WebsocketMessage = namedtuple('WebsocketMessage', ['channel', 'pair', 'data'])
 
 
 class BaseWebsocket(WebsocketInterface):
@@ -127,9 +132,7 @@ class BaseWebsocket(WebsocketInterface):
             self._controller_queue.put('restart')
             return
 
-        for channel in self._channels:
-            for pair in self._pairs:
-                self._subscribe(conn, channel, pair)
+        self._init_subscriptions(conn)
 
         while self.websocket_running.is_set():
             try:
@@ -138,15 +141,43 @@ class BaseWebsocket(WebsocketInterface):
                 self._controller_queue.put('restart')
                 return
 
-            msg_tuple = self.formatter.websocket_message(msg)
+            msg = self.formatter.websocket_message(msg)
 
-            if msg_tuple:
-                pair, data = msg_tuple
-                if pair in self._pairs:
-                    self.queue.put(msg_tuple)
+            if msg and msg.channel in self._channels and msg.pair in self._pairs:
+                self.queue.put(msg)
+
+    def _init_subscriptions(self, conn):
+        for channel in self._channels:
+            for pair in self._pairs:
+                self._subscribe(conn, channel, pair)
 
     def _subscribe(self, connection, channel: str, pair: str):
         raise NotImplementedError
+
+
+class WebsocketOrderBook(BaseWebsocket):
+
+    def __init__(self, *args, **kwargs):
+        super(WebsocketOrderBook, self).__init__(*args, **kwargs)
+        self._book_lock = RLock()
+        self._book = Book()
+        self._ws = None
+
+    def _websocket(self, *args):
+        self._ws = WebsocketApp(self.url, on_open=self._init_subscriptions, on_message=self._on_message)
+        self._ws.run_forever()
+
+    def _stop_websocket(self):
+        with self._lock:
+            self._ws.close()
+        super(WebsocketOrderBook, self)._stop_websocket()
+
+    def _on_message(self, ws, message):
+        msg = self.formatter.websocket_message(message)
+
+        if msg.channel == 'order_book':
+            with self._book_lock:
+                pass
 
 
 class WampWebsocket(BaseWebsocket):

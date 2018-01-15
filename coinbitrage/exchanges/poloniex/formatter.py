@@ -4,6 +4,7 @@ from typing import Optional, Tuple, Union
 import numpy as np
 
 from coinbitrage.exchanges.bitex import BitExFormatter
+from coinbitrage.exchanges.wss import WebsocketMessage
 
 from .symbol_ids import SYMBOL_IDS
 
@@ -75,10 +76,16 @@ class PoloniexWebsocketFormatter(PoloniexFormatter):
     }
     channel_ids = {v: k for k, v in channel_names.items()}
 
-    def websocket_message(self, msg: list) -> Optional[Tuple[str, dict]]:
+    def websocket_message(self, msg: list) -> Optional[WebsocketMessage]:
         channel = self.get_channel_name(msg[0])
         formatter = getattr(self, channel)
-        return formatter(msg)
+
+        formatted = formatter(msg)
+        if not formatted:
+            return None
+
+        pair, data = formatted
+        return WebsocketMessage(channel, pair, data)
 
     def get_channel_id(self, channel: str, pair: str) -> Union[int, str]:
         if channel == 'order_book':

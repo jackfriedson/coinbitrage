@@ -4,6 +4,7 @@ from typing import Optional, Tuple
 import dateutil.parser
 
 from coinbitrage.exchanges.bitex import BitExFormatter
+from coinbitrage.exchanges.wss import WebsocketMessage
 
 
 class HitBtcFormatter(BitExFormatter):
@@ -49,20 +50,19 @@ class HitBtcFormatter(BitExFormatter):
 
 class HitBtcWebsocketFormatter(HitBtcFormatter):
 
-    def websocket_message(self, msg: dict) -> Optional[Tuple[str, dict]]:
+    def websocket_message(self, msg: dict) -> Optional[WebsocketMessage]:
         if 'method' not in msg:
             return None
 
         formatter = getattr(self, msg['method'])
-        return msg['params']['symbol'], formatter(msg['params'])
+        return WebsocketMessage(msg['method'], msg['params']['symbol'], formatter(msg['params']))
 
-
-    def ticker(self, data):
+    def ticker(self, data: dict) -> dict:
         return {
             'bid': float(data['bid']),
             'ask': float(data['ask']),
             'time': dateutil.parser.parse(data['timestamp']).timestamp()
         }
 
-    def order_book(self, data):
+    def order_book(self, data: dict) -> dict:
         return data
