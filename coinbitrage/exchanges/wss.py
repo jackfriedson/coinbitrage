@@ -147,6 +147,7 @@ class BaseWebsocket(WebsocketInterface):
                         self.queue.put(msg_tuple)
                 except:
                     print(msg_tuple)
+                    raise
 
     def _subscribe(self, connection, channel: str, pair: str):
         raise NotImplementedError
