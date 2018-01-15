@@ -1,4 +1,6 @@
 -e git+git@github.com:jackfriedson/bitex.git@master#egg=BitEx
+-e git+git@github.com:jackfriedson/PyLimitBook.git@master#egg=pylimitbook
+bintrees>=2.0.7,<3.0.0
 click>=6.7,<7.0
 coinbase>=2.0.6,<3.0.0
 pandas>=0.21.0,<1.0.0
