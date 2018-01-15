@@ -4,26 +4,26 @@ from typing import Optional
 from coinbitrage import bitlogging
 from coinbitrage.exchanges.base import BaseExchangeClient
 from coinbitrage.exchanges.errors import ClientError
-from coinbitrage.exchanges.mixins import WebsocketTickerMixin
+from coinbitrage.exchanges.mixins import WebsocketOrderBookMixin
 from coinbitrage.settings import CURRENCIES
 from coinbitrage.utils import retry_on_exception
 
 from .api import HitBtcAPIAdapter
-from .websocket import HitBtcWebsocketAdapter
+from .websocket import HitBtcWebsocketOrderBook
 
 
 log = bitlogging.getLogger(__name__)
 
 
-class HitBtcClient(BaseExchangeClient, WebsocketTickerMixin):
+class HitBtcClient(BaseExchangeClient, WebsocketOrderBookMixin):
     _api_class = HitBtcAPIAdapter
-    _websocket_class = HitBtcWebsocketAdapter
+    _websocket_order_book_class = HitBtcWebsocketOrderBook
     max_refresh_delay = 10
     name = 'hitbtc'
 
     def __init__(self, key_file: str):
         BaseExchangeClient.__init__(self, key_file)
-        WebsocketTickerMixin.__init__(self)
+        WebsocketOrderBookMixin.__init__(self)
 
     def init(self):
         pair_info = self.api.pairs()

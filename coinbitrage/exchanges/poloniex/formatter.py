@@ -1,9 +1,10 @@
 import time
-from typing import Optional, Tuple, Union
+from typing import Iterable, Optional, Tuple, Union
 
 import numpy as np
 
 from coinbitrage.exchanges.bitex import BitExFormatter
+from coinbitrage.exchanges.order_book import OrderBookUpdate
 from coinbitrage.exchanges.wss import WebsocketMessage
 
 from .symbol_ids import SYMBOL_IDS
@@ -110,7 +111,7 @@ class PoloniexWebsocketFormatter(PoloniexFormatter):
         }
         return pair, bid_ask
 
-    def order_book(self, msg: list) -> Optional[Tuple[str, list]]:
+    def order_book(self, msg: list) -> Optional[Tuple[str, OrderBookUpdate]]:
         pair = SYMBOL_IDS[msg[0]]
         type_map = {
             'i': 'initialize',
@@ -118,12 +119,15 @@ class PoloniexWebsocketFormatter(PoloniexFormatter):
             't': 'trade',
         }
 
-        def format_book_entry(entry):
+        def format_book_entry(entry: list) -> dict:
             entry_type = type_map[entry[0]]
 
             if entry_type == 'initialize':
                 book = entry[1]['orderBook']
-                data = {'asks': book[0], 'bids': book[1]}
+                data = {
+                    'asks': book[0],
+                    'bids': book[1]
+                }
             elif entry_type == 'order':
                 data = {
                     'side': 'bid' if entry[1] == 1 else 'ask',
@@ -138,13 +142,10 @@ class PoloniexWebsocketFormatter(PoloniexFormatter):
                     'time': entry[5],
                 }
 
-            return {
-                'type': entry_type,
-                'pair': pair,
-                'data': data,
-            }
+            data['type'] = entry_type
+            return data
 
-        return pair, (format_book_entry(entry) for entry in msg[2])
+        return pair, OrderBookUpdate(pair, msg[1], (format_book_entry(entry) for entry in msg[2]))
 
     def trollbox(self, msg: list) -> Optional[Tuple[str, dict]]:
         return None

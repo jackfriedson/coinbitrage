@@ -1,9 +1,11 @@
+import itertools
 import time
-from typing import Optional, Tuple
+from typing import Iterable, Optional, Tuple
 
 import dateutil.parser
 
 from coinbitrage.exchanges.bitex import BitExFormatter
+from coinbitrage.exchanges.order_book import OrderBookUpdate
 from coinbitrage.exchanges.wss import WebsocketMessage
 
 
@@ -54,8 +56,13 @@ class HitBtcWebsocketFormatter(HitBtcFormatter):
         if 'method' not in msg:
             return None
 
-        formatter = getattr(self, msg['method'])
-        return WebsocketMessage(msg['method'], msg['params']['symbol'], formatter(msg['params']))
+        channel = msg['method']
+        formatter = getattr(self, channel)
+
+        if channel in ['snapshotOrderbook', 'updateOrderbook']:
+            channel = 'order_book'
+
+        return WebsocketMessage(channel, msg['params']['symbol'], formatter(msg['params']))
 
     def ticker(self, data: dict) -> dict:
         return {
@@ -64,5 +71,24 @@ class HitBtcWebsocketFormatter(HitBtcFormatter):
             'time': dateutil.parser.parse(data['timestamp']).timestamp()
         }
 
-    def order_book(self, data: dict) -> dict:
-        return data
+    def snapshotOrderbook(self, data: dict) -> OrderBookUpdate:
+        updates = [{
+            'type': 'initialize',
+            'asks': {entry['price']: entry['size'] for entry in data['ask']},
+            'bids': {entry['price']: entry['size'] for entry in data['bid']}
+        }]
+        return OrderBookUpdate(data['symbol'], data['sequence'], updates)
+
+    def updateOrderbook(self, data: dict) -> OrderBookUpdate:
+        def format_book_entry(entry: dict, side: str) -> dict:
+            return {
+                'type': 'order',
+                'side': side,
+                'price': entry['price'],
+                'quantity': entry['size'],
+                'time': time.time()
+            }
+
+        asks = (format_book_entry(entry, 'ask') for entry in data['ask'])
+        bids = (format_book_entry(entry, 'bid') for entry in data['bid'])
+        return OrderBookUpdate(data['symbol'], data['sequence'], itertools.chain(asks, bids))

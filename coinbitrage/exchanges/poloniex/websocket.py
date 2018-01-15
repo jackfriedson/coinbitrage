@@ -11,23 +11,19 @@ from .formatter import PoloniexWebsocketFormatter
 log = bitlogging.getLogger(__name__)
 
 
-class PoloniexWebsocketAdapter(BaseWebsocket):
+class PoloniexWebsocketMixin(object):
+    _name = 'poloniex'
+    _url = 'wss://api2.poloniex.com/'
     formatter = PoloniexWebsocketFormatter()
-
-    def __init__(self):
-        super(PoloniexWebsocketAdapter, self).__init__('poloniex', 'wss://api2.poloniex.com/')
 
     def _subscribe(self, conn, channel: str, pair: str):
         channel = self.formatter.get_channel_id(channel, pair)
         conn.send(json.dumps({ 'command': 'subscribe', 'channel': channel}))
 
 
-class PoloniexWebsocketOrderBook(WebsocketOrderBook):
-    formatter = PoloniexWebsocketFormatter()
+class PoloniexWebsocketAdapter(PoloniexWebsocketMixin, BaseWebsocket):
+    pass
 
-    def __init__(self):
-        super(PoloniexWebsocketOrderBook, self).__init__('poloniex', 'wss://api2.poloniex.com/')
 
-    def _subscribe(self, conn, channel: str, pair: str):
-        channel = self.formatter.get_channel_id(channel, pair)
-        conn.send(json.dumps({ 'command': 'subscribe', 'channel': channel}))
+class PoloniexWebsocketOrderBook(PoloniexWebsocketMixin, WebsocketOrderBook):
+    pass

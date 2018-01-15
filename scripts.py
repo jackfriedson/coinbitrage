@@ -42,11 +42,11 @@ def shell(base_currency, quote_currency):
 
 @coin.command()
 def test():
-    exchanges = ExchangeManager(['poloniex'], 'ETH', Defaults.QUOTE_CURRENCY)
+    exchanges = ExchangeManager(['hitbtc'], 'ETH', Defaults.QUOTE_CURRENCY)
     with exchanges.live_updates():
         try:
-            poloniex = exchanges.get('poloniex')
+            hitbtc = exchanges.get('hitbtc')
             while True:
-                print(poloniex.bid_ask('ETH', 'BTC'))
+                print(hitbtc.bid_ask('ETH', 'BTC'))
         except Exception as e:
             print(e)

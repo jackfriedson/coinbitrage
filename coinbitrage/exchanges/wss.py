@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import traceback
 from collections import namedtuple
 from functools import partial
 from queue import Queue
@@ -27,9 +28,9 @@ WebsocketMessage = namedtuple('WebsocketMessage', ['channel', 'pair', 'data'])
 
 class BaseWebsocket(WebsocketInterface):
 
-    def __init__(self, name: str, url: str):
-        self.name = name
-        self.url = url
+    def __init__(self, name: Optional[str] = None, url: Optional[str] = None):
+        self.name = name or self._name
+        self.url = url or self._url
         self.queue = Queue()
         self.controller_running = Event()
         self.websocket_running = Event()
@@ -164,7 +165,10 @@ class WebsocketOrderBook(BaseWebsocket):
         self._ws = None
 
     def _websocket(self, *args):
-        self._ws = WebSocketApp(self.url, on_open=self._init_subscriptions, on_message=self._on_message)
+        self._ws = WebSocketApp(self.url,
+                                on_open=self._init_subscriptions,
+                                on_message=self._on_message,
+                                on_error=self._on_error)
         self._ws.run_forever()
 
     def _stop_websocket(self):
@@ -179,6 +183,10 @@ class WebsocketOrderBook(BaseWebsocket):
         if msg and msg.channel == 'order_book':
             with self._book_lock:
                 self._book.update(msg.data)
+
+    def _on_error(self, ws, error):
+        log.error(error, event_name='websocket.error', event_data={'error': error})
+        raise error
 
     def best_bid(self, base_currency: str, quote_currency: str) -> Optional[dict]:
         pair = self.formatter.pair(base_currency, quote_currency)
