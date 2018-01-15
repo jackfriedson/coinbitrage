@@ -90,7 +90,7 @@ class PoloniexWebsocketFormatter(PoloniexFormatter):
             return 'order_book'
         return self.channel_names[int(channel_id)]
 
-    def ticker(self, msg) -> Optional[Tuple[str, dict]]:
+    def ticker(self, msg: list) -> Optional[Tuple[str, dict]]:
         if len(msg) <= 2:
             return None
 
@@ -103,5 +103,11 @@ class PoloniexWebsocketFormatter(PoloniexFormatter):
         }
         return pair, bid_ask
 
-    # def order_book(self, data):
-    #     return data
+    def order_book(self, msg: list) -> Optional[Tuple[str, dict]]:
+        return None
+
+    def trollbox(self, msg: list) -> Optional[Tuple[str, dict]]:
+        return None
+
+    def heartbeat(self, msg: list) -> Optional[Tuple[str, dict]]:
+        return None
