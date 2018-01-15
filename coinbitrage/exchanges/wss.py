@@ -141,9 +141,12 @@ class BaseWebsocket(WebsocketInterface):
             msg_tuple = self.formatter.websocket_message(msg)
 
             if msg_tuple:
-                pair, data = msg_tuple
-                if pair in self._pairs:
-                    self.queue.put(msg_tuple)
+                try:
+                    pair, data = msg_tuple
+                    if pair in self._pairs:
+                        self.queue.put(msg_tuple)
+                except:
+                    print(msg_tuple)
 
     def _subscribe(self, connection, channel: str, pair: str):
         raise NotImplementedError
