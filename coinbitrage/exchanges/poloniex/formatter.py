@@ -110,8 +110,41 @@ class PoloniexWebsocketFormatter(PoloniexFormatter):
         }
         return pair, bid_ask
 
-    def order_book(self, msg: list) -> Optional[Tuple[str, dict]]:
-        return None
+    def order_book(self, msg: list) -> Optional[Tuple[str, list]]:
+        pair = SYMBOL_IDS[msg[0]]
+        type_map = {
+            'i': 'initialize',
+            'o': 'order',
+            't': 'trade',
+        }
+
+        def format_book_entry(entry):
+            entry_type = type_map[entry[0]]
+
+            if entry_type == 'initialize':
+                book = entry[1]['orderBook']
+                data = {'asks': book[0], 'bids': book[1]}
+            elif entry_type == 'order':
+                data = {
+                    'side': 'bid' if entry[1] == 1 else 'ask',
+                    'price': entry[2],
+                    'quantity': entry[3]
+                }
+            elif entry_type == 'trade':
+                data = {
+                    'side': 'buy' if entry[2] == 1 else 'sell',
+                    'price': entry[3],
+                    'quantity': entry[4],
+                    'time': entry[5],
+                }
+
+            return {
+                'type': entry_type,
+                'pair': pair,
+                'data': data,
+            }
+
+        return pair, (format_book_entry(entry) for entry in msg[2])
 
     def trollbox(self, msg: list) -> Optional[Tuple[str, dict]]:
         return None

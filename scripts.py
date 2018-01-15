@@ -47,6 +47,6 @@ def test():
         try:
             poloniex = exchanges.get('poloniex')
             while True:
-                poloniex._update()
+                print(poloniex.bid_ask('ETH', 'BTC'))
         except Exception as e:
             print(e)

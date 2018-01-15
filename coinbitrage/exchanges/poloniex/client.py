@@ -1,20 +1,20 @@
 
 from coinbitrage.exchanges.base import BaseExchangeClient
-from coinbitrage.exchanges.mixins import PeriodicRefreshMixin, WebsocketTickerMixin
+from coinbitrage.exchanges.mixins import PeriodicRefreshMixin, WebsocketOrderBookMixin
 
 from .api import PoloniexAPIAdapter
-from .websocket import PoloniexWebsocketAdapter
+from .websocket import PoloniexWebsocketOrderBook
 
 
-class PoloniexClient(BaseExchangeClient, WebsocketTickerMixin):
+class PoloniexClient(BaseExchangeClient, WebsocketOrderBookMixin):
     _api_class = PoloniexAPIAdapter
-    _websocket_class = PoloniexWebsocketAdapter
+    _websocket_order_book_class = PoloniexWebsocketOrderBook
     max_refresh_delay = 10
     name = 'poloniex'
 
     def __init__(self, key_file: str):
         BaseExchangeClient.__init__(self, key_file)
-        WebsocketTickerMixin.__init__(self)
+        WebsocketOrderBookMixin.__init__(self)
 
     def init(self):
         self.currency_info = self.api.currencies()

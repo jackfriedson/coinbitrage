@@ -30,16 +30,14 @@ class LiveUpdateMixin(object):
     def stop_live_updates(self):
         raise NotImplementedError
 
-    def bid_ask(self,
-                base_currency: str,
-                quote_currency: str = Defaults.QUOTE_CURRENCY):
+    def bid_ask(self, base_currency: str, quote_currency: str = Defaults.QUOTE_CURRENCY):
         raise NotImplementedError
 
-    def bid(self, currency: str):
-        return self.bid_ask(currency).get('bid')
+    def bid(self, base_currency: str, quote_currency: str = Defaults.QUOTE_CURRENCY):
+        return self.bid_ask(base_currency, quote_currency).get('bid')
 
-    def ask(self, currency: str):
-        return self.bid_ask(currency).get('ask')
+    def ask(self, base_currency: str, quote_currency: str = Defaults.QUOTE_CURRENCY):
+        return self.bid_ask(base_currency, quote_currency).get('ask')
 
 
 class WebsocketTickerMixin(LiveUpdateMixin):
@@ -80,17 +78,24 @@ class WebsocketOrderBookMixin(LiveUpdateMixin):
     _websocket_order_book_class = None
 
     def __init__(self, *args, **kwargs):
-        self._websocket_order_book = self._websocket_order_book_class()
+        self._wss_order_book = self._websocket_order_book_class()
         super(WebsocketOrderBookMixin, self).__init__(*args, **kwargs)
 
     def start_live_updates(self, base_currency: Union[str, List[str]], quote_currency: str):
-        pass
+        self._wss_order_book.start()
+        if isinstance(base_currency, str):
+            base_currency = [base_currency]
+        for currency in base_currency:
+            self._wss_order_book.subscribe('order_book', currency, quote_currency)
 
     def stop_live_updates(self):
-        pass
+        self._wss_order_book.stop()
 
     def bid_ask(self, base_currency: str, quote_currency: str = Defaults.QUOTE_CURRENCY):
-        pass
+        ret = self._wss_order_book.best_bid(base_currency, quote_currency) or {'bid': None}
+        ret.update(self._wss_order_book.best_ask(base_currency, quote_currency) or {'ask': None})
+        ret.setdefault('time', None)
+        return ret
 
 
 class PeriodicRefreshMixin(LiveUpdateMixin):
@@ -144,12 +149,12 @@ class PeriodicRefreshMixin(LiveUpdateMixin):
                                           'bid_ask': format_bid_ask(bid_ask)})
             time.sleep(self._interval)
 
-    def bid_ask(self, currency: Optional[str] = None):
+    def bid_ask(self, base_currency: Optional[str] = None, quote_currency: str = Defaults.QUOTE_CURRENCY):
         with self._lock:
             # TODO: do we actually need to acquire the lock here?
             # should we be creating a copy of the dict instead of passing a reference?
-            if currency:
-                return self._bid_ask.get(currency, {'bid': None, 'ask': None, 'time': None})
+            if base_currency:
+                return self._bid_ask.get(base_currency, {'bid': None, 'ask': None, 'time': None})
             return self._bid_ask
 
 

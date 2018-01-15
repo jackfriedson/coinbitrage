@@ -5,17 +5,17 @@ from collections import namedtuple
 from functools import partial
 from queue import Queue
 from threading import Event, RLock, Thread
-from typing import Callable, Dict, List
+from typing import Callable, Dict, List, Optional
 
 import txaio
 from autobahn.asyncio.wamp import ApplicationSession, ApplicationSessionFactory
 from autobahn.asyncio.websocket import WampWebSocketClientFactory, WampWebSocketClientProtocol
 from autobahn.wamp.types import ComponentConfig
-from pylimitbook.book import Book
 from websocket import WebSocketApp, WebSocketException, WebSocketTimeoutException, create_connection
 
 from coinbitrage import bitlogging
 from coinbitrage.exchanges.interfaces import WebsocketInterface
+from coinbitrage.exchanges.order_book import OrderBook
 from coinbitrage.utils import thread_running
 
 
@@ -160,24 +160,35 @@ class WebsocketOrderBook(BaseWebsocket):
     def __init__(self, *args, **kwargs):
         super(WebsocketOrderBook, self).__init__(*args, **kwargs)
         self._book_lock = RLock()
-        self._book = Book()
+        self._book = OrderBook()
         self._ws = None
 
     def _websocket(self, *args):
-        self._ws = WebsocketApp(self.url, on_open=self._init_subscriptions, on_message=self._on_message)
+        self._ws = WebSocketApp(self.url, on_open=self._init_subscriptions, on_message=self._on_message)
         self._ws.run_forever()
 
     def _stop_websocket(self):
-        with self._lock:
-            self._ws.close()
+        if self._ws:
+            with self._lock:
+                self._ws.close()
         super(WebsocketOrderBook, self)._stop_websocket()
 
     def _on_message(self, ws, message):
-        msg = self.formatter.websocket_message(message)
+        msg = self.formatter.websocket_message(json.loads(message))
 
-        if msg.channel == 'order_book':
+        if msg and msg.channel == 'order_book':
             with self._book_lock:
-                pass
+                self._book.update(msg.data)
+
+    def best_bid(self, base_currency: str, quote_currency: str) -> Optional[dict]:
+        pair = self.formatter.pair(base_currency, quote_currency)
+        with self._book_lock:
+            return self._book.best_bid(pair)
+
+    def best_ask(self, base_currency: str, quote_currency: str) -> Optional[dict]:
+        pair = self.formatter.pair(base_currency, quote_currency)
+        with self._book_lock:
+            return self._book.best_ask(pair)
 
 
 class WampWebsocket(BaseWebsocket):
