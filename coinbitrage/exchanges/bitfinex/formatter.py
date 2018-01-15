@@ -1,6 +1,8 @@
-from typing import Tuple
+from typing import Iterable, Optional, Tuple, Union
 
 from coinbitrage.exchanges.bitex import BitExFormatter
+from coinbitrage.exchanges.order_book import OrderBookUpdate
+from coinbitrage.exchanges.wss import WebsocketMessage
 
 
 class BitfinexFormatter(BitExFormatter):
@@ -39,13 +41,61 @@ class BitfinexFormatter(BitExFormatter):
 
 
 class BitfinexWebsocketFormatter(BitfinexFormatter):
+    hitbtc_channel_names = {
+        'order_book': 'book',
+        'trades': 'trades',
+        'ticker': 'ticker',
+    }
+    coinbitrage_channel_names = {v: k for k, v in hitbtc_channel_names.items()}
 
-    def ticker(self, data):
+    def __init__(self, *args, **kwargs):
+        super(BitfinexWebsocketFormatter, self).__init__(*args, **kwargs)
+        self._channel_ids = {}
+
+    def websocket_message(self, msg: Union[list, dict]) -> Optional[WebsocketMessage]:
+        if isinstance(msg, dict):
+            if msg['event'] == 'subscribed':
+                chan_name = self.coinbitrage_channel_names[msg['channel']]
+                self._channel_ids[msg['chanId']] = (chan_name, msg['pair'].lower())
+            return None
+
+        channel, pair = self._channel_ids.get(msg[0])
+        data = msg[1]
+        if data == 'hb':
+            return None
+
+        data = getattr(self, channel)(data)
+
+        if channel == 'order_book':
+            data = OrderBookUpdate(pair, None, data)
+
+        return WebsocketMessage(channel, pair, data)
+
+    def ticker(self, data: list):
         return {
             'bid': float(data[0][0]),
             'ask': float(data[0][2]),
             'time': data[1],
         }
 
-    def order_book(self, data):
-        return data
+    def order_book(self, data: list) -> Iterable[dict]:
+        if len(data) == 3:
+            price, count, amount = tuple(data)
+            return [{
+                'type': 'order',
+                'side': 'bid' if amount > 0 else 'ask',
+                'price': price,
+                'quantity': 0 if count == 0 else abs(amount)
+            }]
+        else:
+            asks = {}
+            bids = {}
+            for entry in data:
+                price, count, amount = tuple(entry)
+                side = bids if amount > 0 else asks
+                side[str(price)] = abs(amount)
+            return [{
+                'type': 'initialize',
+                'asks': asks,
+                'bids': bids,
+            }]

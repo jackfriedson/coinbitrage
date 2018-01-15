@@ -27,8 +27,9 @@ class OrderBook(object):
         if expected_seq is None or received_seq == expected_seq:
             for entry in entries:
                 getattr(self, entry['type'])(pair, entry)
-            self._next_sequence[pair] = received_seq + 1
-            self._apply_pending_updates(pair)
+            if received_seq is not None:
+                self._next_sequence[pair] = received_seq + 1
+                self._apply_pending_updates(pair)
         else:
             assert received_seq > expected_seq
             self._pending_updates[pair][received_seq] = full_update
@@ -54,11 +55,8 @@ class OrderBook(object):
             self._books[pair].ask_split(*self._format_args(pair, price, quantity))
 
     def order(self, pair: str, data: dict):
-        try:
-            book_add_fn = self._books[pair].bid_split if data['side'] == 'bid' else self._books[pair].ask_split
-            book_add_fn(*self._format_args(pair, data['price'], data['quantity']))
-        except Exception as e:
-            print(e.tb)
+        book_add_fn = self._books[pair].bid_split if data['side'] == 'bid' else self._books[pair].ask_split
+        book_add_fn(*self._format_args(pair, data['price'], data['quantity']))
 
     def trade(self, pair: str, data: dict):
         pass

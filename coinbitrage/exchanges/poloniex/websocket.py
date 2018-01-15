@@ -18,7 +18,7 @@ class PoloniexWebsocketMixin(object):
 
     def _subscribe(self, conn, channel: str, pair: str):
         channel = self.formatter.get_channel_id(channel, pair)
-        conn.send(json.dumps({ 'command': 'subscribe', 'channel': channel}))
+        conn.send(json.dumps({'command': 'subscribe', 'channel': channel}))
 
 
 class PoloniexWebsocketAdapter(PoloniexWebsocketMixin, BaseWebsocket):
