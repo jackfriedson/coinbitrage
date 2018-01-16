@@ -99,10 +99,11 @@ class ArbitrageEngine(object):
             sell_price, sell_size = sell_bid_ask['bid'], sell_bid_ask.get('bid_size')
 
             # TODO: Adjust precision amount based on expected direction of price movement
-            if buy_size is None:
-                buy_price *= 1 + (Defaults.ORDER_PRECISION * 0.5)
-            if sell_size is None:
-                sell_price *= 1 - (Defaults.ORDER_PRECISION * 0.5)
+            buy_precision = Defaults.LOW_PRECISION if buy_size is None else Defaults.HI_PRECISION
+            buy_price *= 1 + (buy_precision * 0.5)
+
+            sell_precision = Defaults.LOW_PRECISION if sell_size is None else Defaults.HI_PRECISION
+            sell_price *= 1 + (sell_precision * 0.5)
 
             # TODO: move this somewhere that makes more sense
             # if base_currency in ['ETH', 'LTC']:
