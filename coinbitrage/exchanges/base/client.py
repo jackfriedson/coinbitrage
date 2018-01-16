@@ -61,6 +61,7 @@ class BaseExchangeClient(object):
         pair = self.api.formatter.pair(base_currency, quote_currency)
         return pair in self.supported_pairs
 
+    # TODO: split tx_fee into separate deposit/withdraw fees
     def tx_fee(self, currency: str) -> float:
         return float(self.currency_info[currency]['tx_fee'])
 

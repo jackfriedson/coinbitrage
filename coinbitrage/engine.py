@@ -2,6 +2,7 @@ import asyncio
 import copy
 import logging
 import time
+from collections import namedtuple
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from functools import partial
@@ -24,6 +25,9 @@ PRINT_TABLE_EVERY = 60 * 1  # Print table every minute
 
 
 log = bitlogging.getLogger(__name__)
+
+
+OrderSpec = namedtuple('OrderSpec', ['buy_price', 'buy_limit_price', 'sell_price', 'sell_limit_price', 'order_size', 'profit'])
 
 
 class ArbitrageEngine(object):
@@ -97,18 +101,10 @@ class ArbitrageEngine(object):
             # Calculate the maximum size of the order
             buy_power = self._exchanges.balance(buy_exchange.name, self.quote_currency) / estimated_buy_price
             sell_power = self._exchanges.balance(sell_exchange.name, base_currency)
-            order_size = min(buy_power, sell_power)
+            max_order_size = min(buy_power, sell_power)
 
-            # TODO: Adjust precision amount based on expected direction of price movement
-            if isinstance(buy_exchange, WebsocketOrderBookMixin):
-                buy_price, buy_limit_price = buy_exchange.average_price('ask', base_currency, self.quote_currency, order_size)
-            else:
-                buy_price = buy_limit_price = buy_exchange.ask(base_currency, self.quote_currency) * (1 + Defaults.LOW_PRECISION)
-
-            if isinstance(sell_exchange, WebsocketOrderBookMixin):
-                sell_price, sell_limit_price = sell_exchange.average_price('bid', base_currency, self.quote_currency, order_size)
-            else:
-                sell_price = sell_limit_price = sell_exchange.bid(base_currency, self.quote_currency) * (1 - Defaults.LOW_PRECISION)
+            order_spec = self._maximize_order_profit(buy_exchange, sell_exchange, base_currency, max_order_size)
+            buy_price, buy_limit_price, sell_price, sell_limit_price, order_size, _ = order_spec
 
             # TODO: move this somewhere that makes more sense
             # if base_currency in ['ETH', 'LTC']:
@@ -183,6 +179,56 @@ class ArbitrageEngine(object):
                 self._arbitrage_table.loc[buy_exchange.name, sell_exchange.name] = table_val
 
         return best_opportunity
+
+    def _maximize_order_profit(self, buy_exchange, sell_exchange, base_currency: str, max_order_size: float) -> OrderSpec:
+        asks = iter(buy_exchange.get_asks(base_currency, self.quote_currency, max_order_size))
+        bids = iter(sell_exchange.get_bids(base_currency, self.quote_currency, max_order_size))
+        tx_fee = buy_exchange.tx_fee(base_currency)
+
+        # Use brute force solution then later improve if it is a bottleneck
+        best_order = None
+        vol_remaining = max_order_size
+        total_size = 0.
+        ask_cost = bid_cost = 0.
+
+        ask_price, ask_size = next(asks)
+        bid_price, bid_size = next(bids)
+        while vol_remaining > 0:
+            try:
+                if vol_remaining < min(ask_size, bid_size):
+                    ask_cost += ask_price * vol_remaining
+                    bid_cost += bid_price * vol_remaining
+                    total_size += vol_remaining
+                    vol_remaining = 0.
+                elif ask_size < bid_size:
+                    ask_cost += ask_price * ask_size
+                    bid_cost += bid_price * ask_size
+                    bid_size -= ask_size
+                    total_size += ask_size
+                    vol_remaining -= ask_size
+                    ask_price, ask_size = next(asks)
+                else:
+                    ask_cost += ask_price * bid_size
+                    bid_cost += bid_price * bid_size
+                    ask_size -= bid_size
+                    total_size += bid_size
+                    vol_remaining -= bid_size
+                    bid_price, bid_size = next(bids)
+
+                avg_ask = ask_cost / total_size
+                avg_bid = bid_cost / total_size
+
+                gross_profit = bid_cost - ask_cost
+                net_profit = gross_profit - (tx_fee * avg_ask)
+                net_percent_profit = net_profit / ask_cost
+
+                if best_order is None or net_percent_profit > best_order.profit:
+                    best_order = OrderSpec(avg_ask, ask_price, avg_bid, bid_price, total_size, net_percent_profit)
+
+            except StopIteration:
+                break
+
+        return best_order
 
     def _should_execute(self,
                         buy_exchange: str,

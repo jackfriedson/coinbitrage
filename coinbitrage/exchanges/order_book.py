@@ -1,8 +1,10 @@
 import time
 from collections import defaultdict, namedtuple
-from typing import Iterable, Optional, Tuple
+from typing import Iterable, List, Optional, Tuple
 
+from bintrees import FastRBTree
 from pylimitbook.book import Book
+from pylimitbook.settings import PRICE_PRECISION
 
 from coinbitrage import bitlogging
 
@@ -65,8 +67,27 @@ class OrderBook(object):
     def _format_args(pair, price, quantity):
         return pair, str(price), float(quantity), str(price), time.time()
 
-    def average_price(self, side: str, pair: str, total_volume: float) -> Tuple[float, float]:
-        return self._books[pair].average_price(side, total_volume)
+    def _get_book_side(self, is_bid: bool, pair: str, max_volume: float = None) -> List[Tuple[float, float]]:
+        tree = self._books[pair].bids.price_tree if is_bid else self._books[pair].asks.price_tree
+        if max_volume is None:
+            ret = tree.items(is_bid)
+        else:
+            vol_remaining = max_volume
+            for price, orders in tree.items(is_bid):
+                vol_remaining -= orders.volume
+                if vol_remaining <= 0:
+                    break
+            start = None if not is_bid else price
+            end = price+1 if not is_bid else None
+            ret = tree.item_slice(start, end, is_bid)
+
+        return [(price / 10**PRICE_PRECISION, orders.volume) for price, orders in ret]
+
+    def get_bids(self, pair: str, max_volume: float) -> List[Tuple[float, float]]:
+        return self._get_book_side(True, pair, max_volume)
+
+    def get_asks(self, pair: str, max_volume: float = None) -> List[Tuple[float, float]]:
+        return self._get_book_side(False, pair, max_volume)
 
     def best_bid(self, pair: str) -> Optional[dict]:
         if pair not in self._books:

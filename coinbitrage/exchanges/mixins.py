@@ -4,7 +4,7 @@ from abc import ABC, abstractproperty
 from collections import defaultdict
 from functools import partial, wraps
 from threading import Event, RLock, Thread
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, Iterable, List, Optional, Tuple, Union
 
 from requests.exceptions import RequestException
 
@@ -97,8 +97,13 @@ class WebsocketOrderBookMixin(LiveUpdateMixin):
         ret.setdefault('time', None)
         return ret
 
-    def average_price(self, side: str, base_currency: str, quote_currency: str, total_volume: float) -> Tuple[float, float]:
-        return self._wss_order_book.average_price(side, base_currency, quote_currency, total_volume)
+    def get_bids(self, base_currency: str, quote_currency: str, max_volume: float) -> List[Tuple[float, float]]:
+        pair = self.formatter.pair(base_currency, quote_currency)
+        return self._wss_order_book.get_bids(pair, max_volume)
+
+    def get_asks(self, base_currency: str, quote_currency: str, max_volume: float) -> List[Tuple[float, float]]:
+        pair = self.formatter.pair(base_currency, quote_currency)
+        return self._wss_order_book.get_asks(pair, max_volume)
 
 
 class PeriodicRefreshMixin(LiveUpdateMixin):

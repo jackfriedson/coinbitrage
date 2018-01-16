@@ -4,8 +4,8 @@ from pathlib import Path
 API_KEY_DIR = Path.home()/'.api_keys'
 
 
-EXCHANGES = ['bitfinex', 'bittrex', 'hitbtc', 'poloniex']
-# INACTIVE_EXCHANGES = ['kraken']
+EXCHANGES = ['bitfinex', 'hitbtc', 'poloniex']
+# INACTIVE_EXCHANGES = ['bittrex', 'kraken']
 INACTIVE_EXCHANGES = []
 
 CURRENCIES = {
@@ -78,8 +78,8 @@ class Defaults(object):
     MAX_REFRESH_DELAY = 5
     MIN_PROFIT = 0.
     ORDER_FEE = 0.0025
-    LOW_PRECISION = 0.004
-    HI_PRECISION = 0.002
+    LOW_PRECISION = 0.003
+    HI_PRECISION = 0.001
     PLACE_ORDER_TIMEOUT = 60
     QUOTE_CURRENCY = 'BTC'
     RECEIVE_TIME_OFFSET = 1
