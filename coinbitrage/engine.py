@@ -131,7 +131,7 @@ class ArbitrageEngine(object):
 
             order_size = min(buy_power, sell_power)
 
-            # Calculate fees
+            # Calculate order fees
             buy_fee = order_size * buy_price * buy_exchange.fee(base_currency, self.quote_currency)
             sell_fee = order_size * sell_price * sell_exchange.fee(base_currency, self.quote_currency)
 
@@ -144,19 +144,21 @@ class ArbitrageEngine(object):
             if order_size < CURRENCIES[base_currency]['min_order_size'] and not update_table:
                 continue
 
-            # Calculate net profit (assuming one transfer from buy exchange to sell exchange)
+            # Calculate gross profit
             gross_percent_profit = (sell_price / buy_price) - 1
             gross_profit = gross_percent_profit * buy_price * order_size
 
+            # Calculate transfer fees
             buy_tx_fee = buy_exchange.tx_fee(base_currency) * buy_price
             sell_tx_fee = 0.
             total_tx_fee = buy_tx_fee + sell_tx_fee
 
+            # Calculate net profit  (assuming one transfer from buy exchange to sell exchange)
             total_fees = buy_fee + sell_fee + total_tx_fee
             net_profit = gross_profit - total_fees
             net_percent_profit = net_profit / (buy_price * order_size)
 
-            if best_opportunity is None or net_percent_profit > best_opportunity['net_percent_profit']:
+            if best_opportunity is None or net_profit > best_opportunity['net_profit']:
                 # A lot of this info is for logging/debugging
                 best_opportunity = {
                     'base_currency': base_currency,
@@ -181,7 +183,7 @@ class ArbitrageEngine(object):
                 }
 
             if update_table:
-                table_val = '{:.2f}% ({:.2f}%)'.format(net_percent_profit*100, gross_percent_profit*100)
+                table_val = '{:.4f} {} ({:.2f}%)'.format(net_profit, self.quote_currency, net_percent_profit*100)
                 self._arbitrage_table.loc[buy_exchange.name, sell_exchange.name] = table_val
 
         return best_opportunity
