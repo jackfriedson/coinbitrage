@@ -1,6 +1,6 @@
 import time
 from collections import defaultdict, namedtuple
-from typing import Iterable, Optional
+from typing import Iterable, Optional, Tuple
 
 from pylimitbook.book import Book
 
@@ -64,6 +64,9 @@ class OrderBook(object):
     @staticmethod
     def _format_args(pair, price, quantity):
         return pair, str(price), float(quantity), str(price), time.time()
+
+    def average_price(self, side: str, pair: str, total_volume: float) -> Tuple[float, float]:
+        return self._books[pair].average_price(side, total_volume)
 
     def best_bid(self, pair: str) -> Optional[dict]:
         if pair not in self._books:

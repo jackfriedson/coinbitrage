@@ -4,7 +4,7 @@ from abc import ABC, abstractproperty
 from collections import defaultdict
 from functools import partial, wraps
 from threading import Event, RLock, Thread
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 from requests.exceptions import RequestException
 
@@ -33,10 +33,10 @@ class LiveUpdateMixin(object):
     def bid_ask(self, base_currency: str, quote_currency: str = Defaults.QUOTE_CURRENCY):
         raise NotImplementedError
 
-    def bid(self, base_currency: str, quote_currency: str = Defaults.QUOTE_CURRENCY):
+    def bid(self, base_currency: str, quote_currency: str = Defaults.QUOTE_CURRENCY, total_volume: float = None):
         return self.bid_ask(base_currency, quote_currency).get('bid')
 
-    def ask(self, base_currency: str, quote_currency: str = Defaults.QUOTE_CURRENCY):
+    def ask(self, base_currency: str, quote_currency: str = Defaults.QUOTE_CURRENCY, total_volume: float = None):
         return self.bid_ask(base_currency, quote_currency).get('ask')
 
 
@@ -96,6 +96,9 @@ class WebsocketOrderBookMixin(LiveUpdateMixin):
         ret.update(self._wss_order_book.best_ask(base_currency, quote_currency) or {'ask': None})
         ret.setdefault('time', None)
         return ret
+
+    def average_price(self, side: str, base_currency: str, quote_currency: str, total_volume: float) -> Tuple[float, float]:
+        return self._wss_order_book.average_price(side, base_currency, quote_currency, total_volume)
 
 
 class PeriodicRefreshMixin(LiveUpdateMixin):

@@ -217,10 +217,10 @@ class ExchangeManager(object):
             return
         target_bal = total_bal / len(self._clients)
 
-        if not all(x.bid(currency) for x in self.exchanges):
+        if not all(x.bid_ask(currency)['bid'] for x in self.exchanges):
             return
 
-        best_price = max(self.exchanges, key=lambda x: x.bid(currency))
+        best_price = max(self.exchanges, key=lambda x: x.bid_ask(currency)['bid'])
         lo_bal = self._balances[best_price.name].get(currency, 0.)
         # TODO: Use best history once we have enough data
 
@@ -236,7 +236,7 @@ class ExchangeManager(object):
         if transfer_amt <= CURRENCIES[currency]['min_order_size']:
             return
 
-        tx_fee = highest_balance.tx_fee(currency) * highest_balance.bid(currency)
+        tx_fee = highest_balance.tx_fee(currency) * highest_balance.bid_ask(currency)['bid']
         if tx_fee > self.tx_credits:
             return
 

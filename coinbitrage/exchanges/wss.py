@@ -6,7 +6,7 @@ from collections import namedtuple
 from functools import partial
 from queue import Queue
 from threading import Event, RLock, Thread
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Dict, List, Optional, Tuple
 
 import txaio
 from autobahn.asyncio.wamp import ApplicationSession, ApplicationSessionFactory
@@ -200,6 +200,11 @@ class WebsocketOrderBook(BaseWebsocket):
         pair = self.formatter.pair(base_currency, quote_currency)
         with self._book_lock:
             return self._book.best_ask(pair)
+
+    def average_price(self, side: str, base_currency: str, quote_currency: str, total_volume: float) -> Tuple[float, float]:
+        pair = self.formatter.pair(base_currency, quote_currency)
+        with self._book_lock:
+            return self._book.average_price(side, pair, total_volume)
 
 
 class WampWebsocket(BaseWebsocket):

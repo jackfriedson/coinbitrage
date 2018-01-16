@@ -14,7 +14,7 @@ from requests.exceptions import RequestException, Timeout
 from coinbitrage import bitlogging
 from coinbitrage.exchanges.errors import ServerError
 from coinbitrage.exchanges.manager import ExchangeManager
-from coinbitrage.exchanges.mixins import SeparateTradingAccountMixin
+from coinbitrage.exchanges.mixins import SeparateTradingAccountMixin, WebsocketOrderBookMixin
 from coinbitrage.settings import CURRENCIES, Defaults
 from coinbitrage.utils import RunEvery, format_float
 
@@ -92,18 +92,23 @@ class ArbitrageEngine(object):
                     self._arbitrage_table.loc[buy_exchange.name, sell_exchange.name] = '-'
                 continue
 
-            buy_bid_ask = buy_exchange.bid_ask(base_currency, self.quote_currency)
-            sell_bid_ask = sell_exchange.bid_ask(base_currency, self.quote_currency)
+            estimated_buy_price = buy_exchange.bid_ask(base_currency, self.quote_currency)['ask'] * 1.01
 
-            buy_price, buy_size = buy_bid_ask['ask'], buy_bid_ask.get('ask_size')
-            sell_price, sell_size = sell_bid_ask['bid'], sell_bid_ask.get('bid_size')
+            # Calculate the maximum size of the order
+            buy_power = self._exchanges.balance(buy_exchange.name, self.quote_currency) / estimated_buy_price
+            sell_power = self._exchanges.balance(sell_exchange.name, base_currency)
+            order_size = min(buy_power, sell_power)
 
             # TODO: Adjust precision amount based on expected direction of price movement
-            buy_precision = Defaults.LOW_PRECISION if buy_size is None else Defaults.HI_PRECISION
-            buy_price *= 1 + (buy_precision * 0.5)
+            if isinstance(buy_exchange, WebsocketOrderBookMixin):
+                buy_price, buy_limit_price = buy_exchange.average_price('ask', base_currency, self.quote_currency, order_size)
+            else:
+                buy_price = buy_limit_price = buy_exchange.ask(base_currency, self.quote_currency) * (1 + Defaults.LOW_PRECISION)
 
-            sell_precision = Defaults.LOW_PRECISION if sell_size is None else Defaults.HI_PRECISION
-            sell_price *= 1 - (sell_precision * 0.5)
+            if isinstance(sell_exchange, WebsocketOrderBookMixin):
+                sell_price, sell_limit_price = sell_exchange.average_price('bid', base_currency, self.quote_currency, order_size)
+            else:
+                sell_price = sell_limit_price = sell_exchange.bid(base_currency, self.quote_currency) * (1 - Defaults.LOW_PRECISION)
 
             # TODO: move this somewhere that makes more sense
             # if base_currency in ['ETH', 'LTC']:
@@ -119,17 +124,6 @@ class ArbitrageEngine(object):
 
             if sell_price < buy_price and not update_table:
                 continue
-
-            # Calculate the maximum size of the order
-            buy_power = self._exchanges.balance(buy_exchange.name, self.quote_currency) / buy_price
-            sell_power = self._exchanges.balance(sell_exchange.name, base_currency)
-
-            if buy_size is not None:
-                buy_power = min(buy_power, buy_size)
-            if sell_size is not None:
-                sell_power = min(sell_power, sell_size)
-
-            order_size = min(buy_power, sell_power)
 
             # Calculate order fees
             buy_fee = order_size * buy_price * buy_exchange.fee(base_currency, self.quote_currency)
@@ -165,8 +159,10 @@ class ArbitrageEngine(object):
                     'quote_currency': self.quote_currency,
                     'buy_exchange': buy_exchange.name,
                     'buy_price': buy_price,
+                    'buy_limit_price': buy_limit_price,
                     'sell_exchange': sell_exchange.name,
                     'sell_price': sell_price,
+                    'sell_limit_price': sell_limit_price,
                     'gross_percent_profit': gross_percent_profit,
                     'net_percent_profit': net_percent_profit,
                     'net_profit': net_profit,
@@ -205,8 +201,8 @@ class ArbitrageEngine(object):
                            quote_currency: str,
                            buy_exchange: str,
                            sell_exchange: str,
-                           buy_price: float,
-                           sell_price: float,
+                           buy_limit_price: float,
+                           sell_limit_price: float,
                            order_size: float,
                            total_tx_fee: float,
                            net_percent_profit: float, **kwargs):
@@ -214,43 +210,28 @@ class ArbitrageEngine(object):
         sell_exchange = self._exchanges.get(sell_exchange)
 
         log_msg = ('Arbitrage opportunity: '
-                   '{buy_exchange} buy {volume} {base_currency} @ {buy_price}; '
-                   '{sell_exchange} sell {volume} {base_currency} @ {sell_price}; '
+                   '{buy_exchange} buy {volume} {base_currency} @ {buy_limit_price}; '
+                   '{sell_exchange} sell {volume} {base_currency} @ {sell_limit_price}; '
                    'profit: {profit:.2f}%')
         event_data = {'buy_exchange': buy_exchange.name, 'sell_exchange': sell_exchange.name,
                       'volume': order_size, 'base_currency': base_currency, 'quote_currency': quote_currency,
-                      'buy_price': buy_price, 'sell_price': sell_price, 'profit': net_percent_profit*100}
+                      'buy_limit_price': buy_limit_price, 'sell_limit_price': sell_limit_price, 'profit': net_percent_profit*100}
         event_data.update(kwargs)
         log.info(log_msg, event_name='arbitrage.attempt', event_data=event_data)
 
-        if self._place_orders(base_currency, quote_currency, buy_exchange, sell_exchange, buy_price, sell_price, order_size):
+        if self._place_orders(base_currency, quote_currency, buy_exchange, sell_exchange, buy_limit_price, sell_limit_price, order_size):
             self._exchanges.add_order('buy', buy_exchange.name)
             self._exchanges.add_order('sell', sell_exchange.name)
             self._exchanges.tx_credits += total_tx_fee
             self._exchanges.update_trading_balances()
-
-    def _arbitrage_profit_loss(self, buy_exchange, sell_exchange, base_currency: str) -> Optional[float]:
-        """Calculates the profit/loss of buying at one exchange and selling at another.
-
-        :param buy_exchange: the exchange to buy from
-        :param sell_exchange: the exchange to sell to
-        :param base_currency: the currency to buy/sell
-        """
-        buy_ask = buy_exchange.ask(base_currency)
-        sell_bid = sell_exchange.bid(base_currency)
-
-        if buy_exchange.name == sell_exchange.name or not (buy_ask and sell_bid):
-            return None
-
-        return (sell_bid / buy_ask) - (1 + 2*Defaults.ORDER_PRECISION)
 
     def _place_orders(self,
                       base_currency: str,
                       quote_currency: str,
                       buy_exchange,
                       sell_exchange,
-                      buy_price: float,
-                      sell_price: float,
+                      buy_limit_price: float,
+                      sell_limit_price: float,
                       order_volume: float) -> bool:
         """Places the buy and sell orders at the corresponding exchanges.
 
@@ -258,8 +239,8 @@ class ArbitrageEngine(object):
         :param quote_currency: the currency that the price is denominated in
         :param buy_exchange: the exchange to buy from
         :param sell_exchange: the exchange to sell at
-        :param buy_price: the price of the limit buy order
-        :param sell_price: the price of the limit sell order
+        :param buy_limit_price: the price of the limit buy order
+        :param sell_limit_price: the price of the limit sell order
         :param order_volume: the size (in units of base currency) of both orders
         """
 
@@ -270,8 +251,8 @@ class ArbitrageEngine(object):
                 log.error(e, event_name='place_order.error')
                 return None
 
-        buy_order = partial(place_order, buy_exchange, base_currency, 'buy', buy_price, order_volume, quote_currency=quote_currency)
-        sell_order = partial(place_order, sell_exchange, base_currency, 'sell', sell_price, order_volume, quote_currency=quote_currency)
+        buy_order = partial(place_order, buy_exchange, base_currency, 'buy', buy_limit_price, order_volume, quote_currency=quote_currency)
+        sell_order = partial(place_order, sell_exchange, base_currency, 'sell', sell_limit_price, order_volume, quote_currency=quote_currency)
 
         # place orders asynchronously to avoid missing the target price
         with ThreadPoolExecutor(max_workers=2) as executor:
