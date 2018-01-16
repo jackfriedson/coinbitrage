@@ -76,7 +76,7 @@ class Defaults(object):
     HI_BALANCE_PERCENT = 0.9
     HTTP_TIMEOUT = 20
     MAX_REFRESH_DELAY = 5
-    MIN_PROFIT = 0.
+    MIN_PROFIT = 0.005
     ORDER_FEE = 0.0025
     LOW_PRECISION = 0.003
     HI_PRECISION = 0.001

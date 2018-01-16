@@ -318,8 +318,9 @@ class ArbitrageEngine(object):
             self._exchanges.update_trading_balances()
             current_totals = self._exchanges.totals()
             base_cur_difference = abs(current_totals[base_currency] - last_totals[base_currency])
+            quote_cur_difference = current_totals[self.quote_currency] - last_totals[self.quote_currency]
             # TODO: is 5% reasonable here? should it be lower?
-            if base_cur_difference < order_volume * 0.05:
+            if base_cur_difference < order_volume * 0.05 and quote_cur_difference > 0:
                 log.info('One order seemed to have failed but eventually went through',
                          event_name='arbitrage.place_order.delayed_success',
                          event_data={'buy_order': buy_resp, 'sell_order': sell_resp})
