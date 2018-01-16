@@ -103,7 +103,7 @@ class ArbitrageEngine(object):
             buy_price *= 1 + (buy_precision * 0.5)
 
             sell_precision = Defaults.LOW_PRECISION if sell_size is None else Defaults.HI_PRECISION
-            sell_price *= 1 + (sell_precision * 0.5)
+            sell_price *= 1 - (sell_precision * 0.5)
 
             # TODO: move this somewhere that makes more sense
             # if base_currency in ['ETH', 'LTC']:

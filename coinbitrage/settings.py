@@ -5,7 +5,7 @@ API_KEY_DIR = Path.home()/'.api_keys'
 
 
 EXCHANGES = ['bitfinex', 'bittrex', 'hitbtc', 'poloniex']
-# INACTIVE_EXCHANGES = ['bitfinex', 'kraken']
+# INACTIVE_EXCHANGES = ['kraken']
 INACTIVE_EXCHANGES = []
 
 CURRENCIES = {
@@ -79,7 +79,7 @@ class Defaults(object):
     MIN_PROFIT = 0.
     ORDER_FEE = 0.0025
     LOW_PRECISION = 0.004
-    HI_PRECISION = 0.001
+    HI_PRECISION = 0.002
     PLACE_ORDER_TIMEOUT = 60
     QUOTE_CURRENCY = 'BTC'
     RECEIVE_TIME_OFFSET = 1
