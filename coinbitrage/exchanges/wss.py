@@ -172,21 +172,24 @@ class WebsocketOrderBook(BaseWebsocket):
         self._ws.run_forever()
 
     def _stop_websocket(self):
-        if self._ws:
-            with self._lock:
+        log.debug('Stopping {exchange} websocket thread...', event_data={'exchange': self.name},
+                  event_name='websocket_adapter.websocket.stop')
+        self.websocket_running.clear()
+        with self._lock:
+            if self._ws:
                 self._ws.close()
-        super(WebsocketOrderBook, self)._stop_websocket()
+            if thread_running(self._websocket_thread):
+                self._websocket_thread.join()
+            self._websocket_thread = None
 
     def _on_message(self, ws, message):
         msg = self.formatter.websocket_message(json.loads(message))
-
         if msg and msg.channel == 'order_book':
             with self._book_lock:
                 self._book.update(msg.data)
 
     def _on_error(self, ws, error):
         log.error(error, event_name='websocket.error', event_data={'error': error})
-        raise error
 
     def best_bid(self, base_currency: str, quote_currency: str) -> Optional[dict]:
         pair = self.formatter.pair(base_currency, quote_currency)
