@@ -39,6 +39,7 @@ class ArbitrageEngine(object):
         self._loop = asyncio.get_event_loop()
         self._exchanges = ExchangeManager(exchanges, base_currency, quote_currency, loop=self._loop, **kwargs)
         self._min_profit_threshold = min_profit
+        self._arbitrage_table = None
 
     def run(self):
         """Runs the arbitrage strategy in a loop, checking at each iteration whether there is an
@@ -62,17 +63,12 @@ class ArbitrageEngine(object):
 
     def _print_arbitrage_table(self):
         """Print the current arbitrage table to stdout."""
-
-        # TODO: keep track of actual arbitrage values and just print those, instead of
-        # doing a separate computation here
-
         for currency in self.base_currencies:
-            table = self.arbitrage_table(currency)
-            if not table.empty:
-                table = table.applymap(lambda x: '{:.2f}%'.format(x*100) if x is not None else '-')
+            self.arbitrage_table(currency)
+            if not self._arbitrage_table.empty:
                 print()
                 print(currency)
-                print(table)
+                print(self._arbitrage_table)
                 print()
 
     def _attempt_arbitrage(self):
@@ -87,50 +83,67 @@ class ArbitrageEngine(object):
             if self._should_execute(**opportunity):
                 self._execute_arbitrage(**opportunity)
 
-            # log.debug('', event_name='arbitrage.debug', event_data=opportunity)
-
-    def _find_best_arbitrage_opportunity(self, base_currency: str):
+    def _find_best_arbitrage_opportunity(self, base_currency: str, update_table: bool = False):
         best_opportunity = None
 
-        # TODO: Prefer exchanges with higher quote currency balances (to increase liquidity)
         for buy_exchange, sell_exchange in product(self._exchanges.buy_exchanges(base_currency), self._exchanges.sell_exchanges(base_currency)):
             if buy_exchange.name == sell_exchange.name:
+                if update_table:
+                    self._arbitrage_table.loc[buy_exchange.name, sell_exchange.name] = '-'
                 continue
 
-            buy_price = buy_exchange.ask(base_currency) * (1 + (Defaults.ORDER_PRECISION * 0.5))
-            sell_price = sell_exchange.bid(base_currency) * (1 - (Defaults.ORDER_PRECISION * 0.5))
+            buy_bid_ask = buy_exchange.bid_ask(base_currency, self.quote_currency)
+            sell_bid_ask = sell_exchange.bid_ask(base_currency, self.quote_currency)
+
+            buy_price, buy_size = buy_bid_ask['ask'], buy_bid_ask.get('ask_size')
+            sell_price, sell_size = sell_bid_ask['bid'], sell_bid_ask.get('bid_size')
+
+            # TODO: Adjust precision amount based on expected direction of price movement
+            if buy_size is None:
+                buy_price *= 1 + (Defaults.ORDER_PRECISION * 0.5)
+            if sell_size is None:
+                sell_price *= 1 - (Defaults.ORDER_PRECISION * 0.5)
 
             # TODO: move this somewhere that makes more sense
-            if base_currency in ['ETH', 'LTC']:
-                if buy_exchange.name == 'kraken':
-                    buy_price = float(format_float(buy_price, 2))
-                elif sell_exchange.name == 'kraken':
-                    sell_price = float(format_float(sell_price, 2))
-            elif base_currency == 'XRP':
-                if buy_exchange.name == 'kraken':
-                    buy_price = float(format_float(buy_price, 5))
-                elif sell_exchange.name == 'kraken':
-                    sell_price = float(format_float(sell_price, 5))
+            # if base_currency in ['ETH', 'LTC']:
+            #     if buy_exchange.name == 'kraken':
+            #         buy_price = float(format_float(buy_price, 2))
+            #     elif sell_exchange.name == 'kraken':
+            #         sell_price = float(format_float(sell_price, 2))
+            # elif base_currency == 'XRP':
+            #     if buy_exchange.name == 'kraken':
+            #         buy_price = float(format_float(buy_price, 5))
+            #     elif sell_exchange.name == 'kraken':
+            #         sell_price = float(format_float(sell_price, 5))
 
-            if sell_price < buy_price:
+            if sell_price < buy_price and not update_table:
                 continue
 
-            # Amount of base currency that can be bought/sold at each exchange
-            max_buy = self._exchanges.balances()[buy_exchange.name][self.quote_currency] / buy_price
-            max_sell = self._exchanges.balances()[sell_exchange.name][base_currency]
-            order_size = min(max_buy, max_sell)
+            # Calculate the maximum size of the order
+            buy_power = self._exchanges.balance(buy_exchange.name, self.quote_currency) / buy_price
+            sell_power = self._exchanges.balance(sell_exchange.name, base_currency)
 
+            if buy_size is not None:
+                buy_power = min(buy_power, buy_size)
+            if sell_size is not None:
+                sell_power = min(sell_power, sell_size)
+
+            order_size = min(buy_power, sell_power)
+
+            # Calculate fees
             buy_fee = order_size * buy_price * buy_exchange.fee(base_currency, self.quote_currency)
             sell_fee = order_size * sell_price * sell_exchange.fee(base_currency, self.quote_currency)
 
-            if max_buy < max_sell:
+            # Adjust order size to account for fees
+            if buy_power < sell_power:
                 order_size -= buy_fee / buy_price
             else:
                 order_size -= sell_fee / sell_price
 
-            if order_size < CURRENCIES[base_currency]['min_order_size']:
+            if order_size < CURRENCIES[base_currency]['min_order_size'] and not update_table:
                 continue
 
+            # Calculate net profit (assuming one transfer from buy exchange to sell exchange)
             gross_percent_profit = (sell_price / buy_price) - 1
             gross_profit = gross_percent_profit * buy_price * order_size
 
@@ -140,9 +153,9 @@ class ArbitrageEngine(object):
 
             total_fees = buy_fee + sell_fee + total_tx_fee
             net_profit = gross_profit - total_fees
-            net_pct_profit = net_profit / (buy_price * order_size)
+            net_percent_profit = net_profit / (buy_price * order_size)
 
-            if best_opportunity is None or net_profit > best_opportunity['net_profit']:
+            if best_opportunity is None or net_percent_profit > best_opportunity['net_percent_profit']:
                 # A lot of this info is for logging/debugging
                 best_opportunity = {
                     'base_currency': base_currency,
@@ -152,7 +165,7 @@ class ArbitrageEngine(object):
                     'sell_exchange': sell_exchange.name,
                     'sell_price': sell_price,
                     'gross_percent_profit': gross_percent_profit,
-                    'net_pct_profit': net_pct_profit,
+                    'net_percent_profit': net_percent_profit,
                     'net_profit': net_profit,
                     'gross_profit': gross_profit,
                     'order_size': order_size,
@@ -162,23 +175,27 @@ class ArbitrageEngine(object):
                     'sell_tx_fee': sell_tx_fee,
                     'buy_fee': buy_fee,
                     'sell_fee': sell_fee,
-                    'max_buy': max_buy,
-                    'max_sell': max_sell
+                    'buy_power': buy_power,
+                    'sell_power': sell_power
                 }
+
+            if update_table:
+                table_val = '{:.2f}% ({:.2f}%)'.format(net_percent_profit*100, gross_percent_profit*100)
+                self._arbitrage_table.loc[buy_exchange.name, sell_exchange.name] = table_val
 
         return best_opportunity
 
     def _should_execute(self,
                         buy_exchange: str,
                         sell_exchange: str,
-                        net_pct_profit: float,
+                        net_percent_profit: float,
                         **kwargs) -> bool:
         max_quote_amt = self._exchanges.totals()[self.quote_currency] * Defaults.HI_BALANCE_PERCENT
 
         if self._exchanges.balances()[buy_exchange][self.quote_currency] > max_quote_amt:
-            return net_pct_profit > 0.
+            return net_percent_profit > 0.
 
-        return net_pct_profit >= self._min_profit_threshold
+        return net_percent_profit >= self._min_profit_threshold
 
     def _execute_arbitrage(self,
                            base_currency: str,
@@ -189,7 +206,7 @@ class ArbitrageEngine(object):
                            sell_price: float,
                            order_size: float,
                            total_tx_fee: float,
-                           net_pct_profit: float, **kwargs):
+                           net_percent_profit: float, **kwargs):
         buy_exchange = self._exchanges.get(buy_exchange)
         sell_exchange = self._exchanges.get(sell_exchange)
 
@@ -199,7 +216,7 @@ class ArbitrageEngine(object):
                    'profit: {profit:.2f}%')
         event_data = {'buy_exchange': buy_exchange.name, 'sell_exchange': sell_exchange.name,
                       'volume': order_size, 'base_currency': base_currency, 'quote_currency': quote_currency,
-                      'buy_price': buy_price, 'sell_price': sell_price, 'profit': net_pct_profit*100}
+                      'buy_price': buy_price, 'sell_price': sell_price, 'profit': net_percent_profit*100}
         event_data.update(kwargs)
         log.info(log_msg, event_name='arbitrage.attempt', event_data=event_data)
 
@@ -286,7 +303,7 @@ class ArbitrageEngine(object):
             log.warning('Both orders failed', event_name='arbitrage.place_order.total_failure')
             return False
 
-    def arbitrage_table(self, base_currency: str) -> pd.DataFrame:
+    def arbitrage_table(self, base_currency: str):
         """Creates a table where rows represent to the exchange to buy from, and columns
         represent the exchange to sell to. The entry in each cell represents the percent profit/loss
         that would result from buying at the "buy" exchange and selling at the "sell" exchange.
@@ -295,10 +312,5 @@ class ArbitrageEngine(object):
         """
         buy_exchanges = {x.name: x for x in self._exchanges.buy_exchanges(base_currency)}
         sell_exchanges = {x.name: x for x in self._exchanges.sell_exchanges(base_currency)}
-        table = pd.DataFrame(index=buy_exchanges.keys(), columns=sell_exchanges.keys())
-
-        for buy_name, buy_exchg in buy_exchanges.items():
-            for sell_name, sell_exchg in sell_exchanges.items():
-                table.loc[buy_name, sell_name] = self._arbitrage_profit_loss(buy_exchg, sell_exchg, base_currency)
-
-        return table
+        self._arbitrage_table = pd.DataFrame(index=buy_exchanges.keys(), columns=sell_exchanges.keys())
+        self._find_best_arbitrage_opportunity(base_currency, update_table=True)

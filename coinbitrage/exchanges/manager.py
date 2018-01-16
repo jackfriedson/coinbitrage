@@ -67,6 +67,9 @@ class ExchangeManager(object):
     def get(self, exchange_name: str):
         return self._clients.get(exchange_name)
 
+    def balance(self, exchange: str, currency: str):
+        return self._balances[exchange][currency]
+
     def balances(self, full: bool = False):
         return {
             exchg: {
