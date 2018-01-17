@@ -94,8 +94,12 @@ class OrderBook(object):
             return None
 
         book = self._books[pair]
+        max_bid = book.bids.max(as_float=True)
+        if max_bid is None:
+            return None
+
         return {
-            'bid': book.bids.max(as_float=True),
+            'bid': max_bid,
             'bid_size': book.bids.get_price(book.bids.max()).volume,
             'recv_time': book.last_timestamp
         }
@@ -105,8 +109,12 @@ class OrderBook(object):
             return None
 
         book = self._books[pair]
+        min_ask = book.asks.min(as_float=True)
+        if min_ask is None:
+            return None
+
         return {
-            'ask': book.asks.min(as_float=True),
+            'ask': min_ask,
             'ask_size': book.asks.get_price(book.asks.min()).volume,
             'recv_time': book.last_timestamp
         }
