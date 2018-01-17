@@ -47,7 +47,7 @@ class BitExAPIAdapter(BaseExchangeAPI):
             return super(BitExAPIAdapter, self)._wrap(func, format_resp=format_resp)(*args, **kwargs)
         return wrapper
 
-    @retry_on_exception(ServerError, ConnectTimeout)
+    @retry_on_exception(ServerError, Timeout)
     def limit_order(self,
                     base_currency: str,
                     side: str,
