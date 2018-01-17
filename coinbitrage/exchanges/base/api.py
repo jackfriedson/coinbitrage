@@ -7,7 +7,7 @@ from requests.exceptions import HTTPError, RequestException
 from coinbitrage import bitlogging
 from coinbitrage.exchanges.errors import ClientError, ServerError
 from coinbitrage.settings import Defaults
-from coinbitrage.utils import format_float, format_log_args
+from coinbitrage.utils import format_floats, format_log_args
 
 from .formatter import BaseFormatter
 
@@ -33,8 +33,8 @@ class BaseExchangeAPI(object):
         """
         @wraps(func)
         def wrapped(*args, **kwargs):
-            args = tuple([format_float(a, self.float_precision) for a in args])
-            kwargs = {kw: format_float(arg, self.float_precision) for kw, arg in kwargs.items()}
+            args = format_floats(args, self.float_precision)
+            kwargs = format_floats(kwargs, self.float_precision)
 
             log.debug('API call -- {exchange}.{method}{log_args}',
                       event_name='exchange_api.call',

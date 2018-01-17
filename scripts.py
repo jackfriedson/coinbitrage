@@ -26,9 +26,11 @@ def coin(debug: bool, asyncio_debug):
 @click.option('--quote-currency', type=click.Choice(CURRENCIES.keys()), default=Defaults.QUOTE_CURRENCY)
 @click.option('--min-profit', type=float, default=Defaults.MIN_PROFIT)
 @click.option('--initial-tx-credit', type=float, default=0.)
-def run(**kwargs):
+@click.option('--dry-run', is_flag=True, default=False)
+@click.option('-v', '--verbose', is_flag=True)
+def run(verbose: bool, **kwargs):
     engine = ArbitrageEngine(exchanges=EXCHANGES, **kwargs)
-    engine.run()
+    engine.run(verbose)
 
 
 @coin.command()

@@ -8,16 +8,25 @@ from typing import Callable, List, Tuple, Union
 from coinbitrage import bitlogging
 from coinbitrage.exchanges.interfaces import PrivateExchangeAPI
 from coinbitrage.exchanges.types import Timestamp
+from coinbitrage.settings import Defaults
 
 
 log = bitlogging.getLogger(__name__)
 
 
-def format_float(value, precision: int = 2):
-    if not isinstance(value, float):
+def format_floats(value, precision: int = Defaults.FLOAT_PRECISION):
+    if isinstance(value, float):
+        return f'{value:.{precision}f}'
+    elif isinstance(value, list):
+        return [format_floats(v) for v in value]
+    elif isinstance(value, set):
+        return {format_floats(v) for v in value}
+    elif isinstance(value, tuple):
+        return tuple(format_floats(v) for v in value)
+    elif isinstance(value, dict):
+        return {k: format_floats(v) for k, v in value.items()}
+    else:
         return value
-    leading, trailing = tuple(str(value).split('.'))
-    return '{:.{prec}}'.format(str(value), prec=precision+len(leading)+1)
 
 
 def format_log_args(args: tuple, kwargs: dict) -> tuple:

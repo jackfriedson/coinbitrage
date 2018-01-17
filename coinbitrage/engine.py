@@ -17,7 +17,7 @@ from coinbitrage.exchanges.errors import ServerError
 from coinbitrage.exchanges.manager import ExchangeManager
 from coinbitrage.exchanges.mixins import SeparateTradingAccountMixin, WebsocketOrderBookMixin
 from coinbitrage.settings import CURRENCIES, Defaults
-from coinbitrage.utils import RunEvery, format_float
+from coinbitrage.utils import RunEvery, format_floats
 
 
 REBALANCE_FUNDS_EVERY = 60 * 5  # Rebalance funds every 5 minutes
@@ -37,6 +37,7 @@ class ArbitrageEngine(object):
                  base_currency: Union[str, List[str]],
                  quote_currency: str,
                  min_profit: float = 0.,
+                 dry_run: bool = False,
                  **kwargs):
         self.base_currencies = base_currency if isinstance(base_currency, list) else [base_currency]
         self.quote_currency = quote_currency
@@ -44,8 +45,9 @@ class ArbitrageEngine(object):
         self._exchanges = ExchangeManager(exchanges, base_currency, quote_currency, loop=self._loop, **kwargs)
         self._min_profit_threshold = min_profit
         self._arbitrage_table = None
+        self._is_dry_run = dry_run
 
-    def run(self):
+    def run(self, verbose: bool = False):
         """Runs the arbitrage strategy in a loop, checking at each iteration whether there is an
          opportunity to profit. Every few minutes it will perform other tasks such as rebalancing
          funds between exchanges or printing the current arbitrage table to stdout."""
@@ -57,7 +59,8 @@ class ArbitrageEngine(object):
                 while True:
                     manage_exchanges()
                     self._attempt_arbitrage()
-                    print_table()
+                    if verbose:
+                        print_table()
             except KeyboardInterrupt:
                 pass
             except Exception as e:
@@ -109,14 +112,14 @@ class ArbitrageEngine(object):
             # TODO: move this somewhere that makes more sense
             # if base_currency in ['ETH', 'LTC']:
             #     if buy_exchange.name == 'kraken':
-            #         buy_price = float(format_float(buy_price, 2))
+            #         buy_price = float(format_floats(buy_price, 2))
             #     elif sell_exchange.name == 'kraken':
-            #         sell_price = float(format_float(sell_price, 2))
+            #         sell_price = float(format_floats(sell_price, 2))
             # elif base_currency == 'XRP':
             #     if buy_exchange.name == 'kraken':
-            #         buy_price = float(format_float(buy_price, 5))
+            #         buy_price = float(format_floats(buy_price, 5))
             #     elif sell_exchange.name == 'kraken':
-            #         sell_price = float(format_float(sell_price, 5))
+            #         sell_price = float(format_floats(sell_price, 5))
 
             if sell_price < buy_price and not update_table:
                 continue
@@ -265,7 +268,8 @@ class ArbitrageEngine(object):
         event_data.update(kwargs)
         log.info(log_msg, event_name='arbitrage.attempt', event_data=event_data)
 
-        if self._place_orders(base_currency, quote_currency, buy_exchange, sell_exchange, buy_limit_price, sell_limit_price, order_size):
+        if not self._is_dry_run and self._place_orders(base_currency, quote_currency, buy_exchange, sell_exchange, buy_limit_price,
+                                                       sell_limit_price, order_size):
             self._exchanges.add_order('buy', buy_exchange.name)
             self._exchanges.add_order('sell', sell_exchange.name)
             self._exchanges.tx_credits += total_tx_fee
@@ -332,7 +336,7 @@ class ArbitrageEngine(object):
                 # TODO: Handle this better
         else:
             log.warning('Both orders failed', event_name='arbitrage.place_order.total_failure')
-            return False
+            raise RuntimeError('Place order failure')
 
     def arbitrage_table(self, base_currency: str):
         """Creates a table where rows represent to the exchange to buy from, and columns

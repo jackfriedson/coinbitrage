@@ -10,14 +10,10 @@ from requests.exceptions import RequestException
 
 from coinbitrage import bitlogging
 from coinbitrage.settings import Defaults
-from coinbitrage.utils import thread_running
+from coinbitrage.utils import format_floats, thread_running
 
 
 log = bitlogging.getLogger(__name__)
-
-
-def format_bid_ask(bid_ask: Dict[str, float]) -> Dict[str, str]:
-    return {k: '{:.6f}'.format(v) for k, v in bid_ask.items() if v}
 
 
 class LiveUpdateMixin(object):
@@ -66,7 +62,7 @@ class WebsocketTickerMixin(LiveUpdateMixin):
         if message:
             base, quote = self.formatter.unpair(message.pair)
             log.debug('{exchange} {currency} {bid_ask}', event_name='websocket_mixin.update',
-                      event_data={'exchange': self.name, 'currency': base, 'bid_ask': format_bid_ask(message.data)})
+                      event_data={'exchange': self.name, 'currency': base, 'bid_ask': format_floats(message.data)})
             self._bid_ask[base] = message.data
 
     def bid_ask(self, base_currency: str, quote_currency: str = Defaults.QUOTE_CURRENCY):
@@ -154,7 +150,7 @@ class PeriodicRefreshMixin(LiveUpdateMixin):
                     self._bid_ask[currency] = bid_ask
                     log.debug('{exchange} {currency} {bid_ask}', event_name='refresh_mixin.update',
                               event_data={'exchange': self.name, 'currency': currency,
-                                          'bid_ask': format_bid_ask(bid_ask)})
+                                          'bid_ask': format_floats(bid_ask)})
             time.sleep(self._interval)
 
     def bid_ask(self, base_currency: Optional[str] = None, quote_currency: str = Defaults.QUOTE_CURRENCY):
