@@ -106,50 +106,29 @@ class ExchangeManager(object):
 
     def buy_exchanges(self, base_currency: str):
         def buy_exchange_filter(exchange):
-            bid_ask = exchange.bid_ask(base_currency)
             return all([
                 # Supports this trading pair
                 exchange.supports_pair(base_currency, self.quote_currency),
                 # Balance is above minimum
                 self._balances[exchange.name].get(self.quote_currency, 0.) >= CURRENCIES[self.quote_currency]['min_order_size'],
-                # Has an ask price
-                bid_ask['ask'] is not None,
                 # Has been updated recently
-                self.updated_recently(bid_ask, exchange)
-
+                exchange.updated_recently(base_currency, self.quote_currency, Defaults.STALE_DATA_TIMEOUT)
             ])
 
         return filter(buy_exchange_filter, self.exchanges)
 
     def sell_exchanges(self, base_currency: str):
         def sell_exchange_filter(exchange):
-            bid_ask = exchange.bid_ask(base_currency)
             return all([
                 # Supports this trading pair
                 exchange.supports_pair(base_currency, self.quote_currency),
                 # Balance is above minimum
                 self._balances[exchange.name].get(base_currency, 0.) >= CURRENCIES[base_currency]['min_order_size'],
-                # Has a bid price
-                bid_ask['bid'] is not None,
                 # Has been updated recently
-                self.updated_recently(bid_ask, exchange)
+                exchange.updated_recently(base_currency, self.quote_currency, Defaults.STALE_DATA_TIMEOUT)
             ])
 
         return filter(sell_exchange_filter, self.exchanges)
-
-    @staticmethod
-    def updated_recently(bid_ask: dict, exchange) -> bool:
-        last_updated = bid_ask.get('time')
-
-        if last_updated:
-            return last_updated > time.time() - exchange.max_refresh_delay
-
-        last_updated = bid_ask.get('recv_time')
-
-        if last_updated:
-            return last_updated > time.time() - (exchange.max_refresh_delay + Defaults.RECEIVE_TIME_OFFSET)
-
-        return False
 
     def add_order(self, side: str, exchange_name: str):
         self._order_history[side].append({'exchange': exchange_name, 'time': time.time()})
@@ -217,10 +196,8 @@ class ExchangeManager(object):
             return
         target_bal = total_bal / len(self._clients)
 
-        if not all(x.bid_ask(currency)['bid'] for x in self.exchanges):
-            return
-
-        best_price = max(self.exchanges, key=lambda x: x.bid_ask(currency)['bid'])
+        initialized_exchanges = filter(lambda x: x.order_book_initialized(currency, self.quote_currency), self.exchanges)
+        best_price = max(initialized_exchanges, key=lambda x: x.bid(currency))
         lo_bal = self._balances[best_price.name].get(currency, 0.)
         # TODO: Use best history once we have enough data
 
@@ -236,7 +213,7 @@ class ExchangeManager(object):
         if transfer_amt <= CURRENCIES[currency]['min_order_size']:
             return
 
-        tx_fee = highest_balance.tx_fee(currency) * highest_balance.bid_ask(currency)['bid']
+        tx_fee = highest_balance.tx_fee(currency) * highest_balance.bid(currency)
         if tx_fee > self.tx_credits:
             return
 

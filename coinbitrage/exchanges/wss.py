@@ -191,24 +191,29 @@ class WebsocketOrderBook(BaseWebsocket):
     def _on_error(self, ws, error):
         log.error(error, event_name='websocket.error', event_data={'error': error})
 
-    def best_bid(self, base_currency: str, quote_currency: str) -> Optional[dict]:
-        pair = self.formatter.pair(base_currency, quote_currency)
+    def best_bid(self, pair: str) -> float:
         with self._book_lock:
             return self._book.best_bid(pair)
 
-    def best_ask(self, base_currency: str, quote_currency: str) -> Optional[dict]:
-        pair = self.formatter.pair(base_currency, quote_currency)
+    def best_ask(self, pair: str) -> float:
         with self._book_lock:
             return self._book.best_ask(pair)
 
     def get_bids(self, pair: str, max_volume: float) -> List[Tuple[float, float]]:
         with self._book_lock:
-            return self._book.get_bids(pair, max_volume)
+            return list(self._book.get_bids(pair, max_volume))
 
     def get_asks(self, pair: str, max_volume: float) -> List[Tuple[float, float]]:
         with self._book_lock:
-            return self._book.get_asks(pair, max_volume)
+            return list(self._book.get_asks(pair, max_volume))
 
+    def updated_recently(self, pair: str, seconds: int) -> bool:
+        with self._book_lock:
+            return self._book.updated_recently(pair, seconds)
+
+    def initialized(self, pair: str):
+        with self._book_lock:
+            return self._book.initialized(pair)
 
 class WampWebsocket(BaseWebsocket):
 

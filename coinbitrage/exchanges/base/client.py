@@ -11,7 +11,6 @@ log = bitlogging.getLogger(__name__)
 
 class BaseExchangeClient(object):
     _api_class = None
-    max_refresh_delay = Defaults.MAX_REFRESH_DELAY
     name = None
 
     def __init__(self, key_file: str, **kwargs):

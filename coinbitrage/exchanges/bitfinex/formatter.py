@@ -3,6 +3,7 @@ from typing import Iterable, Optional, Tuple, Union
 from coinbitrage.exchanges.bitex import BitExFormatter
 from coinbitrage.exchanges.order_book import OrderBookUpdate
 from coinbitrage.exchanges.wss import WebsocketMessage
+from coinbitrage.utils import format_floats
 
 
 class BitfinexFormatter(BitExFormatter):
@@ -84,7 +85,7 @@ class BitfinexWebsocketFormatter(BitfinexFormatter):
             return [{
                 'type': 'order',
                 'side': 'bid' if amount > 0 else 'ask',
-                'price': price,
+                'price': format_floats(price),
                 'quantity': 0 if count == 0 else abs(amount)
             }]
         else:
@@ -93,7 +94,7 @@ class BitfinexWebsocketFormatter(BitfinexFormatter):
             for entry in data:
                 price, count, amount = tuple(entry)
                 side = bids if amount > 0 else asks
-                side[str(price)] = abs(amount)
+                side[format_floats(price)] = abs(amount)
             return [{
                 'type': 'initialize',
                 'asks': asks,

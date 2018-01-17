@@ -9,7 +9,6 @@ from .websocket import PoloniexWebsocketOrderBook
 class PoloniexClient(BaseExchangeClient, WebsocketOrderBookMixin):
     _api_class = PoloniexAPIAdapter
     _websocket_order_book_class = PoloniexWebsocketOrderBook
-    max_refresh_delay = 10
     name = 'poloniex'
 
     def __init__(self, key_file: str):

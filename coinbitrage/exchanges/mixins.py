@@ -29,12 +29,6 @@ class LiveUpdateMixin(object):
     def bid_ask(self, base_currency: str, quote_currency: str = Defaults.QUOTE_CURRENCY):
         raise NotImplementedError
 
-    def bid(self, base_currency: str, quote_currency: str = Defaults.QUOTE_CURRENCY, total_volume: float = None):
-        return self.bid_ask(base_currency, quote_currency).get('bid')
-
-    def ask(self, base_currency: str, quote_currency: str = Defaults.QUOTE_CURRENCY, total_volume: float = None):
-        return self.bid_ask(base_currency, quote_currency).get('ask')
-
 
 class WebsocketTickerMixin(LiveUpdateMixin):
     _websocket_class = None
@@ -69,8 +63,14 @@ class WebsocketTickerMixin(LiveUpdateMixin):
         self._update()
         return self._bid_ask[base_currency]
 
+    def bid(self, base_currency: str, quote_currency: str = Defaults.QUOTE_CURRENCY):
+        return self.bid_ask(base_currency, quote_currency).get('bid')
 
-class WebsocketOrderBookMixin(LiveUpdateMixin):
+    def ask(self, base_currency: str, quote_currency: str = Defaults.QUOTE_CURRENCY):
+        return self.bid_ask(base_currency, quote_currency).get('ask')
+
+
+class WebsocketOrderBookMixin(object):
     _websocket_order_book_class = None
 
     def __init__(self, *args, **kwargs):
@@ -87,11 +87,13 @@ class WebsocketOrderBookMixin(LiveUpdateMixin):
     def stop_live_updates(self):
         self._wss_order_book.stop()
 
-    def bid_ask(self, base_currency: str, quote_currency: str = Defaults.QUOTE_CURRENCY):
-        ret = self._wss_order_book.best_bid(base_currency, quote_currency) or {'bid': None}
-        ret.update(self._wss_order_book.best_ask(base_currency, quote_currency) or {'ask': None})
-        ret.setdefault('time', None)
-        return ret
+    def bid(self, base_currency: str, quote_currency: str = Defaults.QUOTE_CURRENCY):
+        pair = self.formatter.pair(base_currency, quote_currency)
+        return self._wss_order_book.best_bid(pair)
+
+    def ask(self, base_currency: str, quote_currency: str = Defaults.QUOTE_CURRENCY):
+        pair = self.formatter.pair(base_currency, quote_currency)
+        return self._wss_order_book.best_ask(pair)
 
     def get_bids(self, base_currency: str, quote_currency: str, max_volume: float) -> List[Tuple[float, float]]:
         pair = self.formatter.pair(base_currency, quote_currency)
@@ -101,6 +103,13 @@ class WebsocketOrderBookMixin(LiveUpdateMixin):
         pair = self.formatter.pair(base_currency, quote_currency)
         return self._wss_order_book.get_asks(pair, max_volume)
 
+    def updated_recently(self, base_currency: str, quote_currency: str, seconds: int) -> bool:
+        pair = self.formatter.pair(base_currency, quote_currency)
+        return self._wss_order_book.updated_recently(pair, seconds)
+
+    def order_book_initialized(self, base_currency: str, quote_currency: str) -> bool:
+        pair = self.formatter.pair(base_currency, quote_currency)
+        return self._wss_order_book.initialized(pair)
 
 class PeriodicRefreshMixin(LiveUpdateMixin):
 
