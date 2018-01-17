@@ -184,18 +184,36 @@ class ArbitrageEngine(object):
         return best_opportunity
 
     def _maximize_order_profit(self, buy_exchange, sell_exchange, base_currency: str, max_order_size: float) -> OrderSpec:
-        asks = iter(buy_exchange.get_asks(base_currency, self.quote_currency, max_order_size))
-        bids = iter(sell_exchange.get_bids(base_currency, self.quote_currency, max_order_size))
+        buffered_order_size = max_order_size * (1 + Defaults.ORDER_BOOK_BUFFER)
+        asks = iter(buy_exchange.get_asks(base_currency, self.quote_currency, buffered_order_size))
+        bids = iter(sell_exchange.get_bids(base_currency, self.quote_currency, buffered_order_size))
         tx_fee = buy_exchange.tx_fee(base_currency)
 
         # Use brute force solution then later improve if it is a bottleneck
+        ask_price, ask_size = next(asks)
+        bid_price, bid_size = next(bids)
+
+        # Take buffer off the top of the order book to make order success more likely
+        buffer_remaining = max_order_size * Defaults.ORDER_BOOK_BUFFER
+        while buffer_remaining > 0:
+            if buffer_remaining < min(ask_size, bid_size):
+                ask_size -= buffer_remaining
+                bid_size -= buffer_remaining
+                buffer_remaining = 0.
+            elif ask_size < bid_size:
+                buffer_remaining -= ask_size
+                bid_size -= ask_size
+                ask_price, ask_size = next(asks)
+            else:
+                buffer_remaining -= bid_size
+                ask_size -= bid_size
+                bid_price, bid_size = next(bids)
+
         best_order = None
         vol_remaining = max_order_size
         total_size = 0.
         ask_cost = bid_cost = 0.
 
-        ask_price, ask_size = next(asks)
-        bid_price, bid_size = next(bids)
         while vol_remaining > 0:
             try:
                 if vol_remaining < min(ask_size, bid_size):
