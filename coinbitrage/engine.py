@@ -20,7 +20,7 @@ from coinbitrage.settings import CURRENCIES, Defaults
 from coinbitrage.utils import RunEvery, format_floats
 
 
-REBALANCE_FUNDS_EVERY = 60 * 5  # Rebalance funds every 5 minutes
+REBALANCE_FUNDS_EVERY = 60 * 15  # Rebalance funds every 15 minutes
 PRINT_TABLE_EVERY = 60 * 1  # Print table every minute
 
 
