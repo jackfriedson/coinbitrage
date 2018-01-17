@@ -42,7 +42,7 @@ class BittrexFormatter(BitExFormatter):
     def pair(self, base_currency: str, quote_currency: str) -> str:
         base = self.format(base_currency)
         quote = self.format(quote_currency)
-        return '{}-{}'.format(quote, base)
+        return f'{quote}-{base}'
 
     def unpair(self, currency_pair: str) -> Tuple[str, str]:
         quote, base = tuple(currency_pair.split('-'))

@@ -28,7 +28,7 @@ class HitBtcWebsocketMixin(object):
                 'id': time.time(),
             }
         else:
-            raise NotImplementedError('Channel {} is not implemented for HitBTC'.format(channel))
+            raise NotImplementedError(f'Channel {channel} is not implemented for HitBTC')
 
         conn.send(json.dumps(msg))
 

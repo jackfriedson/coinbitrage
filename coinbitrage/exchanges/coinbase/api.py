@@ -39,7 +39,7 @@ class CoinbaseAPIAdapter(BitExAPIAdapter, SeparateTradingAccountMixin):
             'currency': currency,
             'coinbase_account_id': self._account_ids[currency]
         }
-        resp = self._api.private_query('{}/coinbase-account'.format(endpoint), params=params)
+        resp = self._api.private_query(f'{endpoint}/coinbase-account', params=params)
         return 'id' in resp.json()
 
     def bank_balance(self) -> Dict[str, float]:

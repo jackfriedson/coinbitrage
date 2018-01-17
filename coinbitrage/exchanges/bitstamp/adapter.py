@@ -34,7 +34,7 @@ class BitstampAPIAdapter(BitExAPIAdapter):
         fee = self._fees.get(pair + '_fee')
 
         if not fee:
-            raise ValueError('{} is not a supported pair'.format(pair))
+            raise ValueError(f'{pair} is not a supported pair')
         return fee
 
     def limit_order(self, *args, **kwargs) -> Optional[str]:

@@ -21,7 +21,7 @@ class BitfinexAPIAdapter(BitExAPIAdapter):
     def deposit_address(self, currency: str) -> dict:
         deposit_method = CURRENCIES[currency].get('bitfinex_method')
         if not deposit_method:
-            raise NotImplementedError('Deposit address not implemented for {}'.format(currency))
+            raise NotImplementedError(f'Deposit address not implemented for {currency}')
 
         currency = self.formatter.format(currency)
         result = super(BitfinexAPIAdapter, self).deposit_address(currency, method=deposit_method,
@@ -36,7 +36,7 @@ class BitfinexAPIAdapter(BitExAPIAdapter):
     def withdraw(self, currency: str, address: str, amount: float, **kwargs) -> bool:
         withdraw_method = CURRENCIES[currency].get('bitfinex_method')
         if not withdraw_method:
-            raise NotImplementedError('Withdraw not implemented for {}'.format(currency))
+            raise NotImplementedError(f'Withdraw not implemented for {currency}')
 
         kwargs.update({'withdraw_type': withdraw_method, 'walletselected': 'exchange'})
         if 'paymentId' in kwargs:

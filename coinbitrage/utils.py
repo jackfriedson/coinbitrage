@@ -30,7 +30,7 @@ def format_floats(value, precision: int = Defaults.FLOAT_PRECISION):
 
 
 def format_log_args(args: tuple, kwargs: dict) -> tuple:
-    return tuple(list(args) + ['{}={}'.format(kw, arg) for kw, arg in kwargs.items()])
+    return tuple(list(args) + [f'{kw}={arg}'for kw, arg in kwargs.items()])
 
 
 def thread_running(thread: Thread) -> bool:

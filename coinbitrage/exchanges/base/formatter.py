@@ -25,7 +25,7 @@ class BaseFormatter(object):
     def pair(self, base_currency: str, quote_currency: str) -> str:
         base = self.format(base_currency)
         quote = self.format(quote_currency)
-        return '{}{}{}'.format(base, self._pair_delimiter, quote)
+        return f'{base}{self._pair_delimiter}{quote}'
 
     def unpair(self, currency_pair: str) -> Tuple[str, str]:
         if self._pair_delimiter:

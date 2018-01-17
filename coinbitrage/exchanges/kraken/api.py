@@ -33,7 +33,7 @@ class KrakenAPIAdapter(BitExAPIAdapter):
     def deposit_address(self, currency: str) -> dict:
         deposit_method = CURRENCIES[currency].get('kraken_method')
         if not deposit_method:
-            raise NotImplementedError('Deposit address not implemented for {}'.format(currency))
+            raise NotImplementedError(f'Deposit address not implemented for {currency}')
 
         currency = self.formatter.format(currency)
         return super(KrakenAPIAdapter, self).deposit_address(currency, method=deposit_method)
@@ -45,11 +45,11 @@ class KrakenAPIAdapter(BitExAPIAdapter):
             error_info, error_msg, error_extra = error_data[0], error_data[1], error_data[2:]
             severity, category = error_info[:1], error_info[1:]
             if severity == 'W':
-                log.warning('Kraken API returned a warning -- {}'.format(error),
+                log.warning(f'Kraken API returned a warning -- {error}',
                             event_data={'category': category, 'message': error_msg, 'extra': error_extra},
                             event_name='kraken_api.warning')
             elif severity == 'E':
-                log.warning('Kraken API returned an error -- {}'.format(error),
+                log.warning(f'Kraken API returned an error -- {error}',
                             event_data={'category': category, 'message': error_msg, 'extra': error_extra},
                             event_name='kraken_api.error')
                 if error_msg != 'Internal error':
@@ -94,7 +94,7 @@ class KrakenAPIAdapter(BitExAPIAdapter):
             kwargs.update({'paymentId': kwargs.pop('tag')})
         if currency == 'XRP' and 'paymentId' in kwargs:
             paymentId = kwargs.pop('paymentId')
-            key += '-{}'.format(paymentId)
+            key += f'-{paymentId}'
         return super(KrakenAPIAdapter, self).withdraw(currency, key, amount, **kwargs)
 
 class KrakenTetherAdapter(ProxyCurrencyWrapper):

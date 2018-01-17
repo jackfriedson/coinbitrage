@@ -273,10 +273,7 @@ class WampComponent(ApplicationSession):
         self.formatter = formatter
 
     async def onJoin(self, details):
-        log.debug('joining session...')
         for channel in self._channels:
-            log.debug('subscribing to {}...'.format(channel))
-
             def callback_fn(*args):
                 data = getattr(self.formatter, channel)(args)
                 self._queue.put(data)

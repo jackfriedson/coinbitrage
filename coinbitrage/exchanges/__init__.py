@@ -26,7 +26,7 @@ def get_exchange(name: str):
     :param name: The name of the exchange
     """
     name = name.lower()
-    api_key = str(settings.API_KEY_DIR/'{}.key'.format(name))
+    api_key = str(settings.API_KEY_DIR/f'{name}.key')
     kwargs = {}
 
     if name == 'coinbase':
