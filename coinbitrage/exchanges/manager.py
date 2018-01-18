@@ -94,6 +94,8 @@ class ExchangeManager(object):
         return list(filter(lambda x: not x.breaker_tripped, self._clients.values()))
 
     def manage_exchanges(self):
+        log.info('Total balances: {totals}', event_name='update.total_balances',
+                 event_data={'totals': self.totals()})
         self._pre_distribute_step()
         self.update_trading_balances()
         for currency in self.base_currencies:
@@ -101,8 +103,7 @@ class ExchangeManager(object):
         # self._redistribute_quote()
         self.update_trading_balances()
         self._pre_trading_step()
-        log.info('Total balances: {totals}', event_name='update.total_balances',
-                 event_data={'totals': self.totals()})
+
 
     def buy_exchanges(self, base_currency: str):
         def buy_exchange_filter(exchange):

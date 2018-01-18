@@ -190,6 +190,7 @@ class WebsocketOrderBook(BaseWebsocket):
 
     def _on_error(self, ws, error):
         log.error(error, event_name='websocket.error', event_data={'error': error})
+        self._controller_queue.put('restart')
 
     def best_bid(self, pair: str) -> float:
         with self._book_lock:
