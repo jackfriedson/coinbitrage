@@ -7,5 +7,8 @@ class ClientError(HTTPError):
 class ExchangeError(Exception):
     pass
 
+class OrderBookUpdateError(Exception):
+    pass
+
 class ServerError(HTTPError):
     pass

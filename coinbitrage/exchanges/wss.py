@@ -185,11 +185,16 @@ class WebsocketOrderBook(BaseWebsocket):
     def _on_message(self, ws, message):
         msg = self.formatter.websocket_message(json.loads(message))
         if msg and msg.channel == 'order_book':
-            with self._book_lock:
-                self._book.update(msg.data)
+            try:
+                with self._book_lock:
+                    self._book.update(msg.data)
+            except OrderBookUpdateError as e:
+                self._controller_queue.put('restart')
 
     def _on_error(self, ws, error):
-        log.error(error, event_name='websocket.error', event_data={'error': error})
+        log.warning('{exchange} order book encountered an error: {error}, restarting thread...',
+                    event_name='websocket.error',
+                    event_data={'exchange': self.name, 'error': error})
         self._controller_queue.put('restart')
 
     def best_bid(self, pair: str) -> float:

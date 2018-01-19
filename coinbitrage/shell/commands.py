@@ -48,6 +48,20 @@ def transfer(obj, amount, currency, from_exchange, to_exchange):
     to_exchg.get_funds_from(from_exchg, currency, amount)
 
 
+# @click.command()
+# @click.argument('currency', type=str)
+# @click.pass_obj
+# def buys(obj, currency):
+#     print([x.name for x in obj['exchanges'].buy_exchanges(currency)])
+
+
+# @click.command()
+# @click.argument('currency', type=str)
+# @click.pass_obj
+# def sells(obj, currency):
+#     print([x.name for x in obj['exchanges'].sell_exchanges(currency)])
+
+
 # ---------------------- Exchange-specific commands ------------------------ #
 
 def exchange_command(f):

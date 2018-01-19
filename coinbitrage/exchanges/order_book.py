@@ -7,6 +7,7 @@ from pylimitbook.book import Book
 from pylimitbook.settings import PRICE_PRECISION
 
 from coinbitrage import bitlogging
+from coinbitrage.exchanges.errors import OrderBookUpdateError
 
 
 log = bitlogging.getLogger(__name__)
@@ -32,13 +33,15 @@ class OrderBook(object):
                 getattr(self, entry['type'])(pair, entry)
             if received_seq is not None:
                 self._next_sequence[pair] = received_seq + 1
-                self._apply_pending_updates(pair)
+                # self._apply_pending_updates(pair)
         else:
-            assert received_seq > expected_seq
-            self._pending_updates[pair][received_seq] = full_update
-            log.warning('Received order book message {received_sequence} but the next expected one was {expected_sequence}',
+            log.error('Received order book message {received_sequence} but the next expected one was {expected_sequence}',
                         event_name='order_book.sequence_error',
                         event_data={'received_sequence': received_seq, 'expected_sequence': expected_seq})
+            raise OrderBookUpdateError('Recieved messages out of order')
+            # assert received_seq > expected_seq
+            # self._pending_updates[pair][received_seq] = full_update
+
 
     def _apply_pending_updates(self, pair: str):
         pending = self._pending_updates[pair]
