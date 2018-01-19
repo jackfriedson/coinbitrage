@@ -190,6 +190,7 @@ class WebsocketOrderBook(BaseWebsocket):
                     self._book.update(msg.data)
             except OrderBookUpdateError as e:
                 self._controller_queue.put('restart')
+                raise
 
     def _on_error(self, ws, error):
         log.warning('{exchange} order book encountered an error: {error}, restarting thread...',
