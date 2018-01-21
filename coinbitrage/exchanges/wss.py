@@ -160,7 +160,6 @@ class WebsocketOrderBook(BaseWebsocket):
 
     def __init__(self, *args, **kwargs):
         super(WebsocketOrderBook, self).__init__(*args, **kwargs)
-        self._book_lock = RLock()
         self._book = OrderBook()
         self._ws = None
 
@@ -186,8 +185,7 @@ class WebsocketOrderBook(BaseWebsocket):
         msg = self.formatter.websocket_message(json.loads(message))
         if msg and msg.channel == 'order_book':
             try:
-                with self._book_lock:
-                    self._book.update(msg.data)
+                self._book.update(msg.data)
             except OrderBookUpdateError as e:
                 self._controller_queue.put('restart')
                 raise
@@ -199,28 +197,22 @@ class WebsocketOrderBook(BaseWebsocket):
         self._controller_queue.put('restart')
 
     def best_bid(self, pair: str) -> float:
-        with self._book_lock:
-            return self._book.best_bid(pair)
+        return self._book.best_bid(pair)
 
     def best_ask(self, pair: str) -> float:
-        with self._book_lock:
-            return self._book.best_ask(pair)
+        return self._book.best_ask(pair)
 
     def get_bids(self, pair: str, max_volume: float) -> List[Tuple[float, float]]:
-        with self._book_lock:
-            return list(self._book.get_bids(pair, max_volume))
+        return self._book.get_bids(pair, max_volume)
 
     def get_asks(self, pair: str, max_volume: float) -> List[Tuple[float, float]]:
-        with self._book_lock:
-            return list(self._book.get_asks(pair, max_volume))
+        return self._book.get_asks(pair, max_volume)
 
     def updated_recently(self, pair: str, seconds: int) -> bool:
-        with self._book_lock:
-            return self._book.updated_recently(pair, seconds)
+        return self._book.updated_recently(pair, seconds)
 
     def initialized(self, pair: str):
-        with self._book_lock:
-            return self._book.initialized(pair)
+        return self._book.initialized(pair)
 
 class WampWebsocket(BaseWebsocket):
 

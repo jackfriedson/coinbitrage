@@ -230,18 +230,15 @@ class ExchangeManager(object):
     # TODO: implement redistribution of quote currency only when there is a
     # severe imbalance (and it is possible to rebalance)
     def _redistribute_quote(self):
-        total_bal = self.totals().get(self.quote_currency)
-        if not total_bal:
+        sufficient_balances = [
+            x for x in self.balances().items()
+            if x[1][self.quote_currency] > CURRENCIES[self.quote_currency]['min_order_size']
+        ]
+
+        if len(sufficient_balances) != 1:
             return
 
-        max_balance = Defaults.REBALANCE_QUOTE_THRESHOLD * total_bal
-        excess_balances = list(filter(lambda x: x[1][self.quote_currency] > max_balance,
-                                      self.balances().items()))
-        if not excess_balances:
-            return
-
-        excess_name, excess_bal = excess_balances[0]
-        transfer_from_exchg = self.get(excess_name)
+        transfer_from_exchg = self.get(sufficient_balances[0])
 
         tx_fee = transfer_from_exchg.tx_fee(self.quote_currency)
 
