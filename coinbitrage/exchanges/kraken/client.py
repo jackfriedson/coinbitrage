@@ -1,5 +1,5 @@
 from coinbitrage.exchanges.base import BaseExchangeClient
-from coinbitrage.exchanges.mixins import PeriodicRefreshMixin
+from coinbitrage.exchanges.mixins import RefreshTickerMixin
 
 from .api import KrakenAPIAdapter, KrakenTetherAdapter
 
@@ -7,7 +7,7 @@ from .api import KrakenAPIAdapter, KrakenTetherAdapter
 KRAKEN_CALL_RATE = 3
 
 
-class KrakenClient(BaseExchangeClient, PeriodicRefreshMixin):
+class KrakenClient(BaseExchangeClient, RefreshTickerMixin):
     _api_class = KrakenAPIAdapter
     _tx_fees = {
         'BCH': 0.001,
@@ -21,7 +21,7 @@ class KrakenClient(BaseExchangeClient, PeriodicRefreshMixin):
 
     def __init__(self, key_file: str):
         BaseExchangeClient.__init__(self, key_file)
-        PeriodicRefreshMixin.__init__(self, refresh_interval=KRAKEN_CALL_RATE)
+        RefreshTickerMixin.__init__(self, refresh_interval=KRAKEN_CALL_RATE)
 
     def init(self):
         pair_info = self.api.pairs()

@@ -1,17 +1,16 @@
-
 from coinbitrage.exchanges.base import BaseExchangeClient
-from coinbitrage.exchanges.mixins import PeriodicRefreshMixin
+from coinbitrage.exchanges.mixins import RefreshTickerMixin
 
 from .api import BittrexAPIAdapter
 
 
-class BittrexClient(BaseExchangeClient, PeriodicRefreshMixin):
+class BittrexClient(BaseExchangeClient, RefreshTickerMixin):
     _api_class = BittrexAPIAdapter
     name = 'bittrex'
 
     def __init__(self, key_file: str):
         BaseExchangeClient.__init__(self, key_file)
-        PeriodicRefreshMixin.__init__(self, refresh_interval=1)
+        RefreshTickerMixin.__init__(self, refresh_interval=1)
 
     def init(self):
         self.currency_info = self.api.currencies()

@@ -7,7 +7,7 @@ from .websocket import BitfinexWebsocketOrderBook
 
 class BitfinexClient(BaseExchangeClient, WebsocketOrderBookMixin):
     _api_class = BitfinexAPIAdapter
-    _websocket_order_book_class = BitfinexWebsocketOrderBook
+    _websocket_class = BitfinexWebsocketOrderBook
     name = 'bitfinex'
 
     def __init__(self, key_file: str):

@@ -1,6 +1,6 @@
+import copy
 import logging
 import time
-from abc import ABC, abstractproperty
 from collections import defaultdict
 from functools import partial, wraps
 from threading import Event, RLock, Thread
@@ -9,6 +9,7 @@ from typing import Dict, Iterable, List, Optional, Tuple, Union
 from requests.exceptions import RequestException
 
 from coinbitrage import bitlogging
+from coinbitrage.exchanges.order_book import OrderBook
 from coinbitrage.settings import Defaults
 from coinbitrage.utils import format_floats, thread_running
 
@@ -16,38 +17,102 @@ from coinbitrage.utils import format_floats, thread_running
 log = bitlogging.getLogger(__name__)
 
 
-class LiveUpdateMixin(object):
+class _TickerMixin(object):
 
-    def start_live_updates(self,
-                           base_currency: Union[str, List[str]],
-                           quote_currency: str = Defaults.QUOTE_CURRENCY):
+    def __init__(self):
+        self._bid_ask = defaultdict(lambda: {'bid': None, 'ask': None, 'time': None})
+
+    def bid_ask(self, base_currency: str, quote_currency: str = Defaults.QUOTE_CURRENCY) -> dict:
         raise NotImplementedError
 
-    def stop_live_updates(self):
-        raise NotImplementedError
+    def bid(self, base_currency: str, quote_currency: str = Defaults.QUOTE_CURRENCY) -> float:
+        return self.bid_ask(base_currency, quote_currency).get('bid')
 
-    def bid_ask(self, base_currency: str, quote_currency: str = Defaults.QUOTE_CURRENCY):
-        raise NotImplementedError
+    def ask(self, base_currency: str, quote_currency: str = Defaults.QUOTE_CURRENCY) -> float:
+        return self.bid_ask(base_currency, quote_currency).get('ask')
 
 
-class WebsocketTickerMixin(LiveUpdateMixin):
+class _OrderBookMixin(object):
+
+    def __init__(self):
+        self._book = OrderBook()
+
+    def bid(self, base_currency: str, quote_currency: str = Defaults.QUOTE_CURRENCY) -> float:
+        pair = self.formatter.pair(base_currency, quote_currency)
+        return self._book.best_bid(pair)
+
+    def ask(self, base_currency: str, quote_currency: str = Defaults.QUOTE_CURRENCY) -> float:
+        pair = self.formatter.pair(base_currency, quote_currency)
+        return self._book.best_ask(pair)
+
+    def get_bids(self, base_currency: str, quote_currency: str, max_volume: float) -> List[Tuple[float, float]]:
+        pair = self.formatter.pair(base_currency, quote_currency)
+        return self._book.get_bids(pair, max_volume)
+
+    def get_asks(self, base_currency: str, quote_currency: str, max_volume: float) -> List[Tuple[float, float]]:
+        pair = self.formatter.pair(base_currency, quote_currency)
+        return self._book.get_asks(pair, max_volume)
+
+    def updated_recently(self, base_currency: str, quote_currency: str, seconds: int) -> bool:
+        pair = self.formatter.pair(base_currency, quote_currency)
+        return self._book.updated_recently(pair, seconds)
+
+    def order_book_initialized(self, base_currency: str, quote_currency: str) -> bool:
+        pair = self.formatter.pair(base_currency, quote_currency)
+        return self._book.initialized(pair)
+
+
+class _WebsocketMixin(object):
+    _channel = None
     _websocket_class = None
 
     def __init__(self, *args, **kwargs):
-        self._websocket = self._websocket_class()
-        self._bid_ask = {}
-        super(WebsocketTickerMixin, self).__init__(*args, **kwargs)
+        self._websocket = self._websocket_class(*args, **kwargs)
 
     def start_live_updates(self, base_currency: Union[str, List[str]], quote_currency: str):
         self._websocket.start()
         if isinstance(base_currency, str):
             base_currency = [base_currency]
         for currency in base_currency:
-            self._bid_ask[currency] = {'bid': None, 'ask': None, 'time': None}
-            self._websocket.subscribe('ticker', currency, quote_currency)
+            self._websocket.subscribe(self._channel, currency, quote_currency)
 
     def stop_live_updates(self):
         self._websocket.stop()
+
+
+class _RefreshMixin(object):
+
+    def __init__(self, refresh_interval: int):
+        self._interval = refresh_interval
+        self._running = Event()
+        self._lock = RLock()
+        self._refresh_threads = {}
+        self._quote = None
+
+    def start_live_updates(self, base_currency: Union[str, List[str]], quote_currency: str = Defaults.QUOTE_CURRENCY):
+        self._quote = quote_currency
+        if isinstance(base_currency, str):
+            base_currency = [base_currency]
+        for currency in base_currency:
+            if not thread_running(self._refresh_threads.get(currency)):
+                self._running.set()
+                self._refresh_threads[currency] = Thread(target=partial(self._refresh, currency), daemon=True,
+                                                         name='{}{}RefreshThread'.format(self.name.title(), currency))
+                self._refresh_threads[currency].start()
+
+    def stop_live_updates(self):
+        self._running.clear()
+        for currency, thread in self._refresh_threads.items():
+            if thread_running(thread):
+                thread.join()
+
+
+class WebsocketTickerMixin(_WebsocketMixin, _TickerMixin):
+    _channel = 'ticker'
+
+    def __init__(self):
+        _TickerMixin.__init__(self)
+        _WebsocketMixin.__init__(self)
 
     def _update(self):
         message = None
@@ -63,81 +128,20 @@ class WebsocketTickerMixin(LiveUpdateMixin):
         self._update()
         return self._bid_ask[base_currency]
 
-    def bid(self, base_currency: str, quote_currency: str = Defaults.QUOTE_CURRENCY):
-        return self.bid_ask(base_currency, quote_currency).get('bid')
 
-    def ask(self, base_currency: str, quote_currency: str = Defaults.QUOTE_CURRENCY):
-        return self.bid_ask(base_currency, quote_currency).get('ask')
+class WebsocketOrderBookMixin(_WebsocketMixin, _OrderBookMixin):
+    _channel = 'order_book'
+
+    def __init__(self):
+        _OrderBookMixin.__init__(self)
+        _WebsocketMixin.__init__(self, self._book)
 
 
-class WebsocketOrderBookMixin(object):
-    _websocket_order_book_class = None
+class RefreshTickerMixin(_RefreshMixin, _TickerMixin):
 
-    def __init__(self, *args, **kwargs):
-        self._wss_order_book = self._websocket_order_book_class()
-        super(WebsocketOrderBookMixin, self).__init__(*args, **kwargs)
-
-    def start_live_updates(self, base_currency: Union[str, List[str]], quote_currency: str):
-        self._wss_order_book.start()
-        if isinstance(base_currency, str):
-            base_currency = [base_currency]
-        for currency in base_currency:
-            self._wss_order_book.subscribe('order_book', currency, quote_currency)
-
-    def stop_live_updates(self):
-        self._wss_order_book.stop()
-
-    def bid(self, base_currency: str, quote_currency: str = Defaults.QUOTE_CURRENCY):
-        pair = self.formatter.pair(base_currency, quote_currency)
-        return self._wss_order_book.best_bid(pair)
-
-    def ask(self, base_currency: str, quote_currency: str = Defaults.QUOTE_CURRENCY):
-        pair = self.formatter.pair(base_currency, quote_currency)
-        return self._wss_order_book.best_ask(pair)
-
-    def get_bids(self, base_currency: str, quote_currency: str, max_volume: float) -> List[Tuple[float, float]]:
-        pair = self.formatter.pair(base_currency, quote_currency)
-        return self._wss_order_book.get_bids(pair, max_volume)
-
-    def get_asks(self, base_currency: str, quote_currency: str, max_volume: float) -> List[Tuple[float, float]]:
-        pair = self.formatter.pair(base_currency, quote_currency)
-        return self._wss_order_book.get_asks(pair, max_volume)
-
-    def updated_recently(self, base_currency: str, quote_currency: str, seconds: int) -> bool:
-        pair = self.formatter.pair(base_currency, quote_currency)
-        return self._wss_order_book.updated_recently(pair, seconds)
-
-    def order_book_initialized(self, base_currency: str, quote_currency: str) -> bool:
-        pair = self.formatter.pair(base_currency, quote_currency)
-        return self._wss_order_book.initialized(pair)
-
-class PeriodicRefreshMixin(LiveUpdateMixin):
-
-    def __init__(self, refresh_interval: int, *args, **kwargs):
-        self._interval = refresh_interval
-        self._running = Event()
-        self._lock = RLock()
-        self._refresh_threads = {}
-        self._bid_ask = defaultdict(lambda: {'bid': None, 'ask': None, 'time': None})
-        super(PeriodicRefreshMixin, self).__init__(*args, **kwargs)
-
-    def start_live_updates(self, base_currency: Union[str, List[str]], quote_currency: str = Defaults.QUOTE_CURRENCY):
-        if isinstance(base_currency, str):
-            base_currency = [base_currency]
-        for currency in base_currency:
-            if not thread_running(self._refresh_threads.get(currency)):
-                self._base = base_currency
-                self._quote = quote_currency
-                self._running.set()
-                self._refresh_threads[currency] = Thread(target=partial(self._refresh, currency), daemon=True,
-                                                         name='{}{}RefreshThread'.format(self.name.title(), currency))
-                self._refresh_threads[currency].start()
-
-    def stop_live_updates(self):
-        self._running.clear()
-        for currency, thread in self._refresh_threads.items():
-            if thread_running(thread):
-                thread.join()
+    def __init__(self):
+        _TickerMixin.__init__(self)
+        _RefreshMixin.__init__(self)
 
     def _refresh(self, currency):
         while self._running.is_set():
@@ -164,11 +168,16 @@ class PeriodicRefreshMixin(LiveUpdateMixin):
 
     def bid_ask(self, base_currency: Optional[str] = None, quote_currency: str = Defaults.QUOTE_CURRENCY):
         with self._lock:
-            # TODO: do we actually need to acquire the lock here?
-            # should we be creating a copy of the dict instead of passing a reference?
             if base_currency:
-                return self._bid_ask.get(base_currency, {'bid': None, 'ask': None, 'time': None})
-            return self._bid_ask
+                ret = self._bid_ask.get(base_currency, {'bid': None, 'ask': None, 'time': None})
+            else:
+                ret = self._bid_ask
+
+            return copy.deepcopy(ret)
+
+
+class RefreshOrderBookMixin(_RefreshMixin):
+    pass
 
 
 class SeparateTradingAccountMixin(object):

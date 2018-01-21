@@ -1,11 +1,11 @@
 from coinbitrage.exchanges.base import BaseExchangeClient
-from coinbitrage.exchanges.mixins import PeriodicRefreshMixin
+from coinbitrage.exchanges.mixins import RefreshTickerMixin
 
 from .api import CoinbaseAPIAdapter
 from .websocket import CoinbaseWebsocket
 
 
-class CoinbaseClient(BaseExchangeClient, PeriodicRefreshMixin):
+class CoinbaseClient(BaseExchangeClient, RefreshTickerMixin):
     _api_class = CoinbaseAPIAdapter
     _fees = {
         'BTC': 0.0025,
@@ -16,7 +16,7 @@ class CoinbaseClient(BaseExchangeClient, PeriodicRefreshMixin):
 
     def __init__(self, coinbase_key_file: str, gdax_key_file: str = None):
         BaseExchangeClient.__init__(self, coinbase_key_file, gdax_key_file=gdax_key_file)
-        PeriodicRefreshMixin.__init__(self, refresh_interval=1)
+        RefreshTickerMixin.__init__(self, refresh_interval=1)
 
     def init(self):
         self.supported_pairs = self.api.pairs()

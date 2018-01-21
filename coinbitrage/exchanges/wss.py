@@ -158,9 +158,9 @@ class BaseWebsocket(WebsocketInterface):
 
 class WebsocketOrderBook(BaseWebsocket):
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, order_book,  *args, **kwargs):
         super(WebsocketOrderBook, self).__init__(*args, **kwargs)
-        self._book = OrderBook()
+        self._book = order_book
         self._ws = None
 
     def _websocket(self, *args):
@@ -175,8 +175,10 @@ class WebsocketOrderBook(BaseWebsocket):
                   event_name='websocket_adapter.websocket.stop')
         self.websocket_running.clear()
         with self._lock:
+            self._book.clear()
             if self._ws:
                 self._ws.close()
+                self._ws = None
             if thread_running(self._websocket_thread):
                 self._websocket_thread.join()
             self._websocket_thread = None
@@ -196,23 +198,6 @@ class WebsocketOrderBook(BaseWebsocket):
                     event_data={'exchange': self.name, 'error': error})
         self._controller_queue.put('restart')
 
-    def best_bid(self, pair: str) -> float:
-        return self._book.best_bid(pair)
-
-    def best_ask(self, pair: str) -> float:
-        return self._book.best_ask(pair)
-
-    def get_bids(self, pair: str, max_volume: float) -> List[Tuple[float, float]]:
-        return self._book.get_bids(pair, max_volume)
-
-    def get_asks(self, pair: str, max_volume: float) -> List[Tuple[float, float]]:
-        return self._book.get_asks(pair, max_volume)
-
-    def updated_recently(self, pair: str, seconds: int) -> bool:
-        return self._book.updated_recently(pair, seconds)
-
-    def initialized(self, pair: str):
-        return self._book.initialized(pair)
 
 class WampWebsocket(BaseWebsocket):
 

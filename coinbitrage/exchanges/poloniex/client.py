@@ -1,6 +1,6 @@
 
 from coinbitrage.exchanges.base import BaseExchangeClient
-from coinbitrage.exchanges.mixins import PeriodicRefreshMixin, WebsocketOrderBookMixin
+from coinbitrage.exchanges.mixins import WebsocketOrderBookMixin
 
 from .api import PoloniexAPIAdapter
 from .websocket import PoloniexWebsocketOrderBook
@@ -8,7 +8,7 @@ from .websocket import PoloniexWebsocketOrderBook
 
 class PoloniexClient(BaseExchangeClient, WebsocketOrderBookMixin):
     _api_class = PoloniexAPIAdapter
-    _websocket_order_book_class = PoloniexWebsocketOrderBook
+    _websocket_class = PoloniexWebsocketOrderBook
     name = 'poloniex'
 
     def __init__(self, key_file: str):

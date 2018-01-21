@@ -17,7 +17,7 @@ log = bitlogging.getLogger(__name__)
 
 class HitBtcClient(BaseExchangeClient, WebsocketOrderBookMixin):
     _api_class = HitBtcAPIAdapter
-    _websocket_order_book_class = HitBtcWebsocketOrderBook
+    _websocket_class = HitBtcWebsocketOrderBook
     name = 'hitbtc'
 
     def __init__(self, key_file: str):

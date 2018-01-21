@@ -107,6 +107,12 @@ class OrderBook(object):
     def initialized(self, pair: str) -> bool:
         return self._initialized[pair].is_set()
 
+    def clear(self):
+        with self._lock:
+            self._books = {}
+            for flag in self._initialized.values():
+                flag.clear()
+
     @staticmethod
     def _format_args(pair: str, price: float, quantity: float):
         return pair, str(price), float(quantity), str(price), time.time()
