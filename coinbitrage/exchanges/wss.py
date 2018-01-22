@@ -175,13 +175,13 @@ class WebsocketOrderBook(BaseWebsocket):
                   event_name='websocket_adapter.websocket.stop')
         self.websocket_running.clear()
         with self._lock:
-            self._book.clear()
             if self._ws:
                 self._ws.close()
                 self._ws = None
             if thread_running(self._websocket_thread):
                 self._websocket_thread.join()
             self._websocket_thread = None
+            self._book.clear()
 
     def _on_message(self, ws, message):
         msg = self.formatter.websocket_message(json.loads(message))
