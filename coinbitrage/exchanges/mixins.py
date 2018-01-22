@@ -9,7 +9,7 @@ from typing import Dict, Iterable, List, Optional, Tuple, Union
 from requests.exceptions import RequestException
 
 from coinbitrage import bitlogging
-from coinbitrage.exchanges.order_book import OrderBook
+from coinbitrage.exchanges.order_book import OrderBook, OrderBookUpdate
 from coinbitrage.settings import Defaults
 from coinbitrage.utils import format_floats, thread_running
 
@@ -80,33 +80,6 @@ class _WebsocketMixin(object):
         self._websocket.stop()
 
 
-class _RefreshMixin(object):
-
-    def __init__(self, refresh_interval: int):
-        self._interval = refresh_interval
-        self._running = Event()
-        self._lock = RLock()
-        self._refresh_threads = {}
-        self._quote = None
-
-    def start_live_updates(self, base_currency: Union[str, List[str]], quote_currency: str = Defaults.QUOTE_CURRENCY):
-        self._quote = quote_currency
-        if isinstance(base_currency, str):
-            base_currency = [base_currency]
-        for currency in base_currency:
-            if not thread_running(self._refresh_threads.get(currency)):
-                self._running.set()
-                self._refresh_threads[currency] = Thread(target=partial(self._refresh, currency), daemon=True,
-                                                         name='{}{}RefreshThread'.format(self.name.title(), currency))
-                self._refresh_threads[currency].start()
-
-    def stop_live_updates(self):
-        self._running.clear()
-        for currency, thread in self._refresh_threads.items():
-            if thread_running(thread):
-                thread.join()
-
-
 class WebsocketTickerMixin(_WebsocketMixin, _TickerMixin):
     _channel = 'ticker'
 
@@ -137,34 +110,65 @@ class WebsocketOrderBookMixin(_WebsocketMixin, _OrderBookMixin):
         _WebsocketMixin.__init__(self, self._book)
 
 
-class RefreshTickerMixin(_RefreshMixin, _TickerMixin):
+class _RefreshMixin(object):
 
-    def __init__(self):
-        _TickerMixin.__init__(self)
-        _RefreshMixin.__init__(self)
+    def __init__(self, refresh_interval: int):
+        self._interval = refresh_interval
+        self._running = Event()
+        self._lock = RLock()
+        self._refresh_threads = {}
+        self._quote = None
 
-    def _refresh(self, currency):
+    def start_live_updates(self, base_currency: Union[str, List[str]], quote_currency: str = Defaults.QUOTE_CURRENCY):
+        self._quote = quote_currency
+        if isinstance(base_currency, str):
+            base_currency = [base_currency]
+        for currency in base_currency:
+            if not thread_running(self._refresh_threads.get(currency)):
+                self._running.set()
+                self._refresh_threads[currency] = Thread(target=partial(self._refresh, currency), daemon=True,
+                                                         name='{}{}RefreshThread'.format(self.name.title(), currency))
+                self._refresh_threads[currency].start()
+
+    def stop_live_updates(self):
+        self._running.clear()
+        for currency, thread in self._refresh_threads.items():
+            if thread_running(thread):
+                thread.join()
+
+    def _refresh(self, currency: str):
         while self._running.is_set():
             try:
-                ticker = self.ticker(currency, quote_currency=self._quote)
+                response = self._refresh_fn(currency, quote_currency=self._quote)
             except RequestException as e:
                 log.warning('Exception while connecting to {exchange}: {exception}',
                             event_name='refresh_mixin.request_error',
                             event_data={'exchange': self.name, 'exception': e})
             else:
-                bid_ask = {
-                    'bid': ticker.get('bid'),
-                    'ask': ticker.get('ask'),
-                    'time': ticker.get('time')
-                }
-                if bid_ask['time'] is None:
-                    bid_ask['recv_time'] = time.time()
-                with self._lock:
-                    self._bid_ask[currency] = bid_ask
-                    log.debug('{exchange} {currency} {bid_ask}', event_name='refresh_mixin.update',
-                              event_data={'exchange': self.name, 'currency': currency,
-                                          'bid_ask': format_floats(bid_ask)})
+                self._handle_response(response, currency)
             time.sleep(self._interval)
+
+
+class RefreshTickerMixin(_RefreshMixin, _TickerMixin):
+
+    def __init__(self, refresh_interval: int):
+        _TickerMixin.__init__(self)
+        _RefreshMixin.__init__(self, refresh_interval)
+        self._refresh_fn = self.api.ticker
+
+    def _handle_response(self, response: dict, currency: str):
+        bid_ask = {
+            'bid': response.get('bid'),
+            'ask': response.get('ask'),
+            'time': response.get('time')
+        }
+        if bid_ask['time'] is None:
+            bid_ask['recv_time'] = time.time()
+        with self._lock:
+            self._bid_ask[currency] = bid_ask
+            log.debug('{exchange} {currency} {bid_ask}', event_name='refresh_mixin.update',
+                      event_data={'exchange': self.name, 'currency': currency,
+                                  'bid_ask': format_floats(bid_ask)})
 
     def bid_ask(self, base_currency: Optional[str] = None, quote_currency: str = Defaults.QUOTE_CURRENCY):
         with self._lock:
@@ -176,8 +180,17 @@ class RefreshTickerMixin(_RefreshMixin, _TickerMixin):
             return copy.deepcopy(ret)
 
 
-class RefreshOrderBookMixin(_RefreshMixin):
-    pass
+class RefreshOrderBookMixin(_RefreshMixin, _OrderBookMixin):
+
+    def __init__(self, refresh_interval: int):
+        _OrderBookMixin.__init__(self)
+        _RefreshMixin.__init__(self, refresh_interval)
+        self._refresh_fn = self.api.order_book
+
+    def _handle_response(self, response: dict, currency: str):
+        pair = self.formatter.pair(currency, self._quote)
+        response['type'] = 'initialize'
+        self._book.update(OrderBookUpdate(pair, None, [response]))
 
 
 class SeparateTradingAccountMixin(object):

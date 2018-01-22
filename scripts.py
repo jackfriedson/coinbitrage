@@ -44,12 +44,11 @@ def shell(base_currency, quote_currency):
 
 @coin.command()
 def test():
-    exchanges = ExchangeManager(['bitfinex'], 'XRP', Defaults.QUOTE_CURRENCY)
+    exchanges = ExchangeManager(['bittrex'], 'XRP', Defaults.QUOTE_CURRENCY)
     with exchanges.live_updates():
         try:
-            bitfinex = exchanges.get('bitfinex')
+            bittrex = exchanges.get('bittrex')
             while True:
                 pass
-                # print(bitfinex.bid_ask('XRP', 'BTC'))
         except Exception as e:
             print(e)

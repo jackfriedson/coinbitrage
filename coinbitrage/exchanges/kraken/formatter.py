@@ -1,9 +1,11 @@
 from coinbitrage.exchanges.bitex import BitExFormatter
+from coinbitrage.utils import format_floats
 
 
 class KrakenFormatter(BitExFormatter):
     _currency_map = {
         'BTC': 'XXBT',
+        'ETC': 'XETC',
         'ETH': 'XETH',
         'LTC': 'XLTC',
         'USD': 'ZUSD',
@@ -28,6 +30,12 @@ class KrakenFormatter(BitExFormatter):
                 'fee': float(info['fee']),
                 'volume': float(info['vol']),
             } for order_id, info in orders.items()
+        }
+
+    def order_book(self, data):
+        return {
+            'asks': {format_floats(x[0]): x[1] for x in data['asks']},
+            'bids': {format_floats(x[0]): x[1] for x in data['bids']}
         }
 
     def closed_orders(self, data):

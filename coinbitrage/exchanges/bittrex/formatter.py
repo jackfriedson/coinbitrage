@@ -1,6 +1,7 @@
 from typing import Tuple
 
 from coinbitrage.exchanges.bitex import BitExFormatter
+from coinbitrage.utils import format_floats
 
 
 class BittrexFormatter(BitExFormatter):
@@ -31,6 +32,12 @@ class BittrexFormatter(BitExFormatter):
             'avg_price': float(d['PricePerUnit']) if d['PricePerUnit'] else None,
             'fee': float(d['CommissionPaid']),
             'volume': float(d['Quantity']),
+        }
+
+    def order_book(self, data):
+        return {
+            'asks': {format_floats(x['Rate']): x['Quantity'] for x in data['sell']},
+            'bids': {format_floats(x['Rate']): x['Quantity'] for x in data['buy']}
         }
 
     def deposit_address(self, data):

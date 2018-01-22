@@ -1,27 +1,20 @@
 from coinbitrage.exchanges.base import BaseExchangeClient
-from coinbitrage.exchanges.mixins import RefreshTickerMixin
+from coinbitrage.exchanges.mixins import RefreshOrderBookMixin
+from coinbitrage.settings import CURRENCIES
 
 from .api import KrakenAPIAdapter, KrakenTetherAdapter
 
 
-KRAKEN_CALL_RATE = 3
+KRAKEN_CALL_RATE = 2
 
 
-class KrakenClient(BaseExchangeClient, RefreshTickerMixin):
+class KrakenClient(BaseExchangeClient, RefreshOrderBookMixin):
     _api_class = KrakenAPIAdapter
-    _tx_fees = {
-        'BCH': 0.001,
-        'BTC': 0.001,
-        'ETH': 0.005,
-        'LTC': 0.001,
-        'USDT': 5.,
-        'XRP': 0.02,
-    }
     name = 'kraken'
 
     def __init__(self, key_file: str):
         BaseExchangeClient.__init__(self, key_file)
-        RefreshTickerMixin.__init__(self, refresh_interval=KRAKEN_CALL_RATE)
+        RefreshOrderBookMixin.__init__(self, refresh_interval=KRAKEN_CALL_RATE)
 
     def init(self):
         pair_info = self.api.pairs()
@@ -37,7 +30,7 @@ class KrakenClient(BaseExchangeClient, RefreshTickerMixin):
         return super(KrakenClient, self).supports_pair(base_currency, quote_currency)
 
     def tx_fee(self, currency: str) -> float:
-        return self._tx_fees[currency]
+        return CURRENCIES[currency]['kraken_withdraw_fee']
 
     def fee(self, base_currency: str, quote_currency: str) -> float:
         result = 0
