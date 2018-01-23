@@ -39,8 +39,8 @@ class OrderBook(object):
                     self._next_sequence[pair] = received_seq + 1
             else:
                 log.error('Received order book message {received_sequence} but the next expected one was {expected_sequence}',
-                            event_name='order_book.sequence_error',
-                            event_data={'received_sequence': received_seq, 'expected_sequence': expected_seq})
+                          event_name='order_book.sequence_error',
+                          event_data={'received_sequence': received_seq, 'expected_sequence': expected_seq})
                 raise OrderBookUpdateError('Recieved messages out of order')
 
     def _initialize(self, pair: str, data: dict):
@@ -85,6 +85,8 @@ class OrderBook(object):
         return self._get_book_side(False, pair, max_volume)
 
     def updated_recently(self, pair: str, seconds: int) -> bool:
+        if pair not in self._books:
+            return False
         last_ts = self._books[pair].last_timestamp
         if last_ts is None or not self.initialized(pair):
             return False

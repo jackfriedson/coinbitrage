@@ -189,35 +189,25 @@ class ArbitrageEngine(object):
         bids = iter(sell_exchange.get_bids(base_currency, self.quote_currency, buffered_order_size))
         tx_fee = buy_exchange.tx_fee(base_currency)
 
-        try:
+        # Use brute force solution then later improve if it is a bottleneck
+        ask_price, ask_size = next(asks)
+        bid_price, bid_size = next(bids)
 
-            # Use brute force solution then later improve if it is a bottleneck
-            ask_price, ask_size = next(asks)
-            bid_price, bid_size = next(bids)
-
-            # Take buffer off the top of the order book to make order success more likely
-            buffer_remaining = max_order_size * Defaults.ORDER_BOOK_BUFFER
-            while buffer_remaining > 0:
-                if buffer_remaining < min(ask_size, bid_size):
-                    ask_size -= buffer_remaining
-                    bid_size -= buffer_remaining
-                    buffer_remaining = 0.
-                elif ask_size < bid_size:
-                    buffer_remaining -= ask_size
-                    bid_size -= ask_size
-                    ask_price, ask_size = next(asks)
-                else:
-                    buffer_remaining -= bid_size
-                    ask_size -= bid_size
-                    bid_price, bid_size = next(bids)
-
-        except:
-            print('asks')
-            print(asks)
-            print()
-            print('bids')
-            print(bids)
-            raise
+        # Take buffer off the top of the order book to make order success more likely
+        buffer_remaining = max_order_size * Defaults.ORDER_BOOK_BUFFER
+        while buffer_remaining > 0:
+            if buffer_remaining < min(ask_size, bid_size):
+                ask_size -= buffer_remaining
+                bid_size -= buffer_remaining
+                buffer_remaining = 0.
+            elif ask_size < bid_size:
+                buffer_remaining -= ask_size
+                bid_size -= ask_size
+                ask_price, ask_size = next(asks)
+            else:
+                buffer_remaining -= bid_size
+                ask_size -= bid_size
+                bid_price, bid_size = next(bids)
 
         best_order = None
         vol_remaining = max_order_size
