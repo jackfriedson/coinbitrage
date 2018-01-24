@@ -186,7 +186,10 @@ class WebsocketOrderBook(BaseWebsocket):
     def _on_message(self, ws, message):
         msg = self.formatter.websocket_message(json.loads(message))
         if msg and msg.channel == 'order_book':
-            self._book.update(msg.data)
+            try:
+                self._book.update(msg.data)
+            except OrderBookUpdateError:
+                ws.close()
 
     def _on_error(self, ws, error):
         log.warning('{exchange} order book encountered an error: {error}, restarting thread...',
