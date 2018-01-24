@@ -186,17 +186,14 @@ class WebsocketOrderBook(BaseWebsocket):
     def _on_message(self, ws, message):
         msg = self.formatter.websocket_message(json.loads(message))
         if msg and msg.channel == 'order_book':
-            try:
-                self._book.update(msg.data)
-            except OrderBookUpdateError as e:
-                self._controller_queue.put('restart')
-                raise
+            self._book.update(msg.data)
 
     def _on_error(self, ws, error):
         log.warning('{exchange} order book encountered an error: {error}, restarting thread...',
                     event_name='websocket.error',
                     event_data={'exchange': self.name, 'error': error})
         self._controller_queue.put('restart')
+        ws.close()
 
 
 class WampWebsocket(BaseWebsocket):
