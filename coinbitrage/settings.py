@@ -4,10 +4,9 @@ from pathlib import Path
 API_KEY_DIR = Path.home()/'.api_keys'
 
 
-EXCHANGES = ['bitfinex', 'hitbtc', 'poloniex']
-# EXCHANGES = ['bitfinex', 'bittrex', 'hitbtc', 'kraken', 'poloniex']
-# INACTIVE_EXCHANGES = ['bittrex', 'kraken']
+EXCHANGES = ['bitfinex', 'bittrex', 'hitbtc', 'kraken', 'poloniex']
 INACTIVE_EXCHANGES = []
+
 
 CURRENCIES = {
     'BCH': {
@@ -66,7 +65,7 @@ CURRENCIES = {
 
 
 class Defaults(object):
-    BASE_CURRENCIES = ['XRP', 'ETC']
+    BASE_CURRENCIES = ['XRP']
     FILL_ORDER_TIMEOUT = 60
     FLOAT_PRECISION = 9
     HI_BALANCE_PERCENT = 0.9
