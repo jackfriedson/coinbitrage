@@ -93,6 +93,7 @@ class ArbitrageEngine(object):
     def _find_best_arbitrage_opportunity(self, base_currency: str, update_table: bool = False):
         best_opportunity = None
 
+        # TODO: Don't find best, just check everything and execute if profitable
         for buy_exchange, sell_exchange in product(self._exchanges.buy_exchanges(base_currency), self._exchanges.sell_exchanges(base_currency)):
             if buy_exchange.name == sell_exchange.name:
                 if update_table:
@@ -314,7 +315,7 @@ class ArbitrageEngine(object):
 
         def place_order(exchange, *args, **kwargs):
             try:
-                return exchange.wait_for_fill(exchange.limit_order(*args, **kwargs))
+                return exchange.wait_for_fill(exchange.limit_order(*args, **kwargs), timeout=None)
             except RequestException as e:
                 log.error(e, event_name='place_order.error')
                 return None

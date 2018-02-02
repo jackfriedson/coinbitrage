@@ -86,7 +86,7 @@ class BaseExchangeAPI(object):
             return None
 
         start_time = time.time()
-        while time.time() < start_time + timeout:
+        while (time.time() < start_time + timeout) if timeout is not None else True:
             order_info = self.order(order_id)
             if order_info and not order_info['is_open']:
                 log.info('{exchange} order {order_id} closed', event_name='order.fill.success',
