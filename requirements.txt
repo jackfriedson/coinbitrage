@@ -14,7 +14,7 @@ pycrypto==2.6.1
 -e git+git@github.com:jackfriedson/PyLimitBook.git@e4e4eec3d3de93d397218f38fffcf7ed4eb79731#egg=pylimitbook
 python-dateutil==2.6.1
 pytz==2017.3
-PyYAML==3.12
+PyYAML==5.4
 requests==2.18.4
 six==1.11.0
 txaio==2.8.2
