@@ -1,4 +1,4 @@
-autobahn==17.10.1
+autobahn==20.12.3
 bintrees==2.0.7
 -e git+git@github.com:jackfriedson/bitex.git@ae62547a8c2ae9e9c8e447427b9054e25a7409a5#egg=BitEx
 certifi==2017.11.5
