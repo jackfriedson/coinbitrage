@@ -7,7 +7,7 @@ click==6.7
 coinbase==2.0.6
 -e git+https://github.com/jackfriedson/coinbitrage@8f1a48ba92bc5fce70b7c1318fee92a9dfe6a83b#egg=coinbitrage
 idna==2.6
-numpy==1.14.0
+numpy==1.22.0
 pandas==0.22.0
 pusherclient==0.3.0
 pycrypto==2.6.1
