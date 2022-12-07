@@ -1,7 +1,7 @@
 autobahn==17.10.1
 bintrees==2.0.7
 -e git+git@github.com:jackfriedson/bitex.git@ae62547a8c2ae9e9c8e447427b9054e25a7409a5#egg=BitEx
-certifi==2017.11.5
+certifi==2022.12.7
 chardet==3.0.4
 click==6.7
 coinbase==2.0.6
